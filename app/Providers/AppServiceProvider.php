@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -30,6 +31,37 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configureMorphMap();
         $this->configureGates();
+        $this->refreshViteFontManifestCacheInLocal();
+    }
+
+    /**
+     * Vite regenerates fonts-manifest.dev.json when the dev server starts or
+     * restarts. php artisan serve keeps the old manifest in memory until it is
+     * restarted, which causes 404s for hashed font URLs.
+     */
+    protected function refreshViteFontManifestCacheInLocal(): void
+    {
+        if (! $this->app->environment('local')) {
+            return;
+        }
+
+        static $lastManifestMtime = null;
+
+        $this->app->booted(function () use (&$lastManifestMtime): void {
+            $manifestPath = public_path('fonts-manifest.dev.json');
+
+            if (! is_file($manifestPath)) {
+                return;
+            }
+
+            $mtime = filemtime($manifestPath);
+
+            if ($lastManifestMtime !== null && $lastManifestMtime !== $mtime) {
+                Vite::flush();
+            }
+
+            $lastManifestMtime = $mtime;
+        });
     }
 
     protected function configureMorphMap(): void

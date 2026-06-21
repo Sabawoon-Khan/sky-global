@@ -34,7 +34,7 @@ class UserManagementController extends Controller
 
         return Inertia::render('settings/Users/Index', [
             'users' => $users,
-            'roles' => Role::query()->orderBy('name')->pluck('name'),
+            'roles' => Role::query()->orderBy('name')->get(['id', 'name']),
             'filters' => ['search' => $search ?: null],
         ]);
     }

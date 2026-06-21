@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Form, Head, router } from '@inertiajs/vue3';
-import { Shield, UserCog } from '@lucide/vue';
+import { Search, Shield, UserCog } from '@lucide/vue';
+import UserManagementController from '@/actions/App/Http/Controllers/Settings/UserManagementController';
 import Heading from '@/components/Heading.vue';
+import MisPagination from '@/components/MisPagination.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,7 +13,9 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { Paginated } from '@/lib/format';
 
 interface Role {
     id: number;
@@ -27,8 +31,9 @@ interface UserRecord {
 }
 
 interface Props {
-    users: UserRecord[];
+    users: Paginated<UserRecord>;
     roles: Role[];
+    filters?: { search?: string | null };
 }
 
 defineProps<Props>();
@@ -43,7 +48,11 @@ defineOptions({
 });
 
 const toggleUser = (user: UserRecord): void => {
-    router.post(`/settings/users/${user.id}/toggle`, {}, { preserveScroll: true });
+    router.put(
+        UserManagementController.update.url(user.id),
+        { is_active: !user.is_active },
+        { preserveScroll: true },
+    );
 };
 </script>
 
@@ -64,19 +73,35 @@ const toggleUser = (user: UserRecord): void => {
                     System Users
                 </CardTitle>
                 <CardDescription>
-                    {{ users.length }} registered users
+                    {{ users.meta?.total ?? users.data.length }} registered users
                 </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent class="space-y-4">
+                <form
+                    method="get"
+                    action="/settings/users"
+                    class="relative max-w-sm"
+                >
+                    <Search
+                        class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <Input
+                        name="search"
+                        :default-value="filters?.search ?? ''"
+                        placeholder="Search users..."
+                        class="pl-9"
+                    />
+                </form>
+
                 <div
-                    v-if="users.length === 0"
+                    v-if="users.data.length === 0"
                     class="text-sm text-muted-foreground"
                 >
                     No users found.
                 </div>
                 <div v-else class="space-y-4">
                     <div
-                        v-for="user in users"
+                        v-for="user in users.data"
                         :key="user.id"
                         class="rounded-lg border p-4"
                     >
@@ -114,9 +139,11 @@ const toggleUser = (user: UserRecord): void => {
 
                             <div class="flex flex-col gap-3 sm:min-w-[220px]">
                                 <Form
-                                    :action="`/settings/users/${user.id}/roles`"
-                                    method="post"
+                                    v-bind="
+                                        UserManagementController.update.form(user.id)
+                                    "
                                     class="grid gap-2"
+                                    :options="{ preserveScroll: true }"
                                     v-slot="{ processing }"
                                 >
                                     <Label :for="`roles-${user.id}`">Roles</Label>
@@ -163,6 +190,8 @@ const toggleUser = (user: UserRecord): void => {
                         </div>
                     </div>
                 </div>
+
+                <MisPagination :pagination="users" />
             </CardContent>
         </Card>
     </div>
