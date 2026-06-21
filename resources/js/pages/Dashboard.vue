@@ -11,6 +11,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { dashboard } from '@/routes';
+import { misQuickLinks } from '@/lib/mis-navigation';
 
 interface DashboardStats {
     bidding: {
@@ -93,6 +94,29 @@ const formatCurrency = (value: number): string =>
             description="Overview of bidding, projects, finance, and HR"
         />
 
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Link
+                v-for="link in misQuickLinks"
+                :key="link.href"
+                :href="link.href"
+                class="group rounded-lg border p-4 transition-colors hover:bg-muted/50"
+            >
+                <div class="flex items-start gap-3">
+                    <div
+                        class="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted group-hover:bg-background"
+                    >
+                        <component :is="link.icon" class="size-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                        <p class="font-medium">{{ link.title }}</p>
+                        <p class="text-sm text-muted-foreground">
+                            {{ link.description }}
+                        </p>
+                    </div>
+                </div>
+            </Link>
+        </div>
+
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
@@ -136,40 +160,45 @@ const formatCurrency = (value: number): string =>
                 </CardContent>
             </Card>
 
-            <Card>
+            <Card class="transition-colors hover:bg-muted/30">
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
                     <CardTitle class="text-sm font-medium">Net Finance (USD)</CardTitle>
                     <DollarSign class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div class="text-2xl font-bold">
-                        {{
-                            formatCurrency(
-                                stats.finance.total_income_usd -
-                                    stats.finance.total_expense_usd -
-                                    stats.finance.overhead_usd,
-                            )
-                        }}
-                    </div>
-                    <p class="text-xs text-muted-foreground">
-                        Income {{ formatCurrency(stats.finance.total_income_usd) }}
-                    </p>
+                    <Link href="/finance" class="block space-y-1">
+                        <div class="text-2xl font-bold">
+                            {{
+                                formatCurrency(
+                                    stats.finance.total_income_usd -
+                                        stats.finance.total_expense_usd -
+                                        stats.finance.overhead_usd,
+                                )
+                            }}
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Income {{ formatCurrency(stats.finance.total_income_usd) }} ·
+                            View finance
+                        </p>
+                    </Link>
                 </CardContent>
             </Card>
 
-            <Card>
+            <Card class="transition-colors hover:bg-muted/30">
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
                     <CardTitle class="text-sm font-medium">Workforce</CardTitle>
                     <Users class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div class="text-2xl font-bold">
-                        {{ stats.hr.employees + stats.hr.contractors }}
-                    </div>
-                    <p class="text-xs text-muted-foreground">
-                        {{ stats.hr.employees }} employees ·
-                        {{ stats.hr.contractors }} contractors
-                    </p>
+                    <Link href="/hr/employees" class="block space-y-1">
+                        <div class="text-2xl font-bold">
+                            {{ stats.hr.employees + stats.hr.contractors }}
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            {{ stats.hr.employees }} employees ·
+                            {{ stats.hr.contractors }} contractors · View HR
+                        </p>
+                    </Link>
                 </CardContent>
             </Card>
 

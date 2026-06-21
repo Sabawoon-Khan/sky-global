@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Hr;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
+use App\Models\Hr\Contractor;
+use App\Models\Hr\Employee;
 use App\Models\Hr\PersonnelAttendance;
 use App\Models\Project\Project;
 use Illuminate\Http\RedirectResponse;
@@ -36,6 +38,14 @@ class PersonnelAttendanceController extends Controller
         return Inertia::render('mis/hr/Attendance/Index', [
             'attendances' => $attendances,
             'projects' => Project::query()->where('is_archived', false)->orderBy('name')->get(['id', 'code', 'name']),
+            'employees' => Employee::query()
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get(['id', 'first_name', 'last_name']),
+            'contractors' => Contractor::query()
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get(['id', 'first_name', 'last_name']),
             'filters' => [
                 'year' => $year,
                 'month' => $month,

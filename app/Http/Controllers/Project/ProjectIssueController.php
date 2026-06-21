@@ -36,7 +36,7 @@ class ProjectIssueController extends Controller
 
     public function store(Request $request, Project $project): RedirectResponse
     {
-        $this->authorizePermission($request, 'projects.create');
+        $this->authorizePermission($request, 'projects.edit');
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -100,5 +100,24 @@ class ProjectIssueController extends Controller
         }
 
         return back()->with('success', 'Issue updated.');
+    }
+
+    public function destroy(Request $request, Project $project, ProjectIssue $issue): RedirectResponse
+    {
+        $this->authorizePermission($request, 'projects.edit');
+
+        abort_unless($issue->project_id === $project->id, 404);
+
+        $issue->delete();
+
+        ProjectActivityLogger::log(
+            $project,
+            ProjectActivityType::NoteAdded,
+            'Issue removed',
+            $issue->title,
+            ['issue_id' => $issue->id],
+        );
+
+        return back()->with('success', 'Issue deleted.');
     }
 }

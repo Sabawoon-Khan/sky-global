@@ -1,14 +1,5 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import {
-    Archive,
-    BarChart3,
-    Briefcase,
-    Building2,
-    LayoutGrid,
-    Settings,
-    Users,
-} from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -22,48 +13,10 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { misNavGroups } from '@/lib/mis-navigation';
 import { dashboard } from '@/routes';
-import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-    {
-        title: 'Projects',
-        href: '/projects',
-        icon: Briefcase,
-    },
-    {
-        title: 'Organizations',
-        href: '/organizations',
-        icon: Building2,
-    },
-    {
-        title: 'Archive',
-        href: '/archive',
-        icon: Archive,
-    },
-    {
-        title: 'HR',
-        href: '/hr/employees',
-        icon: Users,
-    },
-    {
-        title: 'Analytics',
-        href: '/analytics/bidding',
-        icon: BarChart3,
-    },
-    {
-        title: 'Settings',
-        href: '/settings/users',
-        icon: Settings,
-    },
-];
-
-const footerNavItems: NavItem[] = [];
+const footerNavItems = [];
 </script>
 
 <template>
@@ -81,7 +34,12 @@ const footerNavItems: NavItem[] = [];
         </SidebarHeader>
 
         <SidebarContent>
-            <NavMain :items="mainNavItems" />
+            <NavMain
+                v-for="group in misNavGroups"
+                :key="group.label"
+                :label="group.label"
+                :items="group.items"
+            />
         </SidebarContent>
 
         <SidebarFooter>

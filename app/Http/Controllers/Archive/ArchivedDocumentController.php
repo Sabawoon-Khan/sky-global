@@ -81,11 +81,11 @@ class ArchivedDocumentController extends Controller
         return back()->with('success', 'Document archived.');
     }
 
-    public function show(Request $request, ArchivedDocument $document): Response
+    public function show(Request $request, ArchivedDocument $archivedDocument): Response
     {
         $this->authorizePermission($request, 'archive.view');
 
-        $document->load([
+        $archivedDocument->load([
             'documentCategory',
             'organization',
             'project',
@@ -95,14 +95,14 @@ class ArchivedDocumentController extends Controller
         ]);
 
         return Inertia::render('mis/archive/Show', [
-            'document' => $document,
+            'document' => $archivedDocument,
             'categories' => DocumentCategory::query()->orderBy('name')->get(),
             'organizations' => Organization::query()->orderBy('name')->get(['id', 'name']),
             'projects' => Project::query()->orderBy('name')->get(['id', 'code', 'name']),
         ]);
     }
 
-    public function update(Request $request, ArchivedDocument $document): RedirectResponse
+    public function update(Request $request, ArchivedDocument $archivedDocument): RedirectResponse
     {
         $this->authorizePermission($request, 'archive.edit');
 
@@ -122,28 +122,28 @@ class ArchivedDocumentController extends Controller
         ]);
 
         if ($request->hasFile('file')) {
-            if ($document->file_path) {
-                Storage::disk('local')->delete($document->file_path);
+            if ($archivedDocument->file_path) {
+                Storage::disk('local')->delete($archivedDocument->file_path);
             }
 
             $file = $request->file('file');
             $validated['file_path'] = $file->store('archive', 'local');
             $validated['original_filename'] = $file->getClientOriginalName();
             $validated['file_size'] = $file->getSize();
-            $validated['version'] = ($document->version ?? 1) + 1;
+            $validated['version'] = ($archivedDocument->version ?? 1) + 1;
         }
 
         unset($validated['file']);
-        $document->update($validated);
+        $archivedDocument->update($validated);
 
         return back()->with('success', 'Document updated.');
     }
 
-    public function archive(Request $request, ArchivedDocument $document): RedirectResponse
+    public function archive(Request $request, ArchivedDocument $archivedDocument): RedirectResponse
     {
         $this->authorizePermission($request, 'archive.archive');
 
-        $document->update(['is_archived' => true]);
+        $archivedDocument->update(['is_archived' => true]);
 
         return redirect()
             ->route('archive.index')

@@ -12,6 +12,7 @@ use App\Models\Hr\PayrollRun;
 use App\Models\Hr\PersonnelAttendance;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -45,6 +46,18 @@ class PayrollRunController extends Controller
             'period_month' => ['required', 'integer', 'min:1', 'max:12'],
         ]);
 
+        $existing = PayrollRun::query()
+            ->where('period_year', $validated['period_year'])
+            ->where('period_month', $validated['period_month'])
+            ->first();
+
+        if ($existing) {
+            return $this->duplicatePayrollPeriodResponse(
+                $validated['period_year'],
+                $validated['period_month'],
+            );
+        }
+
         $payrollRun = PayrollRun::query()->create([
             ...$validated,
             'status' => 'draft',
@@ -56,14 +69,33 @@ class PayrollRunController extends Controller
             ->with('success', 'Payroll run created.');
     }
 
+    private function duplicatePayrollPeriodResponse(int $year, int $month): RedirectResponse
+    {
+        $periodLabel = Carbon::create($year, $month, 1)->format('F')." {$year}";
+
+        Inertia::flash('toast', [
+            'type' => 'error',
+            'message' => "A payroll run for {$periodLabel} already exists.",
+        ]);
+
+        return back()->withInput();
+    }
+
     public function show(Request $request, PayrollRun $payrollRun): Response
     {
         $this->authorizePermission($request, 'hr.view');
 
-        $payrollRun->load(['items.project', 'processedBy']);
+        $payrollRun->load(['items.project', 'items.personnel', 'processedBy', 'attachments']);
+
+        $approvedAttendanceCount = PersonnelAttendance::query()
+            ->where('year', $payrollRun->period_year)
+            ->where('month', $payrollRun->period_month)
+            ->where('status', 'approved')
+            ->count();
 
         return Inertia::render('mis/hr/Payroll/Show', [
             'payrollRun' => $payrollRun,
+            'approvedAttendanceCount' => $approvedAttendanceCount,
         ]);
     }
 
@@ -72,10 +104,17 @@ class PayrollRunController extends Controller
         $this->authorizePermission($request, 'hr.edit');
 
         if ($payrollRun->status === 'processed') {
-            return back()->withErrors(['payroll' => 'Payroll run is already processed.']);
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Payroll run is already processed.',
+            ]);
+
+            return back();
         }
 
-        DB::transaction(function () use ($payrollRun, $request) {
+        $itemCount = 0;
+
+        DB::transaction(function () use ($payrollRun, $request, &$itemCount) {
             $payrollRun->items()->delete();
 
             $attendances = PersonnelAttendance::query()
@@ -98,6 +137,8 @@ class PayrollRunController extends Controller
                     'currency' => 'USD',
                     'notes' => "Generated from attendance #{$attendance->id}",
                 ]);
+
+                $itemCount++;
             }
 
             $payrollRun->update([
@@ -106,7 +147,14 @@ class PayrollRunController extends Controller
             ]);
         });
 
-        return back()->with('success', 'Payroll run processed.');
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => $itemCount > 0
+                ? "Payroll processed with {$itemCount} line items."
+                : 'Payroll processed, but no approved attendance was found for this period.',
+        ]);
+
+        return back();
     }
 
     private function calculateBaseAmount(PersonnelAttendance $attendance): float

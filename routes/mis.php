@@ -67,6 +67,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('{project}/issues', [ProjectIssueController::class, 'index'])->name('issues.index');
         Route::post('{project}/issues', [ProjectIssueController::class, 'store'])->name('issues.store');
         Route::put('{project}/issues/{issue}', [ProjectIssueController::class, 'update'])->name('issues.update');
+        Route::delete('{project}/issues/{issue}', [ProjectIssueController::class, 'destroy'])->name('issues.destroy');
 
         Route::post('{project}/sites', [ProjectSiteController::class, 'store'])->name('sites.store');
         Route::put('{project}/sites/{site}', [ProjectSiteController::class, 'update'])->name('sites.update');
@@ -86,7 +87,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::prefix('finance')->name('finance.')->group(function () {
-        Route::get('/', [ProjectIncomeController::class, 'index'])->name('index');
+        Route::get('/', [InvoiceController::class, 'index'])->name('index');
         Route::post('incomes', [ProjectIncomeController::class, 'store'])->name('incomes.store');
         Route::put('incomes/{income}', [ProjectIncomeController::class, 'update'])->name('incomes.update');
         Route::delete('incomes/{income}', [ProjectIncomeController::class, 'destroy'])->name('incomes.destroy');
