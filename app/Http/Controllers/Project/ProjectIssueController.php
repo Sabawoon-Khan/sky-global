@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Project;
 
 use App\Enums\ProjectActivityType;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\Project\Project;
 use App\Models\Project\ProjectIssue;
@@ -15,7 +16,7 @@ use Inertia\Response;
 
 class ProjectIssueController extends Controller
 {
-    use AuthorizesMisPermissions;
+    use AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request, Project $project): Response
     {
@@ -51,6 +52,7 @@ class ProjectIssueController extends Controller
             'reported_by' => $request->user()->id,
             'opened_at' => now(),
         ]);
+        $this->storeOptionalAttachment($request, $issue);
 
         ProjectActivityLogger::log(
             $project,

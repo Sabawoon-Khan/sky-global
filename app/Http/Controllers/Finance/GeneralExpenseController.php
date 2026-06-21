@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\Finance\GeneralExpense;
 use Illuminate\Http\RedirectResponse;
@@ -12,7 +13,7 @@ use Inertia\Response;
 
 class GeneralExpenseController extends Controller
 {
-    use AuthorizesMisPermissions;
+    use AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
@@ -45,10 +46,11 @@ class GeneralExpenseController extends Controller
             'status' => ['nullable', 'string', 'in:pending,approved,rejected'],
         ]);
 
-        GeneralExpense::query()->create([
+        $expense = GeneralExpense::query()->create([
             ...$validated,
             'created_by' => $request->user()->id,
         ]);
+        $this->storeOptionalAttachment($request, $expense);
 
         return back()->with('success', 'General expense recorded.');
     }

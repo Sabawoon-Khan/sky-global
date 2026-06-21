@@ -2,12 +2,17 @@
 
 namespace App\Models\Procurement;
 
+use App\Concerns\HasAttachments;
+use App\Models\Project\Project;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CompetitorBid extends Model
 {
+    use HasAttachments;
+
     protected $fillable = [
+        'project_id',
         'procurement_opportunity_id',
         'competitor_name',
         'bid_amount',
@@ -30,5 +35,10 @@ class CompetitorBid extends Model
     public function procurementOpportunity(): BelongsTo
     {
         return $this->belongsTo(ProcurementOpportunity::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 }

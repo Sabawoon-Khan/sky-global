@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Requests\StoreOrganizationRequest;
 use App\Http\Requests\UpdateOrganizationRequest;
 use App\Models\Organization;
@@ -14,7 +15,7 @@ use Inertia\Response;
 
 class OrganizationController extends Controller
 {
-    use AuthorizesMisPermissions;
+    use AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
@@ -67,6 +68,7 @@ class OrganizationController extends Controller
         $this->authorizePermission($request, 'bidding.create');
 
         $organization = Organization::query()->create($request->validated());
+        $this->storeOptionalAttachment($request, $organization);
 
         return redirect()
             ->route('organizations.show', $organization)
@@ -80,6 +82,7 @@ class OrganizationController extends Controller
         $organization->load([
             'organizationType',
             'contacts',
+            'attachments',
             'procurementOpportunities' => fn ($q) => $q->latest()->limit(10),
             'projects' => fn ($q) => $q->latest()->limit(10),
         ]);
@@ -95,6 +98,7 @@ class OrganizationController extends Controller
         $this->authorizePermission($request, 'bidding.edit');
 
         $organization->update($request->validated());
+        $this->storeOptionalAttachment($request, $organization);
 
         return back()->with('success', 'Organization updated.');
     }

@@ -2,12 +2,15 @@
 
 namespace App\Models\Equipment;
 
+use App\Concerns\HasAttachments;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class EquipmentCatalog extends Model
 {
+    use HasAttachments;
+
     protected $table = 'equipment_catalog';
 
     protected $fillable = [

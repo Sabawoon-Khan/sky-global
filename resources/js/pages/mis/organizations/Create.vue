@@ -2,6 +2,8 @@
 import { Form, Head, Link } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
+import MisPage from '@/components/MisPage.vue';
+import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -38,8 +40,8 @@ defineOptions({
 <template>
     <Head title="Add Organization" />
 
-    <div class="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4">
-        <div class="flex items-center justify-between">
+    <MisPage narrow>
+        <div class="flex items-center justify-between gap-3">
             <Heading
                 title="Add Organization"
                 description="Register a client, partner, or procurement body with full details"
@@ -52,6 +54,7 @@ defineOptions({
         <Form
             v-bind="OrganizationController.store.form()"
             class="space-y-6"
+            :options="{ forceFormData: true }"
             v-slot="{ errors, processing }"
         >
             <Card>
@@ -157,6 +160,16 @@ defineOptions({
                 </CardContent>
             </Card>
 
+            <Card>
+                <CardHeader>
+                    <CardTitle>Attachment</CardTitle>
+                    <CardDescription>Upload a related document if available</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <OptionalAttachmentField :error="errors.attachment" />
+                </CardContent>
+            </Card>
+
             <div class="flex justify-end gap-3">
                 <Button variant="outline" as-child>
                     <Link href="/organizations">Cancel</Link>
@@ -164,5 +177,5 @@ defineOptions({
                 <Button type="submit" :disabled="processing">Save organization</Button>
             </div>
         </Form>
-    </div>
+    </MisPage>
 </template>

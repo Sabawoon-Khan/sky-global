@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\Finance\GeneralExpense;
 use App\Models\Finance\Invoice;
@@ -15,7 +16,7 @@ use Inertia\Response;
 
 class InvoiceController extends Controller
 {
-    use AuthorizesMisPermissions;
+    use AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
@@ -77,6 +78,7 @@ class InvoiceController extends Controller
         foreach ($lineItems as $item) {
             $invoice->lineItems()->create($item);
         }
+        $this->storeOptionalAttachment($request, $invoice);
 
         return back()->with('success', 'Invoice created.');
     }

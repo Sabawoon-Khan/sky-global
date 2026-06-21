@@ -2,6 +2,7 @@
 
 namespace App\Models\Hr;
 
+use App\Concerns\HasAttachments;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PayrollRun extends Model
 {
+    use HasAttachments;
+
     protected $fillable = [
         'period_year',
         'period_month',

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\Archive\ArchivedDocumentController;
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Equipment\EquipmentCatalogController;
 use App\Http\Controllers\Equipment\PersonnelEquipmentIssueController;
@@ -19,9 +20,6 @@ use App\Http\Controllers\Hr\EmployeeController;
 use App\Http\Controllers\Hr\PayrollRunController;
 use App\Http\Controllers\Hr\PersonnelAttendanceController;
 use App\Http\Controllers\OrganizationController;
-use App\Http\Controllers\Procurement\BidController;
-use App\Http\Controllers\Procurement\CompetitorBidController;
-use App\Http\Controllers\Procurement\ProcurementOpportunityController;
 use App\Http\Controllers\Project\ProjectActivityController;
 use App\Http\Controllers\Project\ProjectController;
 use App\Http\Controllers\Project\ProjectDeploymentController;
@@ -34,6 +32,9 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
+    Route::get('attachments/{attachment}/download', [AttachmentController::class, 'download'])->name('attachments.download');
+    Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
+
     Route::get('organizations', [OrganizationController::class, 'index'])->name('organizations.index');
     Route::get('organizations/create', [OrganizationController::class, 'create'])->name('organizations.create');
     Route::post('organizations', [OrganizationController::class, 'store'])->name('organizations.store');
@@ -41,33 +42,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('organizations/{organization}', [OrganizationController::class, 'update'])->name('organizations.update');
     Route::delete('organizations/{organization}', [OrganizationController::class, 'destroy'])->name('organizations.destroy');
 
-    Route::prefix('bidding')->name('bidding.')->group(function () {
-        Route::get('opportunities', [ProcurementOpportunityController::class, 'index'])->name('opportunities.index');
-        Route::get('opportunities/create', [ProcurementOpportunityController::class, 'create'])->name('opportunities.create');
-        Route::post('opportunities', [ProcurementOpportunityController::class, 'store'])->name('opportunities.store');
-        Route::get('opportunities/{opportunity}', [ProcurementOpportunityController::class, 'show'])->name('opportunities.show');
-        Route::put('opportunities/{opportunity}', [ProcurementOpportunityController::class, 'update'])->name('opportunities.update');
-        Route::delete('opportunities/{opportunity}', [ProcurementOpportunityController::class, 'destroy'])->name('opportunities.destroy');
-
-        Route::get('bids', [BidController::class, 'index'])->name('bids.index');
-        Route::post('bids', [BidController::class, 'store'])->name('bids.store');
-        Route::get('bids/{bid}', [BidController::class, 'show'])->name('bids.show');
-        Route::put('bids/{bid}', [BidController::class, 'update'])->name('bids.update');
-        Route::delete('bids/{bid}', [BidController::class, 'destroy'])->name('bids.destroy');
-        Route::post('bids/{bid}/won', [BidController::class, 'markWon'])->name('bids.won');
-        Route::post('bids/{bid}/lost', [BidController::class, 'markLost'])->name('bids.lost');
-
-        Route::post('competitor-bids', [CompetitorBidController::class, 'store'])->name('competitor-bids.store');
-        Route::put('competitor-bids/{competitorBid}', [CompetitorBidController::class, 'update'])->name('competitor-bids.update');
-        Route::delete('competitor-bids/{competitorBid}', [CompetitorBidController::class, 'destroy'])->name('competitor-bids.destroy');
-    });
+    Route::redirect('bidding', '/projects');
+    Route::redirect('bidding/opportunities', '/projects');
+    Route::redirect('bidding/bids', '/projects');
 
     Route::prefix('projects')->name('projects.')->group(function () {
         Route::get('/', [ProjectController::class, 'index'])->name('index');
+        Route::get('create', [ProjectController::class, 'create'])->name('create');
+        Route::post('/', [ProjectController::class, 'store'])->name('store');
         Route::get('{project}', [ProjectController::class, 'show'])->name('show');
         Route::put('{project}', [ProjectController::class, 'update'])->name('update');
+        Route::post('{project}/status', [ProjectController::class, 'updateStatus'])->name('status');
         Route::post('{project}/archive', [ProjectController::class, 'archive'])->name('archive');
         Route::put('{project}/details', [ProjectController::class, 'updateDetails'])->name('details.update');
+
+        Route::post('{project}/competitors', [ProjectController::class, 'storeCompetitorBid'])->name('competitors.store');
+        Route::delete('{project}/competitors/{competitorBid}', [ProjectController::class, 'destroyCompetitorBid'])->name('competitors.destroy');
+
+        Route::post('{project}/incomes', [ProjectController::class, 'storeIncome'])->name('incomes.store');
+        Route::post('{project}/expenses', [ProjectController::class, 'storeExpense'])->name('expenses.store');
 
         Route::post('{project}/activities', [ProjectActivityController::class, 'store'])->name('activities.store');
         Route::get('{project}/issues', [ProjectIssueController::class, 'index'])->name('issues.index');
@@ -112,11 +105,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('hr')->name('hr.')->group(function () {
         Route::get('employees', [EmployeeController::class, 'index'])->name('employees.index');
+        Route::get('employees/create', [EmployeeController::class, 'create'])->name('employees.create');
         Route::post('employees', [EmployeeController::class, 'store'])->name('employees.store');
         Route::get('employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
         Route::put('employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
 
         Route::get('contractors', [ContractorController::class, 'index'])->name('contractors.index');
+        Route::get('contractors/create', [ContractorController::class, 'create'])->name('contractors.create');
         Route::post('contractors', [ContractorController::class, 'store'])->name('contractors.store');
         Route::get('contractors/{contractor}', [ContractorController::class, 'show'])->name('contractors.show');
         Route::put('contractors/{contractor}', [ContractorController::class, 'update'])->name('contractors.update');

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Hr;
 
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\Hr\PersonnelAttendance;
 use App\Models\Project\Project;
@@ -13,7 +14,7 @@ use Inertia\Response;
 
 class PersonnelAttendanceController extends Controller
 {
-    use AuthorizesMisPermissions;
+    use AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
@@ -61,10 +62,11 @@ class PersonnelAttendanceController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        PersonnelAttendance::query()->create([
+        $attendance = PersonnelAttendance::query()->create([
             ...$validated,
             'status' => 'draft',
         ]);
+        $this->storeOptionalAttachment($request, $attendance);
 
         return back()->with('success', 'Attendance record created.');
     }

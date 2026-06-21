@@ -1,0 +1,152 @@
+<script setup lang="ts">
+import { Form, Head, Link } from '@inertiajs/vue3';
+import Heading from '@/components/Heading.vue';
+import InputError from '@/components/InputError.vue';
+import MisPage from '@/components/MisPage.vue';
+import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
+import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import EmployeeController from '@/actions/App/Http/Controllers/Hr/EmployeeController';
+
+interface Department {
+    id: number;
+    name: string;
+}
+
+defineProps<{
+    departments: Department[];
+}>();
+
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'HR', href: '/hr/employees' },
+            { title: 'Employees', href: '/hr/employees' },
+            { title: 'Create', href: '/hr/employees/create' },
+        ],
+    },
+});
+</script>
+
+<template>
+    <Head title="Add Employee" />
+
+    <MisPage narrow>
+        <div class="flex items-center justify-between gap-3">
+            <Heading
+                title="Add Employee"
+                description="Register a new staff member"
+            />
+            <Button variant="outline" as-child>
+                <Link href="/hr/employees">Cancel</Link>
+            </Button>
+        </div>
+
+        <Form
+            v-bind="EmployeeController.store.form()"
+            class="space-y-6"
+            :options="{ forceFormData: true }"
+            v-slot="{ errors, processing }"
+        >
+            <Card>
+                <CardHeader>
+                    <CardTitle>Personal details</CardTitle>
+                </CardHeader>
+                <CardContent class="grid gap-4 md:grid-cols-2">
+                    <div class="grid gap-2">
+                        <Label for="first_name">First name *</Label>
+                        <Input id="first_name" name="first_name" required />
+                        <InputError :message="errors.first_name" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="last_name">Last name *</Label>
+                        <Input id="last_name" name="last_name" required />
+                        <InputError :message="errors.last_name" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="phone">Phone</Label>
+                        <Input id="phone" name="phone" type="tel" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="email">Email</Label>
+                        <Input id="email" name="email" type="email" />
+                    </div>
+                    <div class="grid gap-2 md:col-span-2">
+                        <Label for="current_address">Current address</Label>
+                        <textarea
+                            id="current_address"
+                            name="current_address"
+                            rows="2"
+                            class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                        />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Job details</CardTitle>
+                    <CardDescription>Optional employment information</CardDescription>
+                </CardHeader>
+                <CardContent class="grid gap-4 md:grid-cols-2">
+                    <div class="grid gap-2">
+                        <Label for="job_detail_department_id">Department</Label>
+                        <select
+                            id="job_detail_department_id"
+                            name="job_detail[department_id]"
+                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                        >
+                            <option value="">Select department</option>
+                            <option
+                                v-for="dept in departments"
+                                :key="dept.id"
+                                :value="dept.id"
+                            >
+                                {{ dept.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="job_detail_designation">Designation</Label>
+                        <Input
+                            id="job_detail_designation"
+                            name="job_detail[designation]"
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="job_detail_hire_date">Hire date</Label>
+                        <Input
+                            id="job_detail_hire_date"
+                            name="job_detail[hire_date]"
+                            type="date"
+                        />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Documents</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <OptionalAttachmentField :error="errors.attachment" />
+                </CardContent>
+            </Card>
+
+            <div class="flex justify-end gap-3">
+                <Button variant="outline" as-child>
+                    <Link href="/hr/employees">Cancel</Link>
+                </Button>
+                <Button type="submit" :disabled="processing">Save employee</Button>
+            </div>
+        </Form>
+    </MisPage>
+</template>

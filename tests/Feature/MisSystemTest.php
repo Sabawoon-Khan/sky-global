@@ -4,8 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Organization;
 use App\Models\OrganizationType;
-use App\Models\Procurement\Bid;
-use App\Models\Procurement\ProcurementOpportunity;
+use App\Models\Project\Project;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -51,44 +50,34 @@ class MisSystemTest extends TestCase
         $this->assertDatabaseHas('organizations', ['name' => 'Test NGO']);
     }
 
-    public function test_won_bid_creates_project(): void
+    public function test_project_status_can_change_to_won(): void
     {
         $organization = Organization::query()->create([
             'organization_type_id' => OrganizationType::query()->create(['name' => 'Gov', 'slug' => 'gov'])->id,
             'name' => 'Ministry of Interior',
         ]);
 
-        $opportunity = ProcurementOpportunity::query()->create([
+        $project = Project::query()->create([
             'organization_id' => $organization->id,
-            'title' => 'Static Guard Services',
+            'code' => 'GS-2026-TEST',
+            'name' => 'Static Guard Services',
             'currency' => 'USD',
-            'status' => 'open',
-        ]);
-
-        $bid = Bid::query()->create([
-            'procurement_opportunity_id' => $opportunity->id,
-            'bid_number' => 'B-2026-0001',
             'status' => 'submitted',
-            'our_total_amount' => 50000,
-            'currency' => 'USD',
+            'our_bid_amount' => 50000,
             'created_by' => $this->owner->id,
         ]);
 
         $this->actingAs($this->owner)
-            ->post(route('bidding.bids.won', $bid))
+            ->post(route('projects.status', $project), ['status' => 'won'])
             ->assertRedirect();
 
-        $bid->refresh();
+        $project->refresh();
 
-        $this->assertSame('won', $bid->status);
-        $this->assertNotNull($bid->project_id);
-        $this->assertDatabaseHas('projects', [
-            'id' => $bid->project_id,
-            'organization_id' => $organization->id,
-        ]);
+        $this->assertSame('won', $project->status);
+        $this->assertNotNull($project->won_at);
         $this->assertDatabaseHas('project_activities', [
-            'project_id' => $bid->project_id,
-            'activity_type' => 'project_created',
+            'project_id' => $project->id,
+            'activity_type' => 'status_change',
         ]);
     }
 

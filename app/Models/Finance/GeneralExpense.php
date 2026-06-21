@@ -2,6 +2,7 @@
 
 namespace App\Models\Finance;
 
+use App\Concerns\HasAttachments;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class GeneralExpense extends Model
 {
-    use SoftDeletes;
+    use HasAttachments, SoftDeletes;
 
     protected $fillable = [
         'account_id',

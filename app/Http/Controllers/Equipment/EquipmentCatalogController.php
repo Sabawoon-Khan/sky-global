@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Equipment;
 
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\Equipment\EquipmentCatalog;
 use App\Models\Equipment\EquipmentStock;
@@ -13,7 +14,7 @@ use Inertia\Response;
 
 class EquipmentCatalogController extends Controller
 {
-    use AuthorizesMisPermissions;
+    use AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
@@ -53,6 +54,7 @@ class EquipmentCatalogController extends Controller
         unset($validated['initial_quantity']);
 
         $catalog = EquipmentCatalog::query()->create($validated);
+        $this->storeOptionalAttachment($request, $catalog);
 
         if ($initialQuantity > 0) {
             EquipmentStock::query()->create([

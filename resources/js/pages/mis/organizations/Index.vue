@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { Building2, FolderKanban, Plus, Search, Users } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import MisPage from '@/components/MisPage.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -65,7 +66,7 @@ defineOptions({
 <template>
     <Head title="Organizations" />
 
-    <div class="flex flex-1 flex-col gap-6 p-4">
+    <MisPage>
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <Heading
                 title="Organizations"
@@ -241,5 +242,5 @@ defineOptions({
                 <MisPagination :pagination="organizations" />
             </CardContent>
         </Card>
-    </div>
+    </MisPage>
 </template>

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { Building2, FileText, FolderKanban, Mail, MapPin, Phone } from '@lucide/vue';
+import EntityAttachments, {
+    type EntityAttachment,
+} from '@/components/EntityAttachments.vue';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -56,6 +59,7 @@ interface Organization {
         total_contract_value: number | null;
         currency: string | null;
     }>;
+    attachments: EntityAttachment[];
 }
 
 defineProps<{
@@ -266,5 +270,7 @@ defineOptions({
                 <p v-else class="text-sm text-muted-foreground">No projects linked yet.</p>
             </CardContent>
         </Card>
+
+        <EntityAttachments :attachments="organization.attachments" />
     </div>
 </template>

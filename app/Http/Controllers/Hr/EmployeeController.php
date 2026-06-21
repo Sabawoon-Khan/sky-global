@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Hr;
 
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Hr\Employee;
@@ -13,7 +14,7 @@ use Inertia\Response;
 
 class EmployeeController extends Controller
 {
-    use AuthorizesMisPermissions;
+    use AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
@@ -52,6 +53,15 @@ class EmployeeController extends Controller
         ]);
     }
 
+    public function create(Request $request): Response
+    {
+        $this->authorizePermission($request, 'hr.create');
+
+        return Inertia::render('mis/hr/Employees/Create', [
+            'departments' => Department::query()->orderBy('name')->get(),
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $this->authorizePermission($request, 'hr.create');
@@ -86,6 +96,7 @@ class EmployeeController extends Controller
         if (is_array($jobDetail)) {
             $employee->jobDetails()->create($jobDetail);
         }
+        $this->storeOptionalAttachment($request, $employee);
 
         return redirect()
             ->route('hr.employees.show', $employee)
@@ -101,6 +112,7 @@ class EmployeeController extends Controller
             'salaries',
             'contracts',
             'user',
+            'attachments',
         ]);
 
         $employee->setAttribute(
@@ -148,6 +160,7 @@ class EmployeeController extends Controller
                 $jobDetail,
             );
         }
+        $this->storeOptionalAttachment($request, $employee);
 
         return back()->with('success', 'Employee updated.');
     }

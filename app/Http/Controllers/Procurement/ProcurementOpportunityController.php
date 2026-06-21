@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Procurement\StoreProcurementOpportunityRequest;
 use App\Http\Requests\Procurement\UpdateProcurementOpportunityRequest;
 use App\Models\Organization;
+use App\Models\OrganizationType;
 use App\Models\Procurement\ProcurementOpportunity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -58,7 +59,7 @@ class ProcurementOpportunityController extends Controller
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name', 'organization_type_id']),
-            'organizationTypes' => \App\Models\OrganizationType::query()
+            'organizationTypes' => OrganizationType::query()
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name']),

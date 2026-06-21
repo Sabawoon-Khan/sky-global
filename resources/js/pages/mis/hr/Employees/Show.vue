@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft } from '@lucide/vue';
+import EntityAttachments, {
+    type EntityAttachment,
+} from '@/components/EntityAttachments.vue';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -54,6 +57,7 @@ interface Employee {
     job_detail?: JobDetail | null;
     salaries?: Salary[];
     contracts?: Contract[];
+    attachments?: EntityAttachment[];
 }
 
 interface Props {
@@ -234,5 +238,7 @@ const formatCurrency = (value: number, currency = 'USD'): string =>
                 </CardContent>
             </Card>
         </div>
+
+        <EntityAttachments :attachments="employee.attachments ?? []" />
     </div>
 </template>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Hr;
 
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\Hr\Employee;
 use App\Models\Hr\EmployeeSalary;
@@ -17,7 +18,7 @@ use Inertia\Response;
 
 class PayrollRunController extends Controller
 {
-    use AuthorizesMisPermissions;
+    use AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
@@ -48,6 +49,7 @@ class PayrollRunController extends Controller
             ...$validated,
             'status' => 'draft',
         ]);
+        $this->storeOptionalAttachment($request, $payrollRun);
 
         return redirect()
             ->route('hr.payroll.show', $payrollRun)

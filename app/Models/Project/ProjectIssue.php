@@ -2,12 +2,15 @@
 
 namespace App\Models\Project;
 
+use App\Concerns\HasAttachments;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProjectIssue extends Model
 {
+    use HasAttachments;
+
     protected $fillable = [
         'project_id',
         'title',

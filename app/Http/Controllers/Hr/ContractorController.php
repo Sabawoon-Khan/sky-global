@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Hr;
 
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\Hr\Contractor;
 use Illuminate\Http\RedirectResponse;
@@ -12,7 +13,7 @@ use Inertia\Response;
 
 class ContractorController extends Controller
 {
-    use AuthorizesMisPermissions;
+    use AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
@@ -41,6 +42,13 @@ class ContractorController extends Controller
         ]);
     }
 
+    public function create(Request $request): Response
+    {
+        $this->authorizePermission($request, 'hr.create');
+
+        return Inertia::render('mis/hr/Contractors/Create');
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $this->authorizePermission($request, 'hr.create');
@@ -63,6 +71,7 @@ class ContractorController extends Controller
             ...$validated,
             'status' => $validated['status'] ?? 'active',
         ]);
+        $this->storeOptionalAttachment($request, $contractor);
 
         return redirect()
             ->route('hr.contractors.show', $contractor)
@@ -73,7 +82,7 @@ class ContractorController extends Controller
     {
         $this->authorizePermission($request, 'hr.view');
 
-        $contractor->load(['agreements', 'rates']);
+        $contractor->load(['agreements', 'rates', 'attachments']);
 
         return Inertia::render('mis/hr/Contractors/Show', [
             'contractor' => $contractor,
@@ -99,6 +108,7 @@ class ContractorController extends Controller
         ]);
 
         $contractor->update($validated);
+        $this->storeOptionalAttachment($request, $contractor);
 
         return back()->with('success', 'Contractor updated.');
     }

@@ -5,8 +5,6 @@ import {
     BarChart3,
     Briefcase,
     Building2,
-    DollarSign,
-    FileText,
     LayoutGrid,
     Settings,
     Users,
@@ -34,29 +32,19 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
-        title: 'Organizations',
-        href: '/organizations',
-        icon: Building2,
-    },
-    {
-        title: 'Bidding',
-        href: '/bidding/opportunities',
-        icon: FileText,
-    },
-    {
         title: 'Projects',
         href: '/projects',
         icon: Briefcase,
     },
     {
+        title: 'Organizations',
+        href: '/organizations',
+        icon: Building2,
+    },
+    {
         title: 'Archive',
         href: '/archive',
         icon: Archive,
-    },
-    {
-        title: 'Finance',
-        href: '/finance',
-        icon: DollarSign,
     },
     {
         title: 'HR',

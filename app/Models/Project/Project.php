@@ -2,11 +2,14 @@
 
 namespace App\Models\Project;
 
+use App\Concerns\HasAttachments;
+use App\Enums\ProjectStatus;
 use App\Models\Finance\ProjectBudget;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
 use App\Models\Organization;
 use App\Models\Procurement\Bid;
+use App\Models\Procurement\CompetitorBid;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,18 +22,29 @@ use Spatie\Activitylog\Support\LogOptions;
 
 class Project extends Model
 {
-    use LogsActivity, SoftDeletes;
+    use HasAttachments, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'bid_id',
         'organization_id',
         'code',
         'name',
+        'reference_number',
         'contract_number',
         'contract_start',
         'contract_end',
         'scope_summary',
+        'source',
+        'location',
+        'security_scope',
+        'published_at',
+        'submission_deadline',
+        'bid_submitted_at',
         'total_contract_value',
+        'our_bid_amount',
+        'loss_reason',
+        'winning_competitor_name',
+        'winning_amount',
         'currency',
         'status',
         'project_manager_id',
@@ -48,7 +62,12 @@ class Project extends Model
         return [
             'contract_start' => 'date',
             'contract_end' => 'date',
+            'published_at' => 'date',
+            'submission_deadline' => 'date',
+            'bid_submitted_at' => 'datetime',
             'total_contract_value' => 'decimal:2',
+            'our_bid_amount' => 'decimal:2',
+            'winning_amount' => 'decimal:2',
             'won_at' => 'datetime',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
@@ -132,5 +151,20 @@ class Project extends Model
     public function budgets(): HasMany
     {
         return $this->hasMany(ProjectBudget::class);
+    }
+
+    public function bidLineItems(): HasMany
+    {
+        return $this->hasMany(ProjectBidLineItem::class)->orderBy('sort_order');
+    }
+
+    public function competitorBids(): HasMany
+    {
+        return $this->hasMany(CompetitorBid::class);
+    }
+
+    public function isOperational(): bool
+    {
+        return in_array($this->status, ProjectStatus::operationalPhases(), true);
     }
 }

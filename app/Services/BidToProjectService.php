@@ -28,7 +28,7 @@ class BidToProjectService
                 'scope_summary' => $opportunity->description,
                 'total_contract_value' => $bid->our_total_amount,
                 'currency' => $bid->currency,
-                'status' => ProjectStatus::Planning->value,
+                'status' => ProjectStatus::Draft->value,
                 'project_manager_id' => $bid->created_by,
                 'won_at' => now(),
                 'created_by' => auth()->id(),

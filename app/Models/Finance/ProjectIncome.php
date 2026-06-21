@@ -2,6 +2,7 @@
 
 namespace App\Models\Finance;
 
+use App\Concerns\HasAttachments;
 use App\Models\Project\Project;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ProjectIncome extends Model
 {
-    use SoftDeletes;
+    use HasAttachments, SoftDeletes;
 
     protected $fillable = [
         'project_id',

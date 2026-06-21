@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Finance;
 
 use App\Enums\ProjectActivityType;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\Finance\ProjectIncome;
 use App\Models\Project\Project;
@@ -15,7 +16,7 @@ use Inertia\Response;
 
 class ProjectIncomeController extends Controller
 {
-    use AuthorizesMisPermissions;
+    use AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
@@ -58,6 +59,7 @@ class ProjectIncomeController extends Controller
             ...$validated,
             'created_by' => $request->user()->id,
         ]);
+        $this->storeOptionalAttachment($request, $income);
 
         $project = Project::query()->find($validated['project_id']);
         if ($project) {

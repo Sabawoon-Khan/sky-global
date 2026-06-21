@@ -2,6 +2,7 @@
 
 namespace App\Models\Hr;
 
+use App\Concerns\HasAttachments;
 use App\Models\Project\Project;
 use App\Models\Project\ProjectSite;
 use App\Models\User;
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class PersonnelAttendance extends Model
 {
+    use HasAttachments;
+
     protected $table = 'personnel_attendances';
 
     protected $fillable = [
