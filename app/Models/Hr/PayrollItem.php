@@ -15,7 +15,9 @@ class PayrollItem extends Model
         'personnel_id',
         'project_id',
         'base_amount',
+        'bonus',
         'deductions',
+        'advance',
         'net_amount',
         'currency',
         'notes',
@@ -25,9 +27,20 @@ class PayrollItem extends Model
     {
         return [
             'base_amount' => 'decimal:2',
+            'bonus' => 'decimal:2',
             'deductions' => 'decimal:2',
+            'advance' => 'decimal:2',
             'net_amount' => 'decimal:2',
         ];
+    }
+
+    public static function calculateNetAmount(
+        float $baseAmount,
+        float $bonus = 0,
+        float $deductions = 0,
+        float $advance = 0,
+    ): float {
+        return max(0, round($baseAmount + $bonus - $deductions - $advance, 2));
     }
 
     public function payrollRun(): BelongsTo

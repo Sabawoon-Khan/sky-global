@@ -16,6 +16,13 @@ class PersonnelAttendance extends Model
 
     protected $table = 'personnel_attendances';
 
+    protected $attributes = [
+        'days_present' => 0,
+        'days_absent' => 0,
+        'days_leave' => 0,
+        'overtime_hours' => 0,
+    ];
+
     protected $fillable = [
         'personnel_type',
         'personnel_id',

@@ -19,6 +19,7 @@ use App\Http\Controllers\Hr\ContractorController;
 use App\Http\Controllers\Hr\EmployeeController;
 use App\Http\Controllers\Hr\PayrollRunController;
 use App\Http\Controllers\Hr\PersonnelAttendanceController;
+use App\Http\Controllers\Hr\PersonnelPayrollAdjustmentController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\Project\ProjectActivityController;
 use App\Http\Controllers\Project\ProjectController;
@@ -125,10 +126,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('attendance/{attendance}', [PersonnelAttendanceController::class, 'update'])->name('attendance.update');
         Route::post('attendance/{attendance}/approve', [PersonnelAttendanceController::class, 'approve'])->name('attendance.approve');
 
+        Route::get('payroll-adjustments', [PersonnelPayrollAdjustmentController::class, 'index'])->name('payroll-adjustments.index');
+        Route::post('payroll-adjustments', [PersonnelPayrollAdjustmentController::class, 'store'])->name('payroll-adjustments.store');
+        Route::delete('payroll-adjustments/{payrollAdjustment}', [PersonnelPayrollAdjustmentController::class, 'destroy'])->name('payroll-adjustments.destroy');
+
         Route::get('payroll', [PayrollRunController::class, 'index'])->name('payroll.index');
         Route::post('payroll', [PayrollRunController::class, 'store'])->name('payroll.store');
         Route::get('payroll/{payrollRun}', [PayrollRunController::class, 'show'])->name('payroll.show');
         Route::post('payroll/{payrollRun}/process', [PayrollRunController::class, 'process'])->name('payroll.process');
+        Route::put('payroll/{payrollRun}/items/{payrollItem}', [PayrollRunController::class, 'updateItem'])->name('payroll.items.update');
     });
 
     Route::prefix('forms')->name('forms.')->group(function () {

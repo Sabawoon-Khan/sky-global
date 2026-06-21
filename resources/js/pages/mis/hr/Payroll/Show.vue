@@ -5,6 +5,7 @@ import {
     AlertCircle,
     CalendarDays,
     CheckCircle2,
+    Receipt,
     Users,
     Wallet,
 } from '@lucide/vue';
@@ -12,6 +13,7 @@ import EntityAttachments, {
     type EntityAttachment,
 } from '@/components/EntityAttachments.vue';
 import Heading from '@/components/Heading.vue';
+import InputError from '@/components/InputError.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +23,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 
 interface Personnel {
     first_name?: string;
@@ -34,7 +37,9 @@ interface PayrollItem {
     personnel?: Personnel | null;
     project?: { id: number; code: string; name?: string } | null;
     base_amount: number;
+    bonus: number;
     deductions: number;
+    advance: number;
     net_amount: number;
     currency?: string | null;
     notes?: string | null;
@@ -50,9 +55,21 @@ interface PayrollRun {
     attachments?: EntityAttachment[];
 }
 
+interface PendingAdjustment {
+    id: number;
+    personnel_type: string;
+    personnel_id: number;
+    personnel?: Personnel | null;
+    project?: { id: number; code: string; name?: string } | null;
+    type: string;
+    amount: number;
+    notes?: string | null;
+}
+
 interface Props {
     payrollRun: PayrollRun;
     approvedAttendanceCount: number;
+    pendingAdjustments: PendingAdjustment[];
 }
 
 const props = defineProps<Props>();
@@ -119,14 +136,67 @@ const totalNet = computed(() =>
     ),
 );
 
+const totalBonus = computed(() =>
+    (props.payrollRun.items ?? []).reduce(
+        (sum, item) => sum + Number(item.bonus ?? 0),
+        0,
+    ),
+);
+
+const totalDeductions = computed(() =>
+    (props.payrollRun.items ?? []).reduce(
+        (sum, item) => sum + Number(item.deductions ?? 0),
+        0,
+    ),
+);
+
+const totalAdvance = computed(() =>
+    (props.payrollRun.items ?? []).reduce(
+        (sum, item) => sum + Number(item.advance ?? 0),
+        0,
+    ),
+);
+
 const isDraft = computed(() => props.payrollRun.status !== 'processed');
 
 const isProcessed = computed(() => props.payrollRun.status === 'processed');
+
+const canEditItems = computed(() => itemCount.value > 0 && isProcessed.value);
+
+const pendingAdjustmentCount = computed(() => props.pendingAdjustments.length);
 
 const attendanceFilterUrl = computed(
     () =>
         `/hr/attendance?year=${props.payrollRun.period_year}&month=${props.payrollRun.period_month}`,
 );
+
+const adjustmentsUrl = computed(
+    () =>
+        `/hr/payroll-adjustments?year=${props.payrollRun.period_year}&month=${props.payrollRun.period_month}`,
+);
+
+const adjustmentTypeLabel = (type: string): string => {
+    switch (type) {
+        case 'bonus':
+            return 'Bonus';
+        case 'deduction':
+            return 'Deduction';
+        case 'advance':
+            return 'Advance';
+        default:
+            return type;
+    }
+};
+
+const pendingPersonnelLabel = (adjustment: PendingAdjustment): string => {
+    if (adjustment.personnel?.first_name || adjustment.personnel?.last_name) {
+        return [adjustment.personnel.first_name, adjustment.personnel.last_name]
+            .filter(Boolean)
+            .join(' ');
+    }
+
+    return `#${adjustment.personnel_id}`;
+};
 </script>
 
 <template>
@@ -154,6 +224,9 @@ const attendanceFilterUrl = computed(
                 </Button>
                 <Button variant="outline" as-child>
                     <Link :href="attendanceFilterUrl">View attendance</Link>
+                </Button>
+                <Button v-if="isDraft" variant="outline" as-child>
+                    <Link :href="adjustmentsUrl">Manage adjustments</Link>
                 </Button>
                 <Form
                     v-if="isDraft"
@@ -214,12 +287,81 @@ const attendanceFilterUrl = computed(
         >
             <CardHeader>
                 <CardTitle class="flex items-center gap-2 text-base">
+                    <Receipt class="size-5" />
+                    Pending adjustments ({{ pendingAdjustmentCount }})
+                </CardTitle>
+                <CardDescription>
+                    Bonus, deductions, and advances recorded for {{ periodLabel }} are
+                    applied automatically when you process this run.
+                </CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-4">
+                <div
+                    v-if="pendingAdjustmentCount === 0"
+                    class="text-sm text-muted-foreground"
+                >
+                    No adjustments recorded for this month yet. Add advances, bonuses, or
+                    deductions before processing payroll.
+                </div>
+                <div v-else class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b text-left text-muted-foreground">
+                                <th class="pb-3 pr-4 font-medium">Personnel</th>
+                                <th class="pb-3 pr-4 font-medium">Project</th>
+                                <th class="pb-3 pr-4 font-medium">Type</th>
+                                <th class="pb-3 pr-4 text-right font-medium">Amount</th>
+                                <th class="pb-3 font-medium">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="adjustment in pendingAdjustments"
+                                :key="adjustment.id"
+                                class="border-b last:border-0"
+                            >
+                                <td class="py-3 pr-4">{{ pendingPersonnelLabel(adjustment) }}</td>
+                                <td class="py-3 pr-4 text-muted-foreground">
+                                    {{ adjustment.project?.code ?? '—' }}
+                                </td>
+                                <td class="py-3 pr-4">
+                                    {{ adjustmentTypeLabel(adjustment.type) }}
+                                </td>
+                                <td
+                                    class="py-3 pr-4 text-right font-medium"
+                                    :class="
+                                        adjustment.type === 'bonus'
+                                            ? 'text-green-700 dark:text-green-400'
+                                            : 'text-destructive'
+                                    "
+                                >
+                                    {{ formatCurrency(adjustment.amount) }}
+                                </td>
+                                <td class="py-3 text-muted-foreground">
+                                    {{ adjustment.notes ?? '—' }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <Button variant="outline" size="sm" class="w-fit" as-child>
+                    <Link :href="adjustmentsUrl">Add or edit adjustments</Link>
+                </Button>
+            </CardContent>
+        </Card>
+
+        <Card
+            v-if="isDraft"
+            class="border-dashed bg-muted/20"
+        >
+            <CardHeader>
+                <CardTitle class="flex items-center gap-2 text-base">
                     <AlertCircle class="size-5" />
                     Next step
                 </CardTitle>
                 <CardDescription>
-                    This run is still a draft. Processing will create one line item
-                    per approved attendance record for {{ periodLabel }}.
+                    Approve attendance, record any bonus/deduction/advance for
+                    {{ periodLabel }}, then process this run.
                 </CardDescription>
             </CardHeader>
             <CardContent class="text-sm text-muted-foreground">
@@ -227,7 +369,11 @@ const attendanceFilterUrl = computed(
                     You currently have
                     <strong class="text-foreground">{{ approvedAttendanceCount }}</strong>
                     approved attendance
-                    {{ approvedAttendanceCount === 1 ? 'record' : 'records' }}.
+                    {{ approvedAttendanceCount === 1 ? 'record' : 'records' }}
+                    and
+                    <strong class="text-foreground">{{ pendingAdjustmentCount }}</strong>
+                    pending
+                    {{ pendingAdjustmentCount === 1 ? 'adjustment' : 'adjustments' }}.
                     Click <strong class="text-foreground">Process payroll</strong>
                     when you are ready to calculate amounts.
                 </p>
@@ -278,7 +424,11 @@ const attendanceFilterUrl = computed(
                     Line items
                 </CardTitle>
                 <CardDescription>
-                    Amounts calculated from approved attendance and salary rates
+                    {{
+                        isDraft
+                            ? 'Line items appear after processing; amounts include pending adjustments for this month'
+                            : 'Amounts from attendance; net = base + bonus − deductions − advance'
+                    }}
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -292,7 +442,16 @@ const attendanceFilterUrl = computed(
                             : 'No payroll amounts were calculated for this period.'
                     }}
                 </div>
-                <div v-else class="overflow-x-auto">
+                <div v-else class="space-y-4">
+                    <div
+                        v-if="canEditItems"
+                        class="flex flex-wrap gap-4 text-xs text-muted-foreground"
+                    >
+                        <span>Bonus total: {{ formatCurrency(totalBonus) }}</span>
+                        <span>Deductions total: {{ formatCurrency(totalDeductions) }}</span>
+                        <span>Advance total: {{ formatCurrency(totalAdvance) }}</span>
+                    </div>
+                    <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="border-b text-left text-muted-foreground">
@@ -303,9 +462,21 @@ const attendanceFilterUrl = computed(
                                     Base
                                 </th>
                                 <th class="pb-3 pr-4 text-right font-medium">
+                                    Bonus
+                                </th>
+                                <th class="pb-3 pr-4 text-right font-medium">
                                     Deductions
                                 </th>
-                                <th class="pb-3 text-right font-medium">Net</th>
+                                <th class="pb-3 pr-4 text-right font-medium">
+                                    Advance
+                                </th>
+                                <th class="pb-3 pr-4 text-right font-medium">Net</th>
+                                <th
+                                    v-if="canEditItems"
+                                    class="pb-3 text-right font-medium"
+                                >
+                                    Actions
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -317,7 +488,7 @@ const attendanceFilterUrl = computed(
                                 <td class="py-3 pr-4">
                                     <div>{{ personnelLabel(item) }}</div>
                                     <p
-                                        v-if="item.notes"
+                                        v-if="item.notes && !canEditItems"
                                         class="text-xs text-muted-foreground"
                                     >
                                         {{ item.notes }}
@@ -337,25 +508,114 @@ const attendanceFilterUrl = computed(
                                         )
                                     }}
                                 </td>
-                                <td class="py-3 pr-4 text-right text-destructive">
-                                    {{
-                                        formatCurrency(
-                                            item.deductions,
-                                            item.currency ?? 'USD',
-                                        )
-                                    }}
-                                </td>
-                                <td class="py-3 text-right font-medium">
-                                    {{
-                                        formatCurrency(
-                                            item.net_amount,
-                                            item.currency ?? 'USD',
-                                        )
-                                    }}
-                                </td>
+                                <Form
+                                    v-if="canEditItems"
+                                    :action="`/hr/payroll/${payrollRun.id}/items/${item.id}`"
+                                    method="put"
+                                    class="contents"
+                                    :options="{ preserveScroll: true }"
+                                    v-slot="{ errors, processing }"
+                                >
+                                    <td class="py-3 pr-2 align-top">
+                                        <Input
+                                            name="bonus"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            class="h-8 w-24 text-right"
+                                            :default-value="item.bonus ?? 0"
+                                        />
+                                        <InputError :message="errors.bonus" />
+                                    </td>
+                                    <td class="py-3 pr-2 align-top">
+                                        <Input
+                                            name="deductions"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            class="h-8 w-24 text-right"
+                                            :default-value="item.deductions ?? 0"
+                                        />
+                                        <InputError :message="errors.deductions" />
+                                    </td>
+                                    <td class="py-3 pr-2 align-top">
+                                        <Input
+                                            name="advance"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            class="h-8 w-24 text-right"
+                                            :default-value="item.advance ?? 0"
+                                        />
+                                        <InputError :message="errors.advance" />
+                                    </td>
+                                    <td class="py-3 pr-2 align-top text-right font-medium">
+                                        {{
+                                            formatCurrency(
+                                                item.net_amount,
+                                                item.currency ?? 'USD',
+                                            )
+                                        }}
+                                    </td>
+                                    <td class="py-3 align-top">
+                                        <div class="flex flex-col gap-1">
+                                            <Input
+                                                name="notes"
+                                                placeholder="Notes"
+                                                class="h-8 min-w-32"
+                                                :default-value="item.notes ?? ''"
+                                            />
+                                            <InputError :message="errors.notes" />
+                                            <Button
+                                                type="submit"
+                                                size="sm"
+                                                variant="outline"
+                                                class="w-fit self-end"
+                                                :disabled="processing"
+                                            >
+                                                Save
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </Form>
+                                <template v-else>
+                                    <td class="py-3 pr-4 text-right text-green-700 dark:text-green-400">
+                                        {{
+                                            formatCurrency(
+                                                item.bonus ?? 0,
+                                                item.currency ?? 'USD',
+                                            )
+                                        }}
+                                    </td>
+                                    <td class="py-3 pr-4 text-right text-destructive">
+                                        {{
+                                            formatCurrency(
+                                                item.deductions,
+                                                item.currency ?? 'USD',
+                                            )
+                                        }}
+                                    </td>
+                                    <td class="py-3 pr-4 text-right text-destructive">
+                                        {{
+                                            formatCurrency(
+                                                item.advance ?? 0,
+                                                item.currency ?? 'USD',
+                                            )
+                                        }}
+                                    </td>
+                                    <td class="py-3 text-right font-medium">
+                                        {{
+                                            formatCurrency(
+                                                item.net_amount,
+                                                item.currency ?? 'USD',
+                                            )
+                                        }}
+                                    </td>
+                                </template>
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </CardContent>
         </Card>

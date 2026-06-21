@@ -6,6 +6,7 @@ import {
     CalendarDays,
     DollarSign,
     LayoutGrid,
+    Receipt,
     Settings,
     UserRound,
     Users,
@@ -62,6 +63,11 @@ export const misNavGroups: NavGroup[] = [
                 title: 'Attendance',
                 href: '/hr/attendance',
                 icon: CalendarDays,
+            },
+            {
+                title: 'Payroll Adjustments',
+                href: '/hr/payroll-adjustments',
+                icon: Receipt,
             },
             {
                 title: 'Payroll',

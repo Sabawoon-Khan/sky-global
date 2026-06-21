@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import { CalendarDays, Plus } from '@lucide/vue';
+import { Plus, Receipt } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import MisPagination from '@/components/MisPagination.vue';
-import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,7 +19,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
-import { attendanceStatusActions } from '@/lib/status-actions';
 
 const EMPLOYEE_TYPE = 'App\\Models\\Hr\\Employee';
 const CONTRACTOR_TYPE = 'App\\Models\\Hr\\Contractor';
@@ -37,30 +35,39 @@ interface ProjectOption {
     name: string;
 }
 
-interface AttendanceRecord {
+interface AdjustmentTypeOption {
+    value: string;
+    label: string;
+}
+
+interface Personnel {
+    first_name?: string;
+    last_name?: string;
+}
+
+interface AdjustmentRecord {
     id: number;
     personnel_type: string;
     personnel_id: number;
-    personnel_name?: string | null;
-    project?: { id: number; code: string; name: string } | null;
-    year: number;
-    month: number;
-    days_present: number;
-    days_absent: number;
-    days_leave: number;
-    overtime_hours?: number | null;
-    status: string;
+    personnel?: Personnel | null;
+    project?: { id: number; code: string; name?: string } | null;
+    period_year: number;
+    period_month: number;
+    type: string;
+    amount: number;
+    notes?: string | null;
+    applied_at?: string | null;
 }
 
 interface Props {
-    attendances: Paginated<AttendanceRecord>;
+    adjustments: Paginated<AdjustmentRecord>;
     projects: ProjectOption[];
     employees: PersonOption[];
     contractors: PersonOption[];
+    adjustmentTypes: AdjustmentTypeOption[];
     filters?: {
         year?: number;
         month?: number;
-        project_id?: number;
     };
 }
 
@@ -70,7 +77,7 @@ defineOptions({
     layout: {
         breadcrumbs: [
             { title: 'HR', href: '/hr/employees' },
-            { title: 'Attendance', href: '/hr/attendance' },
+            { title: 'Payroll Adjustments', href: '/hr/payroll-adjustments' },
         ],
     },
 });
@@ -94,23 +101,61 @@ const monthName = (month: number): string => {
     );
 };
 
+const personnelLabel = (record: AdjustmentRecord): string => {
+    if (record.personnel?.first_name || record.personnel?.last_name) {
+        return [record.personnel.first_name, record.personnel.last_name]
+            .filter(Boolean)
+            .join(' ');
+    }
+
+    return `#${record.personnel_id}`;
+};
+
 const personnelTypeLabel = (type: string): string => {
     const parts = type.split('\\');
 
     return parts[parts.length - 1] ?? type;
 };
 
-const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
-    attendanceStatusActions(record.id, record.status);
+const typeLabel = (type: string): string =>
+    props.adjustmentTypes.find((option) => option.value === type)?.label ?? type;
+
+const formatCurrency = (value: number): string =>
+    new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0,
+    }).format(value);
+
+const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
+    if (record.applied_at) {
+        return [];
+    }
+
+    return [
+        {
+            label: 'Remove',
+            href: `/hr/payroll-adjustments/${record.id}`,
+            method: 'delete',
+            variant: 'destructive',
+            confirm: {
+                title: 'Remove adjustment?',
+                description: 'This entry will not be applied when payroll is processed.',
+                confirmLabel: 'Remove',
+            },
+            confirmVariant: 'destructive',
+        },
+    ];
+};
 </script>
 
 <template>
-    <Head title="Attendance" />
+    <Head title="Payroll Adjustments" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <Heading
-            title="Attendance"
-            description="Record monthly attendance, approve records, then process payroll"
+            title="Payroll Adjustments"
+            description="Record bonus, deductions, and advances by month — applied automatically when you process payroll for that period"
         />
 
         <div class="grid gap-6 xl:grid-cols-3">
@@ -118,22 +163,18 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
                         <Plus class="size-5" />
-                        Record attendance
+                        New adjustment
                     </CardTitle>
                     <CardDescription>
-                        Create a monthly attendance entry for an employee or contractor
+                        Matched by person and project when payroll for the same month is processed
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form
-                        action="/hr/attendance"
+                        action="/hr/payroll-adjustments"
                         method="post"
                         class="grid gap-4"
-                        :options="{
-                            preserveScroll: true,
-                            forceFormData: true,
-                            resetOnSuccess: true,
-                        }"
+                        :options="{ preserveScroll: true, resetOnSuccess: true }"
                         v-slot="{ errors, processing }"
                     >
                         <input type="hidden" name="personnel_type" :value="personnelType" />
@@ -191,87 +232,72 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
 
                         <div class="grid grid-cols-2 gap-3">
                             <div class="grid gap-2">
-                                <Label for="create_year">Year *</Label>
+                                <Label for="period_year">Year *</Label>
                                 <Input
-                                    id="create_year"
-                                    name="year"
+                                    id="period_year"
+                                    name="period_year"
                                     type="number"
                                     required
                                     :default-value="filters?.year ?? new Date().getFullYear()"
                                 />
-                                <InputError :message="errors.year" />
+                                <InputError :message="errors.period_year" />
                             </div>
                             <div class="grid gap-2">
-                                <Label for="create_month">Month *</Label>
+                                <Label for="period_month">Month *</Label>
                                 <Input
-                                    id="create_month"
-                                    name="month"
+                                    id="period_month"
+                                    name="period_month"
                                     type="number"
                                     min="1"
                                     max="12"
                                     required
                                     :default-value="filters?.month ?? new Date().getMonth() + 1"
                                 />
-                                <InputError :message="errors.month" />
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-3 gap-3">
-                            <div class="grid gap-2">
-                                <Label for="days_present">Present</Label>
-                                <Input
-                                    id="days_present"
-                                    name="days_present"
-                                    type="number"
-                                    min="0"
-                                    max="31"
-                                    default-value="0"
-                                />
-                                <InputError :message="errors.days_present" />
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="days_absent">Absent</Label>
-                                <Input
-                                    id="days_absent"
-                                    name="days_absent"
-                                    type="number"
-                                    min="0"
-                                    max="31"
-                                    default-value="0"
-                                />
-                                <InputError :message="errors.days_absent" />
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="days_leave">Leave</Label>
-                                <Input
-                                    id="days_leave"
-                                    name="days_leave"
-                                    type="number"
-                                    min="0"
-                                    max="31"
-                                    default-value="0"
-                                />
-                                <InputError :message="errors.days_leave" />
+                                <InputError :message="errors.period_month" />
                             </div>
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="overtime_hours">Overtime hours</Label>
-                            <Input
-                                id="overtime_hours"
-                                name="overtime_hours"
-                                type="number"
-                                min="0"
-                                step="0.5"
-                                default-value="0"
-                            />
-                            <InputError :message="errors.overtime_hours" />
+                            <Label for="type">Type *</Label>
+                            <select
+                                id="type"
+                                name="type"
+                                required
+                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                            >
+                                <option value="" disabled selected>Select type</option>
+                                <option
+                                    v-for="option in adjustmentTypes"
+                                    :key="option.value"
+                                    :value="option.value"
+                                >
+                                    {{ option.label }}
+                                </option>
+                            </select>
+                            <InputError :message="errors.type" />
                         </div>
 
-                        <OptionalAttachmentField :error="errors.attachment" />
+                        <div class="grid gap-2">
+                            <Label for="amount">Amount *</Label>
+                            <Input
+                                id="amount"
+                                name="amount"
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                required
+                            />
+                            <InputError :message="errors.amount" />
+                        </div>
+
+                        <div class="grid gap-2">
+                            <Label for="notes">Notes</Label>
+                            <Input id="notes" name="notes" placeholder="Optional reason" />
+                            <InputError :message="errors.notes" />
+                        </div>
 
                         <Button type="submit" :disabled="processing">
-                            Create record
+                            Save adjustment
                         </Button>
                     </Form>
                 </CardContent>
@@ -280,18 +306,18 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
             <Card class="xl:col-span-2">
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
-                        <CalendarDays class="size-5" />
-                        Attendance Records
+                        <Receipt class="size-5" />
+                        Adjustments for {{ monthName(filters?.month ?? 1) }}
+                        {{ filters?.year ?? new Date().getFullYear() }}
                     </CardTitle>
                     <CardDescription>
-                        {{ attendances.meta?.total ?? attendances.data.length }}
-                        records · filter by period
+                        Pending entries are included when payroll is processed for the same month
                     </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
                     <form
                         method="get"
-                        action="/hr/attendance"
+                        action="/hr/payroll-adjustments"
                         class="flex flex-wrap items-end gap-4"
                     >
                         <div class="grid gap-2">
@@ -320,10 +346,10 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                     </form>
 
                     <div
-                        v-if="attendances.data.length === 0"
+                        v-if="adjustments.data.length === 0"
                         class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
                     >
-                        No attendance records for this period.
+                        No adjustments for this period.
                     </div>
 
                     <div v-else class="overflow-x-auto">
@@ -331,58 +357,77 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                             <thead>
                                 <tr class="border-b text-left text-muted-foreground">
                                     <th class="pb-3 pr-4 font-medium">Personnel</th>
-                                    <th class="pb-3 pr-4 font-medium">Type</th>
                                     <th class="pb-3 pr-4 font-medium">Project</th>
-                                    <th class="pb-3 pr-4 font-medium">Period</th>
-                                    <th class="pb-3 pr-4 font-medium">Present</th>
-                                    <th class="pb-3 pr-4 font-medium">Absent</th>
-                                    <th class="pb-3 pr-4 font-medium">Leave</th>
-                                    <th class="pb-3 pr-4 font-medium">OT Hours</th>
+                                    <th class="pb-3 pr-4 font-medium">Type</th>
+                                    <th class="pb-3 pr-4 text-right font-medium">Amount</th>
                                     <th class="pb-3 pr-4 font-medium">Status</th>
+                                    <th class="pb-3 pr-4 font-medium">Notes</th>
                                     <th class="pb-3 text-right font-medium">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr
-                                    v-for="record in attendances.data"
+                                    v-for="record in adjustments.data"
                                     :key="record.id"
                                     class="border-b last:border-0"
                                 >
-                                    <td class="py-3 pr-4 font-medium">
-                                        {{
-                                            record.personnel_name ??
-                                            `#${record.personnel_id}`
-                                        }}
-                                    </td>
-                                    <td class="py-3 pr-4 text-muted-foreground">
-                                        {{ personnelTypeLabel(record.personnel_type) }}
+                                    <td class="py-3 pr-4">
+                                        <div class="font-medium">
+                                            {{ personnelLabel(record) }}
+                                        </div>
+                                        <div class="text-xs text-muted-foreground">
+                                            {{ personnelTypeLabel(record.personnel_type) }}
+                                        </div>
                                     </td>
                                     <td class="py-3 pr-4 text-muted-foreground">
                                         {{ record.project?.code ?? '—' }}
                                     </td>
+                                    <td class="py-3 pr-4">
+                                        <Badge
+                                            :variant="
+                                                record.type === 'bonus'
+                                                    ? 'default'
+                                                    : 'secondary'
+                                            "
+                                        >
+                                            {{ typeLabel(record.type) }}
+                                        </Badge>
+                                    </td>
+                                    <td
+                                        class="py-3 pr-4 text-right font-medium"
+                                        :class="
+                                            record.type === 'bonus'
+                                                ? 'text-green-700 dark:text-green-400'
+                                                : 'text-destructive'
+                                        "
+                                    >
+                                        {{ formatCurrency(record.amount) }}
+                                    </td>
+                                    <td class="py-3 pr-4">
+                                        <Badge
+                                            :variant="
+                                                record.applied_at ? 'outline' : 'secondary'
+                                            "
+                                        >
+                                            {{ record.applied_at ? 'Applied' : 'Pending' }}
+                                        </Badge>
+                                    </td>
                                     <td class="py-3 pr-4 text-muted-foreground">
-                                        {{ monthName(record.month) }} {{ record.year }}
-                                    </td>
-                                    <td class="py-3 pr-4">{{ record.days_present }}</td>
-                                    <td class="py-3 pr-4">{{ record.days_absent }}</td>
-                                    <td class="py-3 pr-4">{{ record.days_leave }}</td>
-                                    <td class="py-3 pr-4">
-                                        {{ record.overtime_hours ?? 0 }}
-                                    </td>
-                                    <td class="py-3 pr-4">
-                                        <Badge variant="outline">{{ record.status }}</Badge>
+                                        {{ record.notes ?? '—' }}
                                     </td>
                                     <td class="py-3 text-right">
                                         <RowActionsMenu
-                                            :actions="attendanceActions(record)"
+                                            v-if="adjustmentActions(record).length"
+                                            :actions="adjustmentActions(record)"
                                         />
+                                        <span v-else class="text-xs text-muted-foreground">—</span>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
 
-                    <MisPagination :pagination="attendances" />
+                    <MisPagination :pagination="adjustments" />
                 </CardContent>
             </Card>
         </div>

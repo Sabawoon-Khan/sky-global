@@ -10,6 +10,7 @@ use App\Models\Hr\EmployeeSalary;
 use App\Models\Hr\PayrollItem;
 use App\Models\Hr\PayrollRun;
 use App\Models\Hr\PersonnelAttendance;
+use App\Models\Hr\PersonnelPayrollAdjustment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -93,9 +94,18 @@ class PayrollRunController extends Controller
             ->where('status', 'approved')
             ->count();
 
+        $pendingAdjustments = PersonnelPayrollAdjustment::query()
+            ->pending()
+            ->with(['project', 'personnel'])
+            ->where('period_year', $payrollRun->period_year)
+            ->where('period_month', $payrollRun->period_month)
+            ->latest()
+            ->get();
+
         return Inertia::render('mis/hr/Payroll/Show', [
             'payrollRun' => $payrollRun,
             'approvedAttendanceCount' => $approvedAttendanceCount,
+            'pendingAdjustments' => $pendingAdjustments,
         ]);
     }
 
@@ -125,18 +135,38 @@ class PayrollRunController extends Controller
 
             foreach ($attendances as $attendance) {
                 $baseAmount = $this->calculateBaseAmount($attendance);
+                $adjustments = PersonnelPayrollAdjustment::pendingTotalsForLine(
+                    $attendance->personnel_type,
+                    $attendance->personnel_id,
+                    $attendance->project_id,
+                    $payrollRun->period_year,
+                    $payrollRun->period_month,
+                );
 
-                PayrollItem::query()->create([
+                $item = PayrollItem::query()->create([
                     'payroll_run_id' => $payrollRun->id,
                     'personnel_type' => $attendance->personnel_type,
                     'personnel_id' => $attendance->personnel_id,
                     'project_id' => $attendance->project_id,
                     'base_amount' => $baseAmount,
-                    'deductions' => 0,
-                    'net_amount' => $baseAmount,
+                    'bonus' => $adjustments['bonus'],
+                    'deductions' => $adjustments['deductions'],
+                    'advance' => $adjustments['advance'],
+                    'net_amount' => PayrollItem::calculateNetAmount(
+                        $baseAmount,
+                        $adjustments['bonus'],
+                        $adjustments['deductions'],
+                        $adjustments['advance'],
+                    ),
                     'currency' => 'USD',
                     'notes' => "Generated from attendance #{$attendance->id}",
                 ]);
+
+                PersonnelPayrollAdjustment::markAppliedForPayrollItem(
+                    $item,
+                    $payrollRun->period_year,
+                    $payrollRun->period_month,
+                );
 
                 $itemCount++;
             }
@@ -152,6 +182,44 @@ class PayrollRunController extends Controller
             'message' => $itemCount > 0
                 ? "Payroll processed with {$itemCount} line items."
                 : 'Payroll processed, but no approved attendance was found for this period.',
+        ]);
+
+        return back();
+    }
+
+    public function updateItem(Request $request, PayrollRun $payrollRun, PayrollItem $payrollItem): RedirectResponse
+    {
+        $this->authorizePermission($request, 'hr.edit');
+
+        abort_unless($payrollItem->payroll_run_id === $payrollRun->id, 404);
+
+        $validated = $request->validate([
+            'bonus' => ['nullable', 'numeric', 'min:0'],
+            'deductions' => ['nullable', 'numeric', 'min:0'],
+            'advance' => ['nullable', 'numeric', 'min:0'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $bonus = (float) ($validated['bonus'] ?? 0);
+        $deductions = (float) ($validated['deductions'] ?? 0);
+        $advance = (float) ($validated['advance'] ?? 0);
+
+        $payrollItem->update([
+            'bonus' => $bonus,
+            'deductions' => $deductions,
+            'advance' => $advance,
+            'notes' => $validated['notes'] ?? $payrollItem->notes,
+            'net_amount' => PayrollItem::calculateNetAmount(
+                (float) $payrollItem->base_amount,
+                $bonus,
+                $deductions,
+                $advance,
+            ),
+        ]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Payroll line updated.',
         ]);
 
         return back();
