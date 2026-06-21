@@ -19,7 +19,7 @@ return new class extends Migration
 
         Schema::create('equipment_stock', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('equipment_catalog_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('equipment_catalog_id')->constrained('equipment_catalog')->cascadeOnDelete();
             $table->unsignedInteger('quantity_on_hand')->default(0);
             $table->unsignedInteger('quantity_reserved')->default(0);
             $table->timestamps();
@@ -29,7 +29,7 @@ return new class extends Migration
             $table->id();
             $table->string('personnel_type');
             $table->unsignedBigInteger('personnel_id');
-            $table->foreignId('equipment_catalog_id')->constrained()->restrictOnDelete();
+            $table->foreignId('equipment_catalog_id')->constrained('equipment_catalog')->restrictOnDelete();
             $table->foreignId('project_id')->nullable()->constrained()->nullOnDelete();
             $table->unsignedInteger('quantity')->default(1);
             $table->date('issued_at');
@@ -62,7 +62,7 @@ return new class extends Migration
 
         Schema::create('training_sessions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('training_catalog_id')->constrained()->restrictOnDelete();
+            $table->foreignId('training_catalog_id')->constrained('training_catalog')->restrictOnDelete();
             $table->string('title');
             $table->date('session_date');
             $table->string('location')->nullable();
@@ -75,7 +75,7 @@ return new class extends Migration
             $table->id();
             $table->string('personnel_type');
             $table->unsignedBigInteger('personnel_id');
-            $table->foreignId('training_catalog_id')->constrained()->restrictOnDelete();
+            $table->foreignId('training_catalog_id')->constrained('training_catalog')->restrictOnDelete();
             $table->foreignId('training_session_id')->nullable()->constrained()->nullOnDelete();
             $table->date('completed_at');
             $table->date('expires_at')->nullable();
