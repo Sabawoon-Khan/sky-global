@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { Plus, Tags } from '@lucide/vue';
+import { Pencil, Plus, Tags, Trash2 } from '@lucide/vue';
+import { ref } from 'vue';
 import Heading from '@/components/Heading.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -10,8 +12,17 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { RowActionItem } from '@/lib/row-actions';
 
 interface OrganizationType {
     id: number;
@@ -38,6 +49,38 @@ defineOptions({
         ],
     },
 });
+
+const editingType = ref<OrganizationType | null>(null);
+
+const openEdit = (type: OrganizationType): void => {
+    editingType.value = type;
+};
+
+const closeEdit = (): void => {
+    editingType.value = null;
+};
+
+const organizationTypeActions = (type: OrganizationType): RowActionItem[] => [
+    {
+        label: 'Edit',
+        icon: Pencil,
+        onClick: () => openEdit(type),
+    },
+    {
+        label: 'Delete',
+        icon: Trash2,
+        variant: 'destructive',
+        separator: true,
+        href: `/settings/organization-types/${type.id}`,
+        method: 'delete',
+        disabled: (type.organizations_count ?? 0) > 0,
+        confirm: {
+            title: 'Delete organization type',
+            description: `Are you sure you want to delete "${type.name}"? This cannot be undone.`,
+            confirmLabel: 'Delete',
+        },
+    },
+];
 </script>
 
 <template>
@@ -131,12 +174,88 @@ defineOptions({
                                 </p>
                             </div>
                         </div>
-                        <span class="text-sm text-muted-foreground">
-                            {{ type.organizations_count ?? 0 }} organizations
-                        </span>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm text-muted-foreground">
+                                {{ type.organizations_count ?? 0 }} organizations
+                            </span>
+                            <RowActionsMenu
+                                :actions="organizationTypeActions(type)"
+                            />
+                        </div>
                     </div>
                 </div>
             </CardContent>
         </Card>
     </div>
+
+    <Dialog
+        :open="editingType !== null"
+        @update:open="(open) => !open && closeEdit()"
+    >
+        <DialogContent v-if="editingType">
+            <Form
+                :action="`/settings/organization-types/${editingType.id}`"
+                method="put"
+                @success="closeEdit"
+                v-slot="{ processing, errors }"
+            >
+                <DialogHeader>
+                    <DialogTitle>Edit organization type</DialogTitle>
+                    <DialogDescription>
+                        Update the name, color, or description for
+                        {{ editingType.name }}.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div class="grid gap-4 py-4">
+                    <div class="grid gap-2">
+                        <Label for="edit-name">Name</Label>
+                        <Input
+                            id="edit-name"
+                            name="name"
+                            :default-value="editingType.name"
+                            required
+                        />
+                        <p
+                            v-if="errors.name"
+                            class="text-sm text-destructive"
+                        >
+                            {{ errors.name }}
+                        </p>
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="edit-color">Color</Label>
+                        <Input
+                            id="edit-color"
+                            name="color"
+                            type="color"
+                            class="h-10 w-full cursor-pointer p-1"
+                            :default-value="editingType.color ?? '#000000'"
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="edit-description">Description</Label>
+                        <Input
+                            id="edit-description"
+                            name="description"
+                            :default-value="editingType.description ?? ''"
+                        />
+                    </div>
+                </div>
+
+                <DialogFooter class="gap-2">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        @click="closeEdit"
+                    >
+                        Cancel
+                    </Button>
+                    <Button type="submit" :disabled="processing">
+                        Save changes
+                    </Button>
+                </DialogFooter>
+            </Form>
+        </DialogContent>
+    </Dialog>
 </template>

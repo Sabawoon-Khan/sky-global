@@ -115,6 +115,9 @@ defineOptions({
             <Button variant="outline" as-child>
                 <Link href="/organizations">Back to list</Link>
             </Button>
+            <Button as-child>
+                <Link :href="`/organizations/${organization.id}/edit`">Edit</Link>
+            </Button>
         </div>
 
         <div class="grid gap-4 lg:grid-cols-3">

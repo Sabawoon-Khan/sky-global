@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Archive, Search } from '@lucide/vue';
+import { Archive, Eye, Pencil, Search } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import {
     Card,
@@ -11,6 +12,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import type { RowActionItem } from '@/lib/row-actions';
 
 interface DocumentCategory {
     id: number;
@@ -55,6 +57,19 @@ const formatDate = (value?: string | null): string => {
         new Date(value),
     );
 };
+
+const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
+    {
+        label: 'View',
+        icon: Eye,
+        href: `/archive/${doc.id}`,
+    },
+    {
+        label: 'Edit',
+        icon: Pencil,
+        href: `/archive/${doc.id}`,
+    },
+];
 </script>
 
 <template>
@@ -105,7 +120,8 @@ const formatDate = (value?: string | null): string => {
                                 <th class="pb-3 pr-4 font-medium">Category</th>
                                 <th class="pb-3 pr-4 font-medium">Linked To</th>
                                 <th class="pb-3 pr-4 font-medium">Date</th>
-                                <th class="pb-3 font-medium">Direction</th>
+                                <th class="pb-3 pr-4 font-medium">Direction</th>
+                                <th class="pb-3 text-right font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -139,7 +155,7 @@ const formatDate = (value?: string | null): string => {
                                 <td class="py-3 pr-4 text-muted-foreground">
                                     {{ formatDate(doc.document_date) }}
                                 </td>
-                                <td class="py-3">
+                                <td class="py-3 pr-4">
                                     <Badge
                                         v-if="doc.direction"
                                         variant="outline"
@@ -147,6 +163,11 @@ const formatDate = (value?: string | null): string => {
                                         {{ doc.direction }}
                                     </Badge>
                                     <span v-else>—</span>
+                                </td>
+                                <td class="py-3 text-right">
+                                    <RowActionsMenu
+                                        :actions="documentActions(doc)"
+                                    />
                                 </td>
                             </tr>
                         </tbody>

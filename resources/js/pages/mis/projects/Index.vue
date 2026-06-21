@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { FolderKanban, Plus, Search } from '@lucide/vue';
+import { Eye, FolderKanban, Pencil, Plus, Search } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
 import MisPage from '@/components/MisPage.vue';
 import MisPagination from '@/components/MisPagination.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { formatCurrency, type Paginated } from '@/lib/format';
+import type { RowActionItem } from '@/lib/row-actions';
 
 interface Organization {
     id: number;
@@ -58,6 +60,19 @@ const statusVariant = (status: string) => {
 };
 
 const statusLabel = (status: string) => status.charAt(0).toUpperCase() + status.slice(1);
+
+const projectActions = (project: Project): RowActionItem[] => [
+    {
+        label: 'View',
+        icon: Eye,
+        href: `/projects/${project.id}`,
+    },
+    {
+        label: 'Edit',
+        icon: Pencil,
+        href: `/projects/${project.id}`,
+    },
+];
 </script>
 
 <template>
@@ -137,6 +152,7 @@ const statusLabel = (status: string) => status.charAt(0).toUpperCase() + status.
                                 <th class="px-3 py-2 font-medium">Client</th>
                                 <th class="px-3 py-2 font-medium">Our bid</th>
                                 <th class="px-3 py-2 font-medium">Status</th>
+                                <th class="px-3 py-2 text-right font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y">
@@ -170,6 +186,9 @@ const statusLabel = (status: string) => status.charAt(0).toUpperCase() + status.
                                     <Badge :variant="statusVariant(project.status)">
                                         {{ statusLabel(project.status) }}
                                     </Badge>
+                                </td>
+                                <td class="px-3 py-2 text-right">
+                                    <RowActionsMenu :actions="projectActions(project)" />
                                 </td>
                             </tr>
                         </tbody>

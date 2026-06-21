@@ -126,6 +126,23 @@ class EmployeeController extends Controller
         ]);
     }
 
+    public function edit(Request $request, Employee $employee): Response
+    {
+        $this->authorizePermission($request, 'hr.edit');
+
+        $employee->load(['jobDetails.department']);
+
+        $employee->setAttribute(
+            'job_detail',
+            $employee->jobDetails->sortByDesc('id')->first(),
+        );
+
+        return Inertia::render('mis/hr/Employees/Edit', [
+            'employee' => $employee,
+            'departments' => Department::query()->orderBy('name')->get(),
+        ]);
+    }
+
     public function update(Request $request, Employee $employee): RedirectResponse
     {
         $this->authorizePermission($request, 'hr.edit');
@@ -162,6 +179,8 @@ class EmployeeController extends Controller
         }
         $this->storeOptionalAttachment($request, $employee);
 
-        return back()->with('success', 'Employee updated.');
+        return redirect()
+            ->route('hr.employees.show', $employee)
+            ->with('success', 'Employee updated.');
     }
 }

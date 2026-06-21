@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Form, Head, router } from '@inertiajs/vue3';
-import { Search, Shield, UserCog } from '@lucide/vue';
+import { Pencil, Search, Shield, UserCheck, UserCog, UserX } from '@lucide/vue';
 import UserManagementController from '@/actions/App/Http/Controllers/Settings/UserManagementController';
 import Heading from '@/components/Heading.vue';
 import MisPagination from '@/components/MisPagination.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Paginated } from '@/lib/format';
+import type { RowActionItem } from '@/lib/row-actions';
 
 interface Role {
     id: number;
@@ -54,6 +56,22 @@ const toggleUser = (user: UserRecord): void => {
         { preserveScroll: true },
     );
 };
+
+const userActions = (user: UserRecord): RowActionItem[] => [
+    {
+        label: 'Edit roles',
+        icon: Pencil,
+        onClick: () => {
+            document.getElementById(`roles-${user.id}`)?.focus();
+        },
+    },
+    {
+        label: user.is_active ? 'Disable account' : 'Enable account',
+        icon: user.is_active ? UserX : UserCheck,
+        separator: true,
+        onClick: () => toggleUser(user),
+    },
+];
 </script>
 
 <template>
@@ -138,6 +156,9 @@ const toggleUser = (user: UserRecord): void => {
                             </div>
 
                             <div class="flex flex-col gap-3 sm:min-w-[220px]">
+                                <div class="flex items-center justify-end">
+                                    <RowActionsMenu :actions="userActions(user)" />
+                                </div>
                                 <Form
                                     v-bind="
                                         UserManagementController.update.form(user.id)
@@ -174,18 +195,6 @@ const toggleUser = (user: UserRecord): void => {
                                         Update Roles
                                     </Button>
                                 </Form>
-
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    @click="toggleUser(user)"
-                                >
-                                    {{
-                                        user.is_active
-                                            ? 'Disable Account'
-                                            : 'Enable Account'
-                                    }}
-                                </Button>
                             </div>
                         </div>
                     </div>

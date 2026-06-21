@@ -89,6 +89,15 @@ class ContractorController extends Controller
         ]);
     }
 
+    public function edit(Request $request, Contractor $contractor): Response
+    {
+        $this->authorizePermission($request, 'hr.edit');
+
+        return Inertia::render('mis/hr/Contractors/Edit', [
+            'contractor' => $contractor,
+        ]);
+    }
+
     public function update(Request $request, Contractor $contractor): RedirectResponse
     {
         $this->authorizePermission($request, 'hr.edit');
@@ -110,6 +119,8 @@ class ContractorController extends Controller
         $contractor->update($validated);
         $this->storeOptionalAttachment($request, $contractor);
 
-        return back()->with('success', 'Contractor updated.');
+        return redirect()
+            ->route('hr.contractors.show', $contractor)
+            ->with('success', 'Contractor updated.');
     }
 }

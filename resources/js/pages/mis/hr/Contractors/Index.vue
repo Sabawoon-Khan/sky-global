@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Plus, Search, UserRound } from '@lucide/vue';
+import { Eye, Pencil, Plus, Search, UserRound } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +13,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import type { RowActionItem } from '@/lib/row-actions';
 
 interface Contractor {
     id: number;
@@ -45,6 +47,19 @@ defineOptions({
 
 const fullName = (contractor: Contractor): string =>
     `${contractor.first_name} ${contractor.last_name}`;
+
+const contractorActions = (contractor: Contractor): RowActionItem[] => [
+    {
+        label: 'View',
+        icon: Eye,
+        href: `/hr/contractors/${contractor.id}`,
+    },
+    {
+        label: 'Edit',
+        icon: Pencil,
+        href: `/hr/contractors/${contractor.id}/edit`,
+    },
+];
 </script>
 
 <template>
@@ -106,7 +121,8 @@ const fullName = (contractor: Contractor): string =>
                                 <th class="pb-3 pr-4 font-medium">Name</th>
                                 <th class="pb-3 pr-4 font-medium">Phone</th>
                                 <th class="pb-3 pr-4 font-medium">Email</th>
-                                <th class="pb-3 font-medium">Status</th>
+                                <th class="pb-3 pr-4 font-medium">Status</th>
+                                <th class="pb-3 text-right font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -129,7 +145,7 @@ const fullName = (contractor: Contractor): string =>
                                 <td class="py-3 pr-4 text-muted-foreground">
                                     {{ contractor.email ?? '—' }}
                                 </td>
-                                <td class="py-3">
+                                <td class="py-3 pr-4">
                                     <Badge
                                         :variant="
                                             contractor.status === 'active'
@@ -139,6 +155,11 @@ const fullName = (contractor: Contractor): string =>
                                     >
                                         {{ contractor.status }}
                                     </Badge>
+                                </td>
+                                <td class="py-3 text-right">
+                                    <RowActionsMenu
+                                        :actions="contractorActions(contractor)"
+                                    />
                                 </td>
                             </tr>
                         </tbody>

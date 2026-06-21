@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('organizations/create', [OrganizationController::class, 'create'])->name('organizations.create');
     Route::post('organizations', [OrganizationController::class, 'store'])->name('organizations.store');
     Route::get('organizations/{organization}', [OrganizationController::class, 'show'])->name('organizations.show');
+    Route::get('organizations/{organization}/edit', [OrganizationController::class, 'edit'])->name('organizations.edit');
     Route::put('organizations/{organization}', [OrganizationController::class, 'update'])->name('organizations.update');
     Route::delete('organizations/{organization}', [OrganizationController::class, 'destroy'])->name('organizations.destroy');
 
@@ -108,12 +109,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('employees/create', [EmployeeController::class, 'create'])->name('employees.create');
         Route::post('employees', [EmployeeController::class, 'store'])->name('employees.store');
         Route::get('employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
+        Route::get('employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
         Route::put('employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
 
         Route::get('contractors', [ContractorController::class, 'index'])->name('contractors.index');
         Route::get('contractors/create', [ContractorController::class, 'create'])->name('contractors.create');
         Route::post('contractors', [ContractorController::class, 'store'])->name('contractors.store');
         Route::get('contractors/{contractor}', [ContractorController::class, 'show'])->name('contractors.show');
+        Route::get('contractors/{contractor}/edit', [ContractorController::class, 'edit'])->name('contractors.edit');
         Route::put('contractors/{contractor}', [ContractorController::class, 'update'])->name('contractors.update');
 
         Route::get('attendance', [PersonnelAttendanceController::class, 'index'])->name('attendance.index');

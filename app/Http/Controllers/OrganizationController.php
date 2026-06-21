@@ -93,6 +93,17 @@ class OrganizationController extends Controller
         ]);
     }
 
+    public function edit(Request $request, Organization $organization): Response
+    {
+        $this->authorizePermission($request, 'bidding.edit');
+
+        return Inertia::render('mis/organizations/Edit', [
+            'organization' => $organization,
+            'organizationTypes' => OrganizationType::query()->where('is_active', true)->orderBy('name')->get(),
+            'provinces' => $this->afghanistanProvinces(),
+        ]);
+    }
+
     public function update(UpdateOrganizationRequest $request, Organization $organization): RedirectResponse
     {
         $this->authorizePermission($request, 'bidding.edit');
@@ -100,7 +111,9 @@ class OrganizationController extends Controller
         $organization->update($request->validated());
         $this->storeOptionalAttachment($request, $organization);
 
-        return back()->with('success', 'Organization updated.');
+        return redirect()
+            ->route('organizations.show', $organization)
+            ->with('success', 'Organization updated.');
     }
 
     public function destroy(Request $request, Organization $organization): RedirectResponse

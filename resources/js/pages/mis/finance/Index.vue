@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import { Pencil, Trash2 } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +14,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import type { RowActionItem } from '@/lib/row-actions';
 
 interface Income {
     id: number;
@@ -96,6 +99,63 @@ const formatDate = (value?: string | null): string => {
         new Date(value),
     );
 };
+
+const incomeActions = (item: Income): RowActionItem[] => [
+    {
+        label: 'Edit',
+        icon: Pencil,
+        href: item.project ? `/projects/${item.project.id}` : undefined,
+        hidden: !item.project,
+    },
+    {
+        label: 'Delete',
+        icon: Trash2,
+        variant: 'destructive',
+        href: `/finance/incomes/${item.id}`,
+        method: 'delete',
+        confirm: {
+            title: 'Delete income record',
+            description: `Delete "${item.description}"? This cannot be undone.`,
+            confirmLabel: 'Delete',
+        },
+    },
+];
+
+const expenseActions = (item: Expense): RowActionItem[] => [
+    {
+        label: 'Edit',
+        icon: Pencil,
+        href: item.project ? `/projects/${item.project.id}` : undefined,
+        hidden: !item.project,
+    },
+    {
+        label: 'Delete',
+        icon: Trash2,
+        variant: 'destructive',
+        href: `/finance/expenses/${item.id}`,
+        method: 'delete',
+        confirm: {
+            title: 'Delete expense record',
+            description: `Delete "${item.description}"? This cannot be undone.`,
+            confirmLabel: 'Delete',
+        },
+    },
+];
+
+const invoiceActions = (invoice: Invoice): RowActionItem[] => [
+    {
+        label: 'Delete',
+        icon: Trash2,
+        variant: 'destructive',
+        href: `/finance/invoices/${invoice.id}`,
+        method: 'delete',
+        confirm: {
+            title: 'Delete invoice',
+            description: `Delete invoice ${invoice.invoice_number ?? `#${invoice.id}`}? This cannot be undone.`,
+            confirmLabel: 'Delete',
+        },
+    },
+];
 </script>
 
 <template>
@@ -180,7 +240,8 @@ const formatDate = (value?: string | null): string => {
                                 <th class="pb-2 pr-4 font-medium">Description</th>
                                 <th class="pb-2 pr-4 font-medium">Project</th>
                                 <th class="pb-2 pr-4 font-medium">Date</th>
-                                <th class="pb-2 text-right font-medium">Amount</th>
+                                <th class="pb-2 pr-4 text-right font-medium">Amount</th>
+                                <th class="pb-2 text-right font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -203,6 +264,9 @@ const formatDate = (value?: string | null): string => {
                                             item.currency ?? 'USD',
                                         )
                                     }}
+                                </td>
+                                <td class="py-2 text-right">
+                                    <RowActionsMenu :actions="incomeActions(item)" />
                                 </td>
                             </tr>
                         </tbody>
@@ -230,7 +294,8 @@ const formatDate = (value?: string | null): string => {
                                 <th class="pb-2 pr-4 font-medium">Description</th>
                                 <th class="pb-2 pr-4 font-medium">Project</th>
                                 <th class="pb-2 pr-4 font-medium">Date</th>
-                                <th class="pb-2 text-right font-medium">Amount</th>
+                                <th class="pb-2 pr-4 text-right font-medium">Amount</th>
+                                <th class="pb-2 text-right font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -253,6 +318,9 @@ const formatDate = (value?: string | null): string => {
                                             item.currency ?? 'USD',
                                         )
                                     }}
+                                </td>
+                                <td class="py-2 text-right">
+                                    <RowActionsMenu :actions="expenseActions(item)" />
                                 </td>
                             </tr>
                         </tbody>
@@ -281,7 +349,8 @@ const formatDate = (value?: string | null): string => {
                                 <th class="pb-2 pr-4 font-medium">Client</th>
                                 <th class="pb-2 pr-4 font-medium">Due Date</th>
                                 <th class="pb-2 pr-4 font-medium">Status</th>
-                                <th class="pb-2 text-right font-medium">Amount</th>
+                                <th class="pb-2 pr-4 text-right font-medium">Amount</th>
+                                <th class="pb-2 text-right font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -311,6 +380,11 @@ const formatDate = (value?: string | null): string => {
                                             invoice.currency ?? 'USD',
                                         )
                                     }}
+                                </td>
+                                <td class="py-2 text-right">
+                                    <RowActionsMenu
+                                        :actions="invoiceActions(invoice)"
+                                    />
                                 </td>
                             </tr>
                         </tbody>

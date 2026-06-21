@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Building2, FolderKanban, Plus, Search, Users } from '@lucide/vue';
+import { Building2, Eye, FolderKanban, Pencil, Plus, Search, Trash2, Users } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import MisPage from '@/components/MisPage.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Paginated } from '@/lib/format';
+import type { RowActionItem } from '@/lib/row-actions';
 
 interface OrganizationType {
     id: number;
@@ -61,6 +63,32 @@ defineOptions({
         ],
     },
 });
+
+const organizationActions = (org: Organization): RowActionItem[] => [
+    {
+        label: 'View',
+        icon: Eye,
+        href: `/organizations/${org.id}`,
+    },
+    {
+        label: 'Edit',
+        icon: Pencil,
+        href: `/organizations/${org.id}/edit`,
+    },
+    {
+        label: 'Delete',
+        icon: Trash2,
+        variant: 'destructive',
+        separator: true,
+        href: `/organizations/${org.id}`,
+        method: 'delete',
+        confirm: {
+            title: 'Delete organization',
+            description: `Are you sure you want to delete "${org.name}"? This cannot be undone.`,
+            confirmLabel: 'Delete',
+        },
+    },
+];
 </script>
 
 <template>
@@ -171,6 +199,7 @@ defineOptions({
                                 <th class="px-4 py-3 text-left font-medium">Contact</th>
                                 <th class="px-4 py-3 text-left font-medium">Activity</th>
                                 <th class="px-4 py-3 text-left font-medium">Status</th>
+                                <th class="px-4 py-3 text-right font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y">
@@ -233,6 +262,9 @@ defineOptions({
                                     <Badge :variant="org.is_active ? 'default' : 'outline'">
                                         {{ org.is_active ? 'Active' : 'Inactive' }}
                                     </Badge>
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <RowActionsMenu :actions="organizationActions(org)" />
                                 </td>
                             </tr>
                         </tbody>

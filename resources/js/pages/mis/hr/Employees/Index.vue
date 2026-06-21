@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Plus, Search, Users } from '@lucide/vue';
+import { Eye, Pencil, Plus, Search, Users } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +13,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import type { RowActionItem } from '@/lib/row-actions';
 
 interface Employee {
     id: number;
@@ -49,6 +51,19 @@ defineOptions({
 
 const fullName = (employee: Employee): string =>
     `${employee.first_name} ${employee.last_name}`;
+
+const employeeActions = (employee: Employee): RowActionItem[] => [
+    {
+        label: 'View',
+        icon: Eye,
+        href: `/hr/employees/${employee.id}`,
+    },
+    {
+        label: 'Edit',
+        icon: Pencil,
+        href: `/hr/employees/${employee.id}/edit`,
+    },
+];
 </script>
 
 <template>
@@ -106,7 +121,8 @@ const fullName = (employee: Employee): string =>
                                 <th class="pb-3 pr-4 font-medium">Designation</th>
                                 <th class="pb-3 pr-4 font-medium">Department</th>
                                 <th class="pb-3 pr-4 font-medium">Contact</th>
-                                <th class="pb-3 font-medium">Status</th>
+                                <th class="pb-3 pr-4 font-medium">Status</th>
+                                <th class="pb-3 text-right font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -136,7 +152,7 @@ const fullName = (employee: Employee): string =>
                                     <div>{{ employee.phone ?? '—' }}</div>
                                     <div class="text-xs">{{ employee.email ?? '' }}</div>
                                 </td>
-                                <td class="py-3">
+                                <td class="py-3 pr-4">
                                     <Badge
                                         :variant="
                                             employee.status === 'active'
@@ -146,6 +162,11 @@ const fullName = (employee: Employee): string =>
                                     >
                                         {{ employee.status }}
                                     </Badge>
+                                </td>
+                                <td class="py-3 text-right">
+                                    <RowActionsMenu
+                                        :actions="employeeActions(employee)"
+                                    />
                                 </td>
                             </tr>
                         </tbody>
