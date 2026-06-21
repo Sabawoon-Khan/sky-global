@@ -5,6 +5,7 @@ export interface RowActionItem {
     icon?: Component;
     href?: string;
     method?: 'delete' | 'post' | 'put' | 'patch';
+    data?: Record<string, unknown>;
     onClick?: () => void;
     variant?: 'default' | 'destructive';
     disabled?: boolean;
@@ -14,5 +15,6 @@ export interface RowActionItem {
         description: string;
         confirmLabel?: string;
     };
+    confirmVariant?: 'destructive' | 'default';
     separator?: boolean;
 }

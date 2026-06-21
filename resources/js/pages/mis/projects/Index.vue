@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { formatCurrency, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
+import { projectStatusActions } from '@/lib/status-actions';
 
 interface Organization {
     id: number;
@@ -72,6 +73,7 @@ const projectActions = (project: Project): RowActionItem[] => [
         icon: Pencil,
         href: `/projects/${project.id}`,
     },
+    ...projectStatusActions(project.id, project.status),
 ];
 </script>
 

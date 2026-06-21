@@ -2,6 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import { CalendarDays } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +14,8 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { RowActionItem } from '@/lib/row-actions';
+import { attendanceStatusActions } from '@/lib/status-actions';
 
 interface AttendanceRecord {
     id: number;
@@ -53,6 +56,9 @@ const monthName = (month: number): string =>
     new Intl.DateTimeFormat('en-US', { month: 'long' }).format(
         new Date(2000, month - 1, 1),
     );
+
+const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
+    attendanceStatusActions(record.id, record.status);
 </script>
 
 <template>
@@ -124,7 +130,8 @@ const monthName = (month: number): string =>
                                 <th class="pb-3 pr-4 font-medium">Absent</th>
                                 <th class="pb-3 pr-4 font-medium">Leave</th>
                                 <th class="pb-3 pr-4 font-medium">OT Hours</th>
-                                <th class="pb-3 font-medium">Status</th>
+                                <th class="pb-3 pr-4 font-medium">Status</th>
+                                <th class="pb-3 text-right font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -154,8 +161,13 @@ const monthName = (month: number): string =>
                                 <td class="py-3 pr-4">
                                     {{ record.overtime_hours ?? 0 }}
                                 </td>
-                                <td class="py-3">
+                                <td class="py-3 pr-4">
                                     <Badge variant="outline">{{ record.status }}</Badge>
+                                </td>
+                                <td class="py-3 text-right">
+                                    <RowActionsMenu
+                                        :actions="attendanceActions(record)"
+                                    />
                                 </td>
                             </tr>
                         </tbody>

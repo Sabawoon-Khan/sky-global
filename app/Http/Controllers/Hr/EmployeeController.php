@@ -179,6 +179,10 @@ class EmployeeController extends Controller
         }
         $this->storeOptionalAttachment($request, $employee);
 
+        if (array_keys($validated) === ['status']) {
+            return back()->with('success', 'Employee status updated.');
+        }
+
         return redirect()
             ->route('hr.employees.show', $employee)
             ->with('success', 'Employee updated.');

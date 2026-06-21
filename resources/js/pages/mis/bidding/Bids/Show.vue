@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -114,19 +113,21 @@ const statusVariant = (
     <Head :title="bid.bid_number ?? `Bid #${bid.id}`" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
-        <div class="flex items-start gap-4">
-            <Button variant="outline" size="icon" as-child>
-                <Link href="/bidding/bids">
-                    <ArrowLeft class="size-4" />
-                </Link>
-            </Button>
-            <div class="flex-1">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
                 <Heading
                     :title="bid.bid_number ?? `Bid #${bid.id}`"
                     :description="bid.procurement_opportunity?.title"
                 />
+                <Badge class="mt-2" :variant="statusVariant(bid.status)">
+                    {{ bid.status }}
+                </Badge>
             </div>
-            <Badge :variant="statusVariant(bid.status)">{{ bid.status }}</Badge>
+            <div class="flex shrink-0 flex-wrap gap-2">
+                <Button variant="outline" as-child>
+                    <Link href="/bidding/bids">Back to list</Link>
+                </Button>
+            </div>
         </div>
 
         <div class="grid gap-4 md:grid-cols-4">

@@ -23,12 +23,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { RowActionItem } from '@/lib/row-actions';
+import { toggleIsActiveAction } from '@/lib/status-actions';
 
 interface OrganizationType {
     id: number;
     name: string;
     color?: string | null;
     description?: string | null;
+    is_active?: boolean;
     organizations_count?: number;
 }
 
@@ -66,6 +68,12 @@ const organizationTypeActions = (type: OrganizationType): RowActionItem[] => [
         icon: Pencil,
         onClick: () => openEdit(type),
     },
+    toggleIsActiveAction({
+        url: `/settings/organization-types/${type.id}`,
+        name: type.name,
+        isActive: type.is_active ?? true,
+        entityLabel: 'organization type',
+    }),
     {
         label: 'Delete',
         icon: Trash2,

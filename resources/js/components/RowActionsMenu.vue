@@ -63,6 +63,8 @@ function runAction(action: RowActionItem): void {
 
     processing.value = true;
 
+    const payload = action.data ?? {};
+
     const options = {
         preserveScroll: true,
         onFinish: () => {
@@ -76,13 +78,13 @@ function runAction(action: RowActionItem): void {
             router.delete(action.href, options);
             break;
         case 'post':
-            router.post(action.href, {}, options);
+            router.post(action.href, payload, options);
             break;
         case 'put':
-            router.put(action.href, {}, options);
+            router.put(action.href, payload, options);
             break;
         case 'patch':
-            router.patch(action.href, {}, options);
+            router.patch(action.href, payload, options);
             break;
     }
 }
@@ -152,7 +154,7 @@ function confirmPendingAction(): void {
                     </Button>
                 </DialogClose>
                 <Button
-                    variant="destructive"
+                    :variant="pendingAction.confirmVariant ?? 'destructive'"
                     :disabled="processing"
                     @click="confirmPendingAction"
                 >

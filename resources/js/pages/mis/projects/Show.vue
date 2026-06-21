@@ -177,6 +177,9 @@ const markLost = () => {
                 </div>
             </div>
             <div class="flex shrink-0 flex-wrap gap-2">
+                <Button variant="outline" size="sm" as-child>
+                    <Link href="/projects">Back to list</Link>
+                </Button>
                 <template v-if="statusOptions.length">
                     <Button
                         v-for="opt in statusOptions"

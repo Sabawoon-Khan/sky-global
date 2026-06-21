@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Form, Head, router } from '@inertiajs/vue3';
-import { Pencil, Search, Shield, UserCheck, UserCog, UserX } from '@lucide/vue';
+import { Form, Head, usePage } from '@inertiajs/vue3';
+import { Pencil, Search, Shield, UserCog } from '@lucide/vue';
+import { computed } from 'vue';
 import UserManagementController from '@/actions/App/Http/Controllers/Settings/UserManagementController';
 import Heading from '@/components/Heading.vue';
 import MisPagination from '@/components/MisPagination.vue';
@@ -18,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
+import { userActiveAction } from '@/lib/status-actions';
 
 interface Role {
     id: number;
@@ -40,6 +42,9 @@ interface Props {
 
 defineProps<Props>();
 
+const page = usePage();
+const currentUserId = computed(() => page.props.auth?.user?.id as number | undefined);
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -49,29 +54,30 @@ defineOptions({
     },
 });
 
-const toggleUser = (user: UserRecord): void => {
-    router.put(
-        UserManagementController.update.url(user.id),
-        { is_active: !user.is_active },
-        { preserveScroll: true },
-    );
-};
-
-const userActions = (user: UserRecord): RowActionItem[] => [
-    {
-        label: 'Edit roles',
-        icon: Pencil,
-        onClick: () => {
-            document.getElementById(`roles-${user.id}`)?.focus();
+const userActions = (user: UserRecord): RowActionItem[] => {
+    const actions: RowActionItem[] = [
+        {
+            label: 'Edit roles',
+            icon: Pencil,
+            onClick: () => {
+                document.getElementById(`roles-${user.id}`)?.focus();
+            },
         },
-    },
-    {
-        label: user.is_active ? 'Disable account' : 'Enable account',
-        icon: user.is_active ? UserX : UserCheck,
-        separator: true,
-        onClick: () => toggleUser(user),
-    },
-];
+    ];
+
+    const activeAction = userActiveAction({
+        url: UserManagementController.update.url(user.id),
+        name: user.name,
+        isActive: user.is_active,
+        isCurrentUser: user.id === currentUserId.value,
+    });
+
+    if (activeAction) {
+        actions.push(activeAction);
+    }
+
+    return actions;
+};
 </script>
 
 <template>

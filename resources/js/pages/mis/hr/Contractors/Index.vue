@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import type { RowActionItem } from '@/lib/row-actions';
+import { personnelStatusActions } from '@/lib/status-actions';
 
 interface Contractor {
     id: number;
@@ -59,6 +60,11 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
         icon: Pencil,
         href: `/hr/contractors/${contractor.id}/edit`,
     },
+    ...personnelStatusActions({
+        url: `/hr/contractors/${contractor.id}`,
+        name: fullName(contractor),
+        status: contractor.status,
+    }),
 ];
 </script>
 

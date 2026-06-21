@@ -108,8 +108,18 @@ class OrganizationController extends Controller
     {
         $this->authorizePermission($request, 'bidding.edit');
 
-        $organization->update($request->validated());
+        $validated = $request->validated();
+        $organization->update($validated);
         $this->storeOptionalAttachment($request, $organization);
+
+        if (array_keys($validated) === ['is_active']) {
+            $organization->refresh();
+
+            return back()->with(
+                'success',
+                $organization->is_active ? 'Organization activated.' : 'Organization deactivated.',
+            );
+        }
 
         return redirect()
             ->route('organizations.show', $organization)

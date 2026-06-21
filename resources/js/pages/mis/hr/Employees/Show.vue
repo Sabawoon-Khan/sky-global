@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft } from '@lucide/vue';
 import EntityAttachments, {
     type EntityAttachment,
 } from '@/components/EntityAttachments.vue';
@@ -98,19 +97,22 @@ const formatCurrency = (value: number, currency = 'USD'): string =>
     <Head :title="`${employee.first_name} ${employee.last_name}`" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
-        <div class="flex items-start gap-4">
-            <Button variant="outline" size="icon" as-child>
-                <Link href="/hr/employees">
-                    <ArrowLeft class="size-4" />
-                </Link>
-            </Button>
-            <div class="flex-1">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
                 <Heading
                     :title="`${employee.first_name} ${employee.last_name}`"
                     :description="employee.job_detail?.designation ?? undefined"
                 />
+                <Badge class="mt-2">{{ employee.status }}</Badge>
             </div>
-            <Badge>{{ employee.status }}</Badge>
+            <div class="flex shrink-0 flex-wrap gap-2">
+                <Button variant="outline" as-child>
+                    <Link href="/hr/employees">Back to list</Link>
+                </Button>
+                <Button as-child>
+                    <Link :href="`/hr/employees/${employee.id}/edit`">Edit</Link>
+                </Button>
+            </div>
         </div>
 
         <div class="grid gap-4 lg:grid-cols-2">

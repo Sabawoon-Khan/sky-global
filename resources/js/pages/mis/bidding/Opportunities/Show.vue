@@ -76,9 +76,14 @@ defineOptions({
                     </Badge>
                 </div>
             </div>
-            <Button as-child variant="outline">
-                <Link :href="`/bidding/opportunities/${opportunity.id}/edit`">Edit</Link>
-            </Button>
+            <div class="flex shrink-0 flex-wrap gap-2">
+                <Button as-child variant="outline">
+                    <Link href="/bidding/opportunities">Back to list</Link>
+                </Button>
+                <Button as-child>
+                    <Link :href="`/bidding/opportunities/${opportunity.id}/edit`">Edit</Link>
+                </Button>
+            </div>
         </div>
 
         <div class="grid gap-4 md:grid-cols-2">

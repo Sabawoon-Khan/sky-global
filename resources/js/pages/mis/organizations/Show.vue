@@ -112,12 +112,14 @@ defineOptions({
                     </Badge>
                 </div>
             </div>
-            <Button variant="outline" as-child>
-                <Link href="/organizations">Back to list</Link>
-            </Button>
-            <Button as-child>
-                <Link :href="`/organizations/${organization.id}/edit`">Edit</Link>
-            </Button>
+            <div class="flex shrink-0 flex-wrap gap-2">
+                <Button variant="outline" as-child>
+                    <Link href="/organizations">Back to list</Link>
+                </Button>
+                <Button as-child>
+                    <Link :href="`/organizations/${organization.id}/edit`">Edit</Link>
+                </Button>
+            </div>
         </div>
 
         <div class="grid gap-4 lg:grid-cols-3">

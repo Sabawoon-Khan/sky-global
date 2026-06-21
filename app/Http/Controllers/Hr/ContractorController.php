@@ -119,6 +119,10 @@ class ContractorController extends Controller
         $contractor->update($validated);
         $this->storeOptionalAttachment($request, $contractor);
 
+        if (array_keys($validated) === ['status']) {
+            return back()->with('success', 'Contractor status updated.');
+        }
+
         return redirect()
             ->route('hr.contractors.show', $contractor)
             ->with('success', 'Contractor updated.');

@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
+import { toggleIsActiveAction } from '@/lib/status-actions';
 
 interface OrganizationType {
     id: number;
@@ -75,6 +76,12 @@ const organizationActions = (org: Organization): RowActionItem[] => [
         icon: Pencil,
         href: `/organizations/${org.id}/edit`,
     },
+    toggleIsActiveAction({
+        url: `/organizations/${org.id}`,
+        name: org.name,
+        isActive: org.is_active,
+        entityLabel: 'organization',
+    }),
     {
         label: 'Delete',
         icon: Trash2,

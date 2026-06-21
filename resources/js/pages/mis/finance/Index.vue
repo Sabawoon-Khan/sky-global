@@ -15,6 +15,10 @@ import {
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { RowActionItem } from '@/lib/row-actions';
+import {
+    approvalStatusActions,
+    invoiceStatusActions,
+} from '@/lib/status-actions';
 
 interface Income {
     id: number;
@@ -23,6 +27,7 @@ interface Income {
     amount_usd?: number | null;
     currency?: string | null;
     received_at?: string | null;
+    status?: string | null;
     project?: { id: number; code: string; name: string } | null;
 }
 
@@ -33,6 +38,7 @@ interface Expense {
     amount_usd?: number | null;
     currency?: string | null;
     incurred_at?: string | null;
+    status?: string | null;
     project?: { id: number; code: string; name: string } | null;
 }
 
@@ -107,6 +113,11 @@ const incomeActions = (item: Income): RowActionItem[] => [
         href: item.project ? `/projects/${item.project.id}` : undefined,
         hidden: !item.project,
     },
+    ...approvalStatusActions({
+        url: `/finance/incomes/${item.id}`,
+        name: item.description,
+        status: item.status ?? 'pending',
+    }),
     {
         label: 'Delete',
         icon: Trash2,
@@ -128,6 +139,11 @@ const expenseActions = (item: Expense): RowActionItem[] => [
         href: item.project ? `/projects/${item.project.id}` : undefined,
         hidden: !item.project,
     },
+    ...approvalStatusActions({
+        url: `/finance/expenses/${item.id}`,
+        name: item.description,
+        status: item.status ?? 'pending',
+    }),
     {
         label: 'Delete',
         icon: Trash2,
@@ -143,6 +159,11 @@ const expenseActions = (item: Expense): RowActionItem[] => [
 ];
 
 const invoiceActions = (invoice: Invoice): RowActionItem[] => [
+    ...invoiceStatusActions({
+        url: `/finance/invoices/${invoice.id}`,
+        label: invoice.invoice_number ?? `#${invoice.id}`,
+        status: invoice.status,
+    }),
     {
         label: 'Delete',
         icon: Trash2,
@@ -240,6 +261,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 <th class="pb-2 pr-4 font-medium">Description</th>
                                 <th class="pb-2 pr-4 font-medium">Project</th>
                                 <th class="pb-2 pr-4 font-medium">Date</th>
+                                <th class="pb-2 pr-4 font-medium">Status</th>
                                 <th class="pb-2 pr-4 text-right font-medium">Amount</th>
                                 <th class="pb-2 text-right font-medium">Actions</th>
                             </tr>
@@ -256,6 +278,11 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 </td>
                                 <td class="py-2 pr-4 text-muted-foreground">
                                     {{ formatDate(item.received_at) }}
+                                </td>
+                                <td class="py-2 pr-4">
+                                    <Badge variant="outline">
+                                        {{ item.status ?? 'pending' }}
+                                    </Badge>
                                 </td>
                                 <td class="py-2 text-right font-medium">
                                     {{
@@ -294,6 +321,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 <th class="pb-2 pr-4 font-medium">Description</th>
                                 <th class="pb-2 pr-4 font-medium">Project</th>
                                 <th class="pb-2 pr-4 font-medium">Date</th>
+                                <th class="pb-2 pr-4 font-medium">Status</th>
                                 <th class="pb-2 pr-4 text-right font-medium">Amount</th>
                                 <th class="pb-2 text-right font-medium">Actions</th>
                             </tr>
@@ -310,6 +338,11 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 </td>
                                 <td class="py-2 pr-4 text-muted-foreground">
                                     {{ formatDate(item.incurred_at) }}
+                                </td>
+                                <td class="py-2 pr-4">
+                                    <Badge variant="outline">
+                                        {{ item.status ?? 'pending' }}
+                                    </Badge>
                                 </td>
                                 <td class="py-2 text-right font-medium">
                                     {{
