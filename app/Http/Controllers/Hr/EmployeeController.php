@@ -1,0 +1,154 @@
+<?php
+
+namespace App\Http\Controllers\Hr;
+
+use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Controller;
+use App\Models\Department;
+use App\Models\Hr\Employee;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class EmployeeController extends Controller
+{
+    use AuthorizesMisPermissions;
+
+    public function index(Request $request): Response
+    {
+        $this->authorizePermission($request, 'hr.view');
+
+        $search = $request->string('search')->trim()->toString();
+        $status = $request->string('status')->trim()->toString();
+
+        $employees = Employee::query()
+            ->with(['jobDetails.department'])
+            ->when($search, fn ($q) => $q->where(function ($query) use ($search) {
+                $query->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            }))
+            ->when($status, fn ($q) => $q->where('status', $status))
+            ->orderBy('last_name')
+            ->paginate(15)
+            ->withQueryString();
+
+        $employees->getCollection()->transform(function (Employee $employee) {
+            $employee->setAttribute(
+                'job_detail',
+                $employee->jobDetails->sortByDesc('id')->first(),
+            );
+
+            return $employee;
+        });
+
+        return Inertia::render('mis/hr/Employees/Index', [
+            'employees' => $employees,
+            'filters' => [
+                'search' => $search ?: null,
+                'status' => $status ?: null,
+            ],
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $this->authorizePermission($request, 'hr.create');
+
+        $validated = $request->validate([
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:100'],
+            'father_name' => ['nullable', 'string', 'max:100'],
+            'original_address' => ['nullable', 'string'],
+            'current_address' => ['nullable', 'string'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'tazkira_number' => ['nullable', 'string', 'max:50'],
+            'date_of_birth' => ['nullable', 'date'],
+            'gender' => ['nullable', 'string', 'in:male,female,other'],
+            'status' => ['nullable', 'string', 'in:active,inactive,terminated'],
+            'job_detail' => ['nullable', 'array'],
+            'job_detail.department_id' => ['nullable', 'exists:departments,id'],
+            'job_detail.designation' => ['nullable', 'string', 'max:100'],
+            'job_detail.hire_date' => ['nullable', 'date'],
+            'job_detail.salary_grade' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $jobDetail = $validated['job_detail'] ?? null;
+        unset($validated['job_detail']);
+
+        $employee = Employee::query()->create([
+            ...$validated,
+            'status' => $validated['status'] ?? 'active',
+        ]);
+
+        if (is_array($jobDetail)) {
+            $employee->jobDetails()->create($jobDetail);
+        }
+
+        return redirect()
+            ->route('hr.employees.show', $employee)
+            ->with('success', 'Employee created.');
+    }
+
+    public function show(Request $request, Employee $employee): Response
+    {
+        $this->authorizePermission($request, 'hr.view');
+
+        $employee->load([
+            'jobDetails.department',
+            'salaries',
+            'contracts',
+            'user',
+        ]);
+
+        $employee->setAttribute(
+            'job_detail',
+            $employee->jobDetails->sortByDesc('id')->first(),
+        );
+
+        return Inertia::render('mis/hr/Employees/Show', [
+            'employee' => $employee,
+            'departments' => Department::query()->orderBy('name')->get(),
+        ]);
+    }
+
+    public function update(Request $request, Employee $employee): RedirectResponse
+    {
+        $this->authorizePermission($request, 'hr.edit');
+
+        $validated = $request->validate([
+            'first_name' => ['sometimes', 'required', 'string', 'max:100'],
+            'last_name' => ['sometimes', 'required', 'string', 'max:100'],
+            'father_name' => ['nullable', 'string', 'max:100'],
+            'original_address' => ['nullable', 'string'],
+            'current_address' => ['nullable', 'string'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'tazkira_number' => ['nullable', 'string', 'max:50'],
+            'date_of_birth' => ['nullable', 'date'],
+            'gender' => ['nullable', 'string', 'in:male,female,other'],
+            'status' => ['nullable', 'string', 'in:active,inactive,terminated'],
+            'job_detail' => ['nullable', 'array'],
+            'job_detail.department_id' => ['nullable', 'exists:departments,id'],
+            'job_detail.designation' => ['nullable', 'string', 'max:100'],
+            'job_detail.hire_date' => ['nullable', 'date'],
+            'job_detail.salary_grade' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $jobDetail = $validated['job_detail'] ?? null;
+        unset($validated['job_detail']);
+
+        $employee->update($validated);
+
+        if (is_array($jobDetail)) {
+            $employee->jobDetails()->updateOrCreate(
+                ['employee_id' => $employee->id],
+                $jobDetail,
+            );
+        }
+
+        return back()->with('success', 'Employee updated.');
+    }
+}
