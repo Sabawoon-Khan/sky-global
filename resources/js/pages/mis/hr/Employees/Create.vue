@@ -72,6 +72,39 @@ defineOptions({
                         <InputError :message="errors.last_name" />
                     </div>
                     <div class="grid gap-2">
+                        <Label for="father_name">Father's name</Label>
+                        <Input id="father_name" name="father_name" />
+                        <InputError :message="errors.father_name" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="tazkira_number">Tazkira number</Label>
+                        <Input id="tazkira_number" name="tazkira_number" />
+                        <InputError :message="errors.tazkira_number" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="date_of_birth">Date of birth</Label>
+                        <Input
+                            id="date_of_birth"
+                            name="date_of_birth"
+                            type="date"
+                        />
+                        <InputError :message="errors.date_of_birth" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="gender">Gender</Label>
+                        <select
+                            id="gender"
+                            name="gender"
+                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                        >
+                            <option value="">Select gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <InputError :message="errors.gender" />
+                    </div>
+                    <div class="grid gap-2">
                         <Label for="phone">Phone</Label>
                         <Input id="phone" name="phone" type="tel" />
                     </div>

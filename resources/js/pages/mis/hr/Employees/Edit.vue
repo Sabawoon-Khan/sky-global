@@ -32,6 +32,10 @@ interface Employee {
     id: number;
     first_name: string;
     last_name: string;
+    father_name?: string | null;
+    tazkira_number?: string | null;
+    date_of_birth?: string | null;
+    gender?: string | null;
     phone?: string | null;
     email?: string | null;
     current_address?: string | null;
@@ -99,6 +103,63 @@ defineOptions({
                             :default-value="employee.last_name"
                         />
                         <InputError :message="errors.last_name" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="father_name">Father's name</Label>
+                        <Input
+                            id="father_name"
+                            name="father_name"
+                            :default-value="employee.father_name ?? ''"
+                        />
+                        <InputError :message="errors.father_name" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="tazkira_number">Tazkira number</Label>
+                        <Input
+                            id="tazkira_number"
+                            name="tazkira_number"
+                            :default-value="employee.tazkira_number ?? ''"
+                        />
+                        <InputError :message="errors.tazkira_number" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="date_of_birth">Date of birth</Label>
+                        <Input
+                            id="date_of_birth"
+                            name="date_of_birth"
+                            type="date"
+                            :default-value="employee.date_of_birth ?? ''"
+                        />
+                        <InputError :message="errors.date_of_birth" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="gender">Gender</Label>
+                        <select
+                            id="gender"
+                            name="gender"
+                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                        >
+                            <option value="">Select gender</option>
+                            <option
+                                value="male"
+                                :selected="employee.gender === 'male'"
+                            >
+                                Male
+                            </option>
+                            <option
+                                value="female"
+                                :selected="employee.gender === 'female'"
+                            >
+                                Female
+                            </option>
+                            <option
+                                value="other"
+                                :selected="employee.gender === 'other'"
+                            >
+                                Other
+                            </option>
+                        </select>
+                        <InputError :message="errors.gender" />
                     </div>
                     <div class="grid gap-2">
                         <Label for="phone">Phone</Label>
