@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Form, Head, usePage } from '@inertiajs/vue3';
-import { Pencil, Search, Shield, UserCog } from '@lucide/vue';
+import { Pencil, Plus, Search, Shield, UserCog } from '@lucide/vue';
 import { computed } from 'vue';
 import UserManagementController from '@/actions/App/Http/Controllers/Settings/UserManagementController';
 import Heading from '@/components/Heading.vue';
+import InputError from '@/components/InputError.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useTranslations } from '@/composables/useTranslations';
 import type { Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { userActiveAction } from '@/lib/status-actions';
@@ -42,6 +44,7 @@ interface Props {
 
 defineProps<Props>();
 
+const { t } = useTranslations();
 const page = usePage();
 const currentUserId = computed(() => page.props.auth?.user?.id as number | undefined);
 
@@ -57,7 +60,7 @@ defineOptions({
 const userActions = (user: UserRecord): RowActionItem[] => {
     const actions: RowActionItem[] = [
         {
-            label: 'Edit roles',
+            label: t('Edit roles'),
             icon: Pencil,
             onClick: () => {
                 document.getElementById(`roles-${user.id}`)?.focus();
@@ -81,23 +84,96 @@ const userActions = (user: UserRecord): RowActionItem[] => {
 </script>
 
 <template>
-    <Head title="User Management" />
+    <Head :title="t('User Management')" />
 
     <div class="space-y-6">
         <Heading
             variant="small"
-            title="Users"
-            description="Assign roles and manage account access"
+            :title="t('Users')"
+            :description="t('Create accounts, assign roles, and manage access')"
         />
 
         <Card>
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
-                    <UserCog class="size-5" />
-                    System Users
+                    <Plus class="size-5" />
+                    {{ t('Add User') }}
                 </CardTitle>
                 <CardDescription>
-                    {{ users.meta?.total ?? users.data.length }} registered users
+                    {{ t('Create a new system user with an initial password and roles') }}
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Form
+                    action="/settings/users"
+                    method="post"
+                    class="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"
+                    v-slot="{ errors, processing }"
+                >
+                    <div class="grid gap-2">
+                        <Label for="name">{{ t('Name') }} *</Label>
+                        <Input id="name" name="name" required />
+                        <InputError :message="errors.name" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="email">{{ t('Email') }} *</Label>
+                        <Input id="email" name="email" type="email" required />
+                        <InputError :message="errors.email" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="password">{{ t('Password') }} *</Label>
+                        <Input
+                            id="password"
+                            name="password"
+                            type="password"
+                            autocomplete="new-password"
+                            required
+                        />
+                        <InputError :message="errors.password" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="password_confirmation">{{ t('Confirm password') }} *</Label>
+                        <Input
+                            id="password_confirmation"
+                            name="password_confirmation"
+                            type="password"
+                            autocomplete="new-password"
+                            required
+                        />
+                    </div>
+                    <div class="grid gap-2 sm:col-span-2">
+                        <Label for="create-roles">{{ t('Roles') }}</Label>
+                        <select
+                            id="create-roles"
+                            name="roles[]"
+                            multiple
+                            class="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        >
+                            <option v-for="role in roles" :key="role.id" :value="role.name">
+                                {{ role.name }}
+                            </option>
+                        </select>
+                        <InputError :message="errors.roles" />
+                    </div>
+                    <div class="sm:col-span-2">
+                        <Button type="submit" :disabled="processing">
+                            <Plus class="size-4" />
+                            {{ t('Create User') }}
+                        </Button>
+                    </div>
+                </Form>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle class="flex items-center gap-2">
+                    <UserCog class="size-5" />
+                    {{ t('System Users') }}
+                </CardTitle>
+                <CardDescription>
+                    {{ users.meta?.total ?? users.data.length }}
+                    {{ t('registered users') }}
                 </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
@@ -112,7 +188,7 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                     <Input
                         name="search"
                         :default-value="filters?.search ?? ''"
-                        placeholder="Search users..."
+                        :placeholder="t('Search users...')"
                         class="pl-9"
                     />
                 </form>
@@ -121,7 +197,7 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                     v-if="users.data.length === 0"
                     class="text-sm text-muted-foreground"
                 >
-                    No users found.
+                    {{ t('No users found.') }}
                 </div>
                 <div v-else class="space-y-4">
                     <div
@@ -140,7 +216,7 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                                             user.is_active ? 'default' : 'destructive'
                                         "
                                     >
-                                        {{ user.is_active ? 'Active' : 'Disabled' }}
+                                        {{ user.is_active ? t('Active') : t('Disabled') }}
                                     </Badge>
                                 </div>
                                 <p class="text-sm text-muted-foreground">
@@ -166,14 +242,15 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                                     <RowActionsMenu :actions="userActions(user)" />
                                 </div>
                                 <Form
-                                    v-bind="
-                                        UserManagementController.update.form(user.id)
+                                    :action="
+                                        UserManagementController.update.url(user.id)
                                     "
+                                    method="put"
                                     class="grid gap-2"
                                     :options="{ preserveScroll: true }"
                                     v-slot="{ processing }"
                                 >
-                                    <Label :for="`roles-${user.id}`">Roles</Label>
+                                    <Label :for="`roles-${user.id}`">{{ t('Roles') }}</Label>
                                     <select
                                         :id="`roles-${user.id}`"
                                         name="roles[]"
@@ -198,7 +275,7 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                                         size="sm"
                                         :disabled="processing"
                                     >
-                                        Update Roles
+                                        {{ t('Update Roles') }}
                                     </Button>
                                 </Form>
                             </div>

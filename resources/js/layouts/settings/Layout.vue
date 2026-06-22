@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -14,6 +14,13 @@ import type { NavItem } from '@/types';
 import { computed } from 'vue';
 
 const { t } = useTranslations();
+const page = usePage();
+
+const permissions = computed(
+    () => (page.props.auth?.user?.permissions as string[] | undefined) ?? [],
+);
+
+const can = (permission: string): boolean => permissions.value.includes(permission);
 
 const accountNavItems = computed<NavItem[]>(() => [
     {
@@ -34,16 +41,28 @@ const accountNavItems = computed<NavItem[]>(() => [
     },
 ]);
 
-const adminNavItems = computed<NavItem[]>(() => [
-    {
-        title: t('Users'),
-        href: '/settings/users',
-    },
-    {
-        title: t('Organization Types'),
-        href: '/settings/organization-types',
-    },
-]);
+const adminNavItems = computed<NavItem[]>(() =>
+    [
+        can('settings.manage_users')
+            ? {
+                  title: t('Users'),
+                  href: '/settings/users',
+              }
+            : null,
+        can('settings.manage_users')
+            ? {
+                  title: t('Roles'),
+                  href: '/settings/roles',
+              }
+            : null,
+        can('settings.edit')
+            ? {
+                  title: t('Organization Types'),
+                  href: '/settings/organization-types',
+              }
+            : null,
+    ].filter((item): item is NavItem => item !== null),
+);
 
 const { isCurrentOrParentUrl } = useCurrentUrl();
 </script>
@@ -82,7 +101,7 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
                             </Link>
                         </Button>
                     </div>
-                    <div class="space-y-1">
+                    <div v-if="adminNavItems.length > 0" class="space-y-1">
                         <p class="px-2 text-xs font-medium text-muted-foreground">
                             {{ t('Administration') }}
                         </p>
@@ -112,7 +131,7 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
             <Separator class="my-6 lg:hidden" />
 
             <div class="flex-1 md:max-w-2xl">
-                <section class="max-w-xl space-y-12">
+                <section class="max-w-3xl space-y-12">
                     <slot />
                 </section>
             </div>

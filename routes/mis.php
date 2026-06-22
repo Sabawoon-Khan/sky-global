@@ -27,6 +27,7 @@ use App\Http\Controllers\Project\ProjectDeploymentController;
 use App\Http\Controllers\Project\ProjectIssueController;
 use App\Http\Controllers\Project\ProjectSiteController;
 use App\Http\Controllers\Settings\OrganizationTypeController;
+use App\Http\Controllers\Settings\RoleManagementController;
 use App\Http\Controllers\Settings\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
@@ -168,7 +169,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('users', [UserManagementController::class, 'index'])->name('users.index');
+        Route::post('users', [UserManagementController::class, 'store'])->name('users.store');
         Route::put('users/{user}', [UserManagementController::class, 'update'])->name('users.update');
+
+        Route::get('roles', [RoleManagementController::class, 'index'])->name('roles.index');
+        Route::post('roles', [RoleManagementController::class, 'store'])->name('roles.store');
+        Route::put('roles/{role}', [RoleManagementController::class, 'update'])->name('roles.update');
+        Route::delete('roles/{role}', [RoleManagementController::class, 'destroy'])->name('roles.destroy');
 
         Route::get('organization-types', [OrganizationTypeController::class, 'index'])->name('organization-types.index');
         Route::post('organization-types', [OrganizationTypeController::class, 'store'])->name('organization-types.store');
