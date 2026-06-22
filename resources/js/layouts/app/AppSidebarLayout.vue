@@ -5,7 +5,9 @@ import AppSidebar from '@/components/AppSidebar.vue';
 import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
 import FlashToasts from '@/components/FlashToasts.vue';
 import { Toaster } from '@/components/ui/sonner';
+import { useLocale } from '@/composables/useLocale';
 import type { BreadcrumbItem } from '@/types';
+import { computed } from 'vue';
 
 type Props = {
     breadcrumbs?: BreadcrumbItem[];
@@ -14,6 +16,12 @@ type Props = {
 withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],
 });
+
+const { dir } = useLocale();
+
+const toasterPosition = computed(() =>
+    dir.value === 'rtl' ? 'top-left' : 'top-right',
+);
 </script>
 
 <template>
@@ -23,7 +31,7 @@ withDefaults(defineProps<Props>(), {
             <AppSidebarHeader :breadcrumbs="breadcrumbs" />
             <slot />
         </AppContent>
-        <Toaster position="top-right" :duration="5000" rich-colors />
+        <Toaster :position="toasterPosition" :duration="5000" rich-colors />
         <FlashToasts />
     </AppShell>
 </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Building2, Eye, FolderKanban, Pencil, Plus, Search, Trash2, Users } from '@lucide/vue';
+import { Building2, FolderKanban, Plus, Search, Users } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import MisPage from '@/components/MisPage.vue';
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useMisPage } from '@/composables/useMisPage';
 import type { Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { toggleIsActiveAction } from '@/lib/status-actions';
@@ -56,6 +57,8 @@ interface Props {
 
 defineProps<Props>();
 
+const { t, viewAction, editAction, deleteAction } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -66,51 +69,38 @@ defineOptions({
 });
 
 const organizationActions = (org: Organization): RowActionItem[] => [
-    {
-        label: 'View',
-        icon: Eye,
-        href: `/organizations/${org.id}`,
-    },
-    {
-        label: 'Edit',
-        icon: Pencil,
-        href: `/organizations/${org.id}/edit`,
-    },
+    viewAction(`/organizations/${org.id}`),
+    editAction(`/organizations/${org.id}/edit`),
     toggleIsActiveAction({
         url: `/organizations/${org.id}`,
         name: org.name,
         isActive: org.is_active,
-        entityLabel: 'organization',
+        entityLabel: t('organization'),
+        t,
     }),
-    {
-        label: 'Delete',
-        icon: Trash2,
-        variant: 'destructive',
-        separator: true,
+    deleteAction({
         href: `/organizations/${org.id}`,
-        method: 'delete',
-        confirm: {
-            title: 'Delete organization',
-            description: `Are you sure you want to delete "${org.name}"? This cannot be undone.`,
-            confirmLabel: 'Delete',
-        },
-    },
+        title: t('Delete organization'),
+        description: t('Are you sure you want to delete ":name"? This cannot be undone.', {
+            name: org.name,
+        }),
+    }),
 ];
 </script>
 
 <template>
-    <Head title="Organizations" />
+    <Head :title="t('Organizations')" />
 
     <MisPage>
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <Heading
-                title="Organizations"
-                description="Register clients, partners, and procurement bodies"
+                :title="t('Organizations')"
+                :description="t('Register clients, partners, and procurement bodies')"
             />
             <Button as-child>
                 <Link href="/organizations/create">
-                    <Plus class="mr-2 size-4" />
-                    Add Organization
+                    <Plus class="me-2 size-4" />
+                    {{ t('Add Organization') }}
                 </Link>
             </Button>
         </div>
@@ -118,19 +108,19 @@ const organizationActions = (org: Organization): RowActionItem[] => [
         <div class="grid gap-4 md:grid-cols-3">
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>Total registered</CardDescription>
+                    <CardDescription>{{ t('Total registered') }}</CardDescription>
                     <CardTitle class="text-3xl">{{ stats.total }}</CardTitle>
                 </CardHeader>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>Active organizations</CardDescription>
+                    <CardDescription>{{ t('Active organizations') }}</CardDescription>
                     <CardTitle class="text-3xl">{{ stats.active }}</CardTitle>
                 </CardHeader>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>With active projects</CardDescription>
+                    <CardDescription>{{ t('With active projects') }}</CardDescription>
                     <CardTitle class="text-3xl">{{ stats.with_projects }}</CardTitle>
                 </CardHeader>
             </Card>
@@ -140,34 +130,42 @@ const organizationActions = (org: Organization): RowActionItem[] => [
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <Building2 class="size-5" />
-                    All Organizations
+                    {{ t('All Organizations') }}
                 </CardTitle>
                 <CardDescription>
-                    {{ organizations.meta?.total ?? organizations.data.length }} organizations
+                    {{
+                        t(':count organizations', {
+                            count: String(
+                                organizations.meta?.total ?? organizations.data.length,
+                            ),
+                        })
+                    }}
                 </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
                 <form method="get" action="/organizations" class="grid gap-4 md:grid-cols-3">
                     <div class="relative md:col-span-2">
                         <Search
-                            class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                            class="absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground"
                         />
                         <Input
                             name="search"
                             :default-value="filters?.search ?? ''"
-                            placeholder="Search by name, email, phone, province..."
-                            class="pl-9"
+                            :placeholder="t('Search by name, email, phone, province...')"
+                            class="ps-9"
                         />
                     </div>
                     <div class="flex gap-2">
                         <div class="grid flex-1 gap-1.5">
-                            <Label for="organization_type_id" class="sr-only">Type</Label>
+                            <Label for="organization_type_id" class="sr-only">{{
+                                t('Type')
+                            }}</Label>
                             <select
                                 id="organization_type_id"
                                 name="organization_type_id"
                                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                             >
-                                <option value="">All types</option>
+                                <option value="">{{ t('All types') }}</option>
                                 <option
                                     v-for="type in organizationTypes"
                                     :key="type.id"
@@ -178,7 +176,7 @@ const organizationActions = (org: Organization): RowActionItem[] => [
                                 </option>
                             </select>
                         </div>
-                        <Button type="submit" variant="secondary">Filter</Button>
+                        <Button type="submit" variant="secondary">{{ t('Filter') }}</Button>
                     </div>
                 </form>
 
@@ -187,12 +185,16 @@ const organizationActions = (org: Organization): RowActionItem[] => [
                     class="rounded-lg border border-dashed p-10 text-center"
                 >
                     <Building2 class="mx-auto mb-3 size-10 text-muted-foreground" />
-                    <p class="font-medium">No organizations yet</p>
+                    <p class="font-medium">{{ t('No organizations yet') }}</p>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Add government bodies, NGOs, private companies, and other clients you bid to or serve.
+                        {{
+                            t('Add government bodies, NGOs, private companies, and other clients you bid to or serve.')
+                        }}
                     </p>
                     <Button as-child class="mt-4">
-                        <Link href="/organizations/create">Create first organization</Link>
+                        <Link href="/organizations/create">{{
+                            t('Create first organization')
+                        }}</Link>
                     </Button>
                 </div>
 
@@ -200,13 +202,23 @@ const organizationActions = (org: Organization): RowActionItem[] => [
                     <table class="w-full text-sm">
                         <thead class="border-b bg-muted/50">
                             <tr>
-                                <th class="px-4 py-3 text-left font-medium">Organization</th>
-                                <th class="px-4 py-3 text-left font-medium">Type</th>
-                                <th class="px-4 py-3 text-left font-medium">Location</th>
-                                <th class="px-4 py-3 text-left font-medium">Contact</th>
-                                <th class="px-4 py-3 text-left font-medium">Activity</th>
-                                <th class="px-4 py-3 text-left font-medium">Status</th>
-                                <th class="px-4 py-3 text-right font-medium">Actions</th>
+                                <th class="px-4 py-3 text-start font-medium">{{
+                                    t('Organization')
+                                }}</th>
+                                <th class="px-4 py-3 text-start font-medium">{{ t('Type') }}</th>
+                                <th class="px-4 py-3 text-start font-medium">{{
+                                    t('Location')
+                                }}</th>
+                                <th class="px-4 py-3 text-start font-medium">{{
+                                    t('Contact')
+                                }}</th>
+                                <th class="px-4 py-3 text-start font-medium">{{
+                                    t('Activity')
+                                }}</th>
+                                <th class="px-4 py-3 text-start font-medium">{{
+                                    t('Status')
+                                }}</th>
+                                <th class="px-4 py-3 text-end font-medium">{{ t('Actions') }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y">
@@ -223,7 +235,7 @@ const organizationActions = (org: Organization): RowActionItem[] => [
                                         {{ org.name }}
                                     </Link>
                                     <p v-if="org.tax_id" class="text-xs text-muted-foreground">
-                                        Tax ID: {{ org.tax_id }}
+                                        {{ t('Tax ID') }}: {{ org.tax_id }}
                                     </p>
                                 </td>
                                 <td class="px-4 py-3">
@@ -257,20 +269,30 @@ const organizationActions = (org: Organization): RowActionItem[] => [
                                     <div class="flex flex-wrap gap-2 text-xs text-muted-foreground">
                                         <span class="inline-flex items-center gap-1">
                                             <FolderKanban class="size-3" />
-                                            {{ org.projects_count }} projects
+                                            {{
+                                                t(':count projects', {
+                                                    count: String(org.projects_count),
+                                                })
+                                            }}
                                         </span>
                                         <span class="inline-flex items-center gap-1">
                                             <Users class="size-3" />
-                                            {{ org.procurement_opportunities_count }} bids
+                                            {{
+                                                t(':count bids', {
+                                                    count: String(
+                                                        org.procurement_opportunities_count,
+                                                    ),
+                                                })
+                                            }}
                                         </span>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3">
                                     <Badge :variant="org.is_active ? 'default' : 'outline'">
-                                        {{ org.is_active ? 'Active' : 'Inactive' }}
+                                        {{ org.is_active ? t('Active') : t('Inactive') }}
                                     </Badge>
                                 </td>
-                                <td class="px-4 py-3 text-right">
+                                <td class="px-4 py-3 text-end">
                                     <RowActionsMenu :actions="organizationActions(org)" />
                                 </td>
                             </tr>

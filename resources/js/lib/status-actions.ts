@@ -7,34 +7,44 @@ import {
     XCircle,
 } from '@lucide/vue';
 import type { RowActionItem } from '@/lib/row-actions';
+import type { MisTranslator } from '@/composables/useMisPage';
+
+type Translate = MisTranslator;
+
+function tr(t: Translate | undefined, key: string, replace?: Record<string, string>): string {
+    return t ? t(key, replace) : key;
+}
 
 export function toggleIsActiveAction(options: {
     url: string;
     name: string;
     isActive: boolean;
     entityLabel?: string;
+    t?: Translate;
 }): RowActionItem {
-    const { url, name, isActive, entityLabel = 'record' } = options;
+    const { url, name, isActive, entityLabel = 'record', t } = options;
 
     if (isActive) {
         return {
-            label: 'Deactivate',
+            label: tr(t, 'Deactivate'),
             icon: Ban,
             separator: true,
             href: url,
             method: 'put',
             data: { is_active: false },
             confirm: {
-                title: `Deactivate ${entityLabel}`,
-                description: `Deactivate "${name}"? It will no longer appear in active lists.`,
-                confirmLabel: 'Deactivate',
+                title: tr(t, 'Deactivate :entity', { entity: entityLabel }),
+                description: tr(t, 'Deactivate ":name"? It will no longer appear in active lists.', {
+                    name,
+                }),
+                confirmLabel: tr(t, 'Deactivate'),
             },
             confirmVariant: 'destructive',
         };
     }
 
     return {
-        label: 'Activate',
+        label: tr(t, 'Activate'),
         icon: CheckCircle,
         separator: true,
         href: url,
@@ -47,22 +57,23 @@ export function personnelStatusActions(options: {
     url: string;
     name: string;
     status: string;
+    t?: Translate;
 }): RowActionItem[] {
-    const { url, name, status } = options;
+    const { url, name, status, t } = options;
 
     if (status === 'active') {
         return [
             {
-                label: 'Mark inactive',
+                label: tr(t, 'Mark inactive'),
                 icon: CircleSlash,
                 separator: true,
                 href: url,
                 method: 'put',
                 data: { status: 'inactive' },
                 confirm: {
-                    title: 'Mark inactive',
-                    description: `Mark "${name}" as inactive?`,
-                    confirmLabel: 'Mark inactive',
+                    title: tr(t, 'Mark inactive'),
+                    description: tr(t, 'Mark ":name" as inactive?', { name }),
+                    confirmLabel: tr(t, 'Mark inactive'),
                 },
                 confirmVariant: 'default',
             },
@@ -72,7 +83,7 @@ export function personnelStatusActions(options: {
     if (status === 'inactive') {
         return [
             {
-                label: 'Mark active',
+                label: tr(t, 'Mark active'),
                 icon: UserCheck,
                 separator: true,
                 href: url,
@@ -85,16 +96,16 @@ export function personnelStatusActions(options: {
     if (status === 'terminated') {
         return [
             {
-                label: 'Reactivate',
+                label: tr(t, 'Reactivate'),
                 icon: UserCheck,
                 separator: true,
                 href: url,
                 method: 'put',
                 data: { status: 'active' },
                 confirm: {
-                    title: 'Reactivate personnel',
-                    description: `Reactivate "${name}"?`,
-                    confirmLabel: 'Reactivate',
+                    title: tr(t, 'Reactivate personnel'),
+                    description: tr(t, 'Reactivate ":name"?', { name }),
+                    confirmLabel: tr(t, 'Reactivate'),
                 },
                 confirmVariant: 'default',
             },
@@ -108,13 +119,14 @@ export function approvalStatusActions(options: {
     url: string;
     name: string;
     status: string;
+    t?: Translate;
 }): RowActionItem[] {
-    const { url, name, status } = options;
+    const { url, name, status, t } = options;
 
     if (status === 'pending') {
         return [
             {
-                label: 'Approve',
+                label: tr(t, 'Approve'),
                 icon: CheckCircle,
                 separator: true,
                 href: url,
@@ -122,16 +134,16 @@ export function approvalStatusActions(options: {
                 data: { status: 'approved' },
             },
             {
-                label: 'Reject',
+                label: tr(t, 'Reject'),
                 icon: XCircle,
                 variant: 'destructive',
                 href: url,
                 method: 'put',
                 data: { status: 'rejected' },
                 confirm: {
-                    title: 'Reject record',
-                    description: `Reject "${name}"?`,
-                    confirmLabel: 'Reject',
+                    title: tr(t, 'Reject record'),
+                    description: tr(t, 'Reject ":name"?', { name }),
+                    confirmLabel: tr(t, 'Reject'),
                 },
             },
         ];
@@ -140,7 +152,7 @@ export function approvalStatusActions(options: {
     if (status === 'approved') {
         return [
             {
-                label: 'Reject',
+                label: tr(t, 'Reject'),
                 icon: XCircle,
                 separator: true,
                 variant: 'destructive',
@@ -148,9 +160,9 @@ export function approvalStatusActions(options: {
                 method: 'put',
                 data: { status: 'rejected' },
                 confirm: {
-                    title: 'Reject record',
-                    description: `Reject "${name}"?`,
-                    confirmLabel: 'Reject',
+                    title: tr(t, 'Reject record'),
+                    description: tr(t, 'Reject ":name"?', { name }),
+                    confirmLabel: tr(t, 'Reject'),
                 },
             },
         ];
@@ -159,7 +171,7 @@ export function approvalStatusActions(options: {
     if (status === 'rejected') {
         return [
             {
-                label: 'Approve',
+                label: tr(t, 'Approve'),
                 icon: CheckCircle,
                 separator: true,
                 href: url,
@@ -176,8 +188,9 @@ export function invoiceStatusActions(options: {
     url: string;
     label: string;
     status: string;
+    t?: Translate;
 }): RowActionItem[] {
-    const { url, label, status } = options;
+    const { url, label, status, t } = options;
     const actions: RowActionItem[] = [];
 
     const transitions: Record<string, Array<{ status: string; label: string }>> = {
@@ -191,7 +204,7 @@ export function invoiceStatusActions(options: {
 
     for (const [index, transition] of (transitions[status] ?? []).entries()) {
         actions.push({
-            label: transition.label,
+            label: tr(t, transition.label),
             separator: index === 0,
             href: url,
             method: 'put',
@@ -201,16 +214,16 @@ export function invoiceStatusActions(options: {
 
     if (['draft', 'sent', 'overdue'].includes(status)) {
         actions.push({
-            label: 'Cancel invoice',
+            label: tr(t, 'Cancel invoice'),
             icon: XCircle,
             variant: 'destructive',
             href: url,
             method: 'put',
             data: { status: 'cancelled' },
             confirm: {
-                title: 'Cancel invoice',
-                description: `Cancel ${label}?`,
-                confirmLabel: 'Cancel invoice',
+                title: tr(t, 'Cancel invoice'),
+                description: tr(t, 'Cancel :label?', { label }),
+                confirmLabel: tr(t, 'Cancel invoice'),
             },
         });
     }
@@ -250,11 +263,12 @@ const PROJECT_TRANSITIONS: Record<
 export function projectStatusActions(
     projectId: number,
     currentStatus: string,
+    t?: Translate,
 ): RowActionItem[] {
     const transitions = PROJECT_TRANSITIONS[currentStatus] ?? [];
 
     return transitions.map((transition, index) => ({
-        label: transition.label,
+        label: tr(t, transition.label),
         separator: index === 0,
         href: `/projects/${projectId}/status`,
         method: 'post',
@@ -262,9 +276,11 @@ export function projectStatusActions(
         variant: transition.destructive ? 'destructive' : 'default',
         confirm: transition.destructive
             ? {
-                  title: transition.label,
-                  description: `Change project status to "${transition.value}"?`,
-                  confirmLabel: transition.label,
+                  title: tr(t, transition.label),
+                  description: tr(t, 'Change project status to ":status"?', {
+                      status: transition.value,
+                  }),
+                  confirmLabel: tr(t, transition.label),
               }
             : undefined,
         confirmVariant: transition.destructive ? 'destructive' : 'default',
@@ -274,6 +290,7 @@ export function projectStatusActions(
 export function attendanceStatusActions(
     recordId: number,
     status: string,
+    t?: Translate,
 ): RowActionItem[] {
     if (status === 'approved') {
         return [];
@@ -281,7 +298,7 @@ export function attendanceStatusActions(
 
     return [
         {
-            label: 'Approve',
+            label: tr(t, 'Approve'),
             icon: CheckCircle,
             separator: true,
             href: `/hr/attendance/${recordId}/approve`,

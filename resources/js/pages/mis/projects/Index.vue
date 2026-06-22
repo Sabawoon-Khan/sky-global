@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Eye, FolderKanban, Pencil, Plus, Search } from '@lucide/vue';
+import { FolderKanban, Plus, Search } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
 import MisPage from '@/components/MisPage.vue';
 import MisPagination from '@/components/MisPagination.vue';
@@ -15,6 +15,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useMisPage } from '@/composables/useMisPage';
 import { formatCurrency, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { projectStatusActions } from '@/lib/status-actions';
@@ -47,6 +48,8 @@ defineProps<{
     filters?: { search?: string | null; status?: string | null };
 }>();
 
+const { t, viewAction, editAction } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [{ title: 'Projects', href: '/projects' }],
@@ -60,36 +63,29 @@ const statusVariant = (status: string) => {
     return 'outline';
 };
 
-const statusLabel = (status: string) => status.charAt(0).toUpperCase() + status.slice(1);
+const statusLabel = (status: string) =>
+    t(status.charAt(0).toUpperCase() + status.slice(1));
 
 const projectActions = (project: Project): RowActionItem[] => [
-    {
-        label: 'View',
-        icon: Eye,
-        href: `/projects/${project.id}`,
-    },
-    {
-        label: 'Edit',
-        icon: Pencil,
-        href: `/projects/${project.id}`,
-    },
-    ...projectStatusActions(project.id, project.status),
+    viewAction(`/projects/${project.id}`),
+    editAction(`/projects/${project.id}`),
+    ...projectStatusActions(project.id, project.status, t),
 ];
 </script>
 
 <template>
-    <Head title="Projects" />
+    <Head :title="t('Projects')" />
 
     <MisPage>
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Heading
-                title="Projects"
-                description="Every proposal and contract in one place — from first bid to final delivery"
+                :title="t('Projects')"
+                :description="t('Every proposal and contract in one place — from first bid to final delivery')"
             />
             <Button as-child size="sm">
                 <Link href="/projects/create">
-                    <Plus class="mr-1 size-4" />
-                    New Project
+                    <Plus class="me-1 size-4" />
+                    {{ t('New Project') }}
                 </Link>
             </Button>
         </div>
@@ -98,28 +94,34 @@ const projectActions = (project: Project): RowActionItem[] => [
             <CardHeader class="pb-3">
                 <CardTitle class="flex items-center gap-2 text-base">
                     <FolderKanban class="size-4" />
-                    All Projects
+                    {{ t('All Projects') }}
                 </CardTitle>
                 <CardDescription>
-                    {{ projects.meta?.total ?? projects.data.length }} projects
+                    {{
+                        t(':count projects', {
+                            count: String(
+                                projects.meta?.total ?? projects.data.length,
+                            ),
+                        })
+                    }}
                 </CardDescription>
             </CardHeader>
             <CardContent class="space-y-3">
                 <form method="get" action="/projects" class="flex flex-col gap-2 sm:flex-row">
                     <div class="relative flex-1">
-                        <Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <Search class="absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             name="search"
                             :default-value="filters?.search ?? ''"
-                            placeholder="Search code, name, reference..."
-                            class="pl-9"
+                            :placeholder="t('Search code, name, reference...')"
+                            class="ps-9"
                         />
                     </div>
                     <select
                         name="status"
                         class="h-9 rounded-md border border-input px-3 text-sm"
                     >
-                        <option value="">All statuses</option>
+                        <option value="">{{ t('All statuses') }}</option>
                         <option
                             v-for="opt in statusOptions"
                             :key="opt.value"
@@ -129,32 +131,36 @@ const projectActions = (project: Project): RowActionItem[] => [
                             {{ opt.label }}
                         </option>
                     </select>
-                    <Button type="submit" variant="secondary" size="sm">Filter</Button>
+                    <Button type="submit" variant="secondary" size="sm">{{
+                        t('Filter')
+                    }}</Button>
                 </form>
 
                 <div
                     v-if="projects.data.length === 0"
                     class="rounded-lg border border-dashed p-8 text-center"
                 >
-                    <p class="font-medium">No projects yet</p>
+                    <p class="font-medium">{{ t('No projects yet') }}</p>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Create a project to start bidding — win or lose, everything stays on one record.
+                        {{
+                            t('Create a project to start bidding — win or lose, everything stays on one record.')
+                        }}
                     </p>
                     <Button as-child class="mt-4" size="sm">
-                        <Link href="/projects/create">Create project</Link>
+                        <Link href="/projects/create">{{ t('Create project') }}</Link>
                     </Button>
                 </div>
 
                 <div v-else class="overflow-x-auto rounded-md border">
                     <table class="w-full text-sm">
-                        <thead class="border-b bg-muted/40 text-left text-muted-foreground">
+                        <thead class="border-b bg-muted/40 text-start text-muted-foreground">
                             <tr>
-                                <th class="px-3 py-2 font-medium">Code</th>
-                                <th class="px-3 py-2 font-medium">Project</th>
-                                <th class="px-3 py-2 font-medium">Client</th>
-                                <th class="px-3 py-2 font-medium">Our bid</th>
-                                <th class="px-3 py-2 font-medium">Status</th>
-                                <th class="px-3 py-2 text-right font-medium">Actions</th>
+                                <th class="px-3 py-2 font-medium">{{ t('Code') }}</th>
+                                <th class="px-3 py-2 font-medium">{{ t('Project') }}</th>
+                                <th class="px-3 py-2 font-medium">{{ t('Client') }}</th>
+                                <th class="px-3 py-2 font-medium">{{ t('Our bid') }}</th>
+                                <th class="px-3 py-2 font-medium">{{ t('Status') }}</th>
+                                <th class="px-3 py-2 text-end font-medium">{{ t('Actions') }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y">
@@ -189,7 +195,7 @@ const projectActions = (project: Project): RowActionItem[] => [
                                         {{ statusLabel(project.status) }}
                                     </Badge>
                                 </td>
-                                <td class="px-3 py-2 text-right">
+                                <td class="px-3 py-2 text-end">
                                     <RowActionsMenu :actions="projectActions(project)" />
                                 </td>
                             </tr>

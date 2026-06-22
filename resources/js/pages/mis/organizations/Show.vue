@@ -14,6 +14,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useMisPage } from '@/composables/useMisPage';
 import { formatCurrency } from '@/lib/format';
 
 interface OrganizationType {
@@ -67,6 +68,8 @@ defineProps<{
     organizationTypes: OrganizationType[];
 }>();
 
+const { t } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -92,7 +95,7 @@ defineOptions({
                     <Badge
                         :variant="organization.is_active ? 'default' : 'outline'"
                     >
-                        {{ organization.is_active ? 'Active' : 'Inactive' }}
+                        {{ organization.is_active ? t('Active') : t('Inactive') }}
                     </Badge>
                     <Badge
                         variant="secondary"
@@ -108,16 +111,18 @@ defineOptions({
                         {{ organization.organization_type.name }}
                     </Badge>
                     <Badge v-if="organization.tax_id" variant="outline">
-                        Tax ID: {{ organization.tax_id }}
+                        {{ t('Tax ID') }}: {{ organization.tax_id }}
                     </Badge>
                 </div>
             </div>
             <div class="flex shrink-0 flex-wrap gap-2">
                 <Button variant="outline" as-child>
-                    <Link href="/organizations">Back to list</Link>
+                    <Link href="/organizations">{{ t('Back to list') }}</Link>
                 </Button>
                 <Button as-child>
-                    <Link :href="`/organizations/${organization.id}/edit`">Edit</Link>
+                    <Link :href="`/organizations/${organization.id}/edit`">{{
+                        t('Edit')
+                    }}</Link>
                 </Button>
             </div>
         </div>
@@ -127,36 +132,41 @@ defineOptions({
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
                         <Building2 class="size-5" />
-                        Organization profile
+                        {{ t('Organization profile') }}
                     </CardTitle>
                 </CardHeader>
                 <CardContent class="grid gap-4 sm:grid-cols-2">
                     <div v-if="organization.phone" class="flex gap-3">
                         <Phone class="mt-0.5 size-4 text-muted-foreground" />
                         <div>
-                            <p class="text-xs text-muted-foreground">Phone</p>
+                            <p class="text-xs text-muted-foreground">{{ t('Phone') }}</p>
                             <p class="text-sm">{{ organization.phone }}</p>
                         </div>
                     </div>
                     <div v-if="organization.email" class="flex gap-3">
                         <Mail class="mt-0.5 size-4 text-muted-foreground" />
                         <div>
-                            <p class="text-xs text-muted-foreground">Email</p>
+                            <p class="text-xs text-muted-foreground">{{ t('Email') }}</p>
                             <p class="text-sm">{{ organization.email }}</p>
                         </div>
                     </div>
-                    <div v-if="organization.province || organization.address" class="flex gap-3 sm:col-span-2">
+                    <div
+                        v-if="organization.province || organization.address"
+                        class="flex gap-3 sm:col-span-2"
+                    >
                         <MapPin class="mt-0.5 size-4 text-muted-foreground" />
                         <div>
-                            <p class="text-xs text-muted-foreground">Location</p>
+                            <p class="text-xs text-muted-foreground">{{ t('Location') }}</p>
                             <p class="text-sm">
                                 {{ organization.province }}
-                                <span v-if="organization.address"> — {{ organization.address }}</span>
+                                <span v-if="organization.address">
+                                    — {{ organization.address }}</span
+                                >
                             </p>
                         </div>
                     </div>
                     <div v-if="organization.notes" class="sm:col-span-2">
-                        <p class="text-xs text-muted-foreground">Notes</p>
+                        <p class="text-xs text-muted-foreground">{{ t('Notes') }}</p>
                         <p class="mt-1 whitespace-pre-wrap text-sm">{{ organization.notes }}</p>
                     </div>
                 </CardContent>
@@ -164,19 +174,21 @@ defineOptions({
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Summary</CardTitle>
+                    <CardTitle>{{ t('Summary') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="space-y-3 text-sm">
                     <div class="flex justify-between">
-                        <span class="text-muted-foreground">Opportunities</span>
-                        <span class="font-medium">{{ organization.procurement_opportunities.length }}</span>
+                        <span class="text-muted-foreground">{{ t('Opportunities') }}</span>
+                        <span class="font-medium">{{
+                            organization.procurement_opportunities.length
+                        }}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-muted-foreground">Projects</span>
+                        <span class="text-muted-foreground">{{ t('Projects') }}</span>
                         <span class="font-medium">{{ organization.projects.length }}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-muted-foreground">Contacts</span>
+                        <span class="text-muted-foreground">{{ t('Contacts') }}</span>
                         <span class="font-medium">{{ organization.contacts.length }}</span>
                     </div>
                 </CardContent>
@@ -185,7 +197,7 @@ defineOptions({
 
         <Card v-if="organization.contacts.length">
             <CardHeader>
-                <CardTitle>Contacts</CardTitle>
+                <CardTitle>{{ t('Contacts') }}</CardTitle>
             </CardHeader>
             <CardContent>
                 <div class="grid gap-3 md:grid-cols-2">
@@ -196,9 +208,13 @@ defineOptions({
                     >
                         <div class="flex items-center justify-between">
                             <p class="font-medium">{{ contact.name }}</p>
-                            <Badge v-if="contact.is_primary" variant="secondary">Primary</Badge>
+                            <Badge v-if="contact.is_primary" variant="secondary">{{
+                                t('Primary')
+                            }}</Badge>
                         </div>
-                        <p v-if="contact.title" class="text-sm text-muted-foreground">{{ contact.title }}</p>
+                        <p v-if="contact.title" class="text-sm text-muted-foreground">
+                            {{ contact.title }}
+                        </p>
                         <p v-if="contact.phone" class="mt-2 text-sm">{{ contact.phone }}</p>
                         <p v-if="contact.email" class="text-sm">{{ contact.email }}</p>
                     </div>
@@ -210,9 +226,11 @@ defineOptions({
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <FileText class="size-5" />
-                    Procurement opportunities
+                    {{ t('Procurement opportunities') }}
                 </CardTitle>
-                <CardDescription>RFPs and tenders from this organization</CardDescription>
+                <CardDescription>{{
+                    t('RFPs and tenders from this organization')
+                }}</CardDescription>
             </CardHeader>
             <CardContent>
                 <ul v-if="organization.procurement_opportunities.length" class="space-y-3">
@@ -229,7 +247,8 @@ defineOptions({
                                 {{ item.title }}
                             </Link>
                             <p class="text-xs text-muted-foreground">
-                                Deadline: {{ item.submission_deadline ?? 'Not set' }}
+                                {{ t('Deadline:') }}
+                                {{ item.submission_deadline ?? t('Not set') }}
                             </p>
                         </div>
                         <div class="flex items-center gap-3">
@@ -240,7 +259,9 @@ defineOptions({
                         </div>
                     </li>
                 </ul>
-                <p v-else class="text-sm text-muted-foreground">No opportunities recorded yet.</p>
+                <p v-else class="text-sm text-muted-foreground">
+                    {{ t('No opportunities recorded yet.') }}
+                </p>
             </CardContent>
         </Card>
 
@@ -248,9 +269,11 @@ defineOptions({
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <FolderKanban class="size-5" />
-                    Projects
+                    {{ t('Projects') }}
                 </CardTitle>
-                <CardDescription>Won contracts and active service delivery</CardDescription>
+                <CardDescription>{{
+                    t('Won contracts and active service delivery')
+                }}</CardDescription>
             </CardHeader>
             <CardContent>
                 <ul v-if="organization.projects.length" class="space-y-3">
@@ -260,19 +283,29 @@ defineOptions({
                         class="flex flex-col gap-2 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
                     >
                         <div>
-                            <Link :href="`/projects/${project.id}`" class="font-medium hover:underline">
+                            <Link
+                                :href="`/projects/${project.id}`"
+                                class="font-medium hover:underline"
+                            >
                                 {{ project.code }} — {{ project.name }}
                             </Link>
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="text-sm font-medium">
-                                {{ formatCurrency(project.total_contract_value, project.currency) }}
+                                {{
+                                    formatCurrency(
+                                        project.total_contract_value,
+                                        project.currency,
+                                    )
+                                }}
                             </span>
                             <Badge variant="outline">{{ project.status }}</Badge>
                         </div>
                     </li>
                 </ul>
-                <p v-else class="text-sm text-muted-foreground">No projects linked yet.</p>
+                <p v-else class="text-sm text-muted-foreground">
+                    {{ t('No projects linked yet.') }}
+                </p>
             </CardContent>
         </Card>
 

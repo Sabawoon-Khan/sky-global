@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { Monitor, Moon, Sun } from '@lucide/vue';
 import { useAppearance } from '@/composables/useAppearance';
+import { useTranslations } from '@/composables/useTranslations';
 
 const { appearance, updateAppearance } = useAppearance();
+const { t } = useTranslations();
 
 const tabs = [
-    { value: 'light', Icon: Sun, label: 'Light' },
-    { value: 'dark', Icon: Moon, label: 'Dark' },
-    { value: 'system', Icon: Monitor, label: 'System' },
+    { value: 'light', Icon: Sun, label: () => t('Light') },
+    { value: 'dark', Icon: Moon, label: () => t('Dark') },
+    { value: 'system', Icon: Monitor, label: () => t('System') },
 ] as const;
 </script>
 
@@ -18,6 +20,7 @@ const tabs = [
         <button
             v-for="{ value, Icon, label } in tabs"
             :key="value"
+            type="button"
             @click="updateAppearance(value)"
             :class="[
                 'flex items-center rounded-md px-3.5 py-1.5 transition-colors',
@@ -26,8 +29,8 @@ const tabs = [
                     : 'text-neutral-500 hover:bg-neutral-200/60 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-700/60',
             ]"
         >
-            <component :is="Icon" class="-ml-1 h-4 w-4" />
-            <span class="ml-1.5 text-sm">{{ label }}</span>
+            <component :is="Icon" class="-ms-1 h-4 w-4" />
+            <span class="ms-1.5 text-sm">{{ label() }}</span>
         </button>
     </div>
 </template>

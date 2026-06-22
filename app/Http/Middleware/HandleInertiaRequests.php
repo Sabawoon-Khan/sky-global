@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -35,6 +36,9 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $locale = app()->getLocale();
+        $localeConfig = config('locale.available.'.$locale, []);
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -46,6 +50,47 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'locale' => $locale,
+            'dir' => $localeConfig['dir'] ?? 'ltr',
+            'locales' => collect(config('locale.available', []))
+                ->map(fn (array $config, string $code): array => [
+                    'code' => $code,
+                    'name' => $config['name'],
+                    'native' => $config['native'],
+                    'dir' => $config['dir'],
+                ])
+                ->values()
+                ->all(),
+            'translations' => fn (): array => $this->translationsFor($locale),
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function translationsFor(string $locale): array
+    {
+        $fallbackLocale = config('app.fallback_locale', 'en');
+        $fallback = $this->loadJsonTranslations($fallbackLocale);
+        $current = $this->loadJsonTranslations($locale);
+
+        return array_merge($fallback, $current);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function loadJsonTranslations(string $locale): array
+    {
+        $path = lang_path("{$locale}.json");
+
+        if (! File::exists($path)) {
+            return [];
+        }
+
+        /** @var array<string, string> $translations */
+        $translations = File::json($path);
+
+        return $translations;
     }
 }

@@ -10,8 +10,9 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useMisNavigation } from '@/composables/useMisNavigation';
+import { useTranslations } from '@/composables/useTranslations';
 import { dashboard } from '@/routes';
-import { misQuickLinks } from '@/lib/mis-navigation';
 
 interface DashboardStats {
     bidding: {
@@ -71,6 +72,9 @@ defineProps<{
     expiringDocuments: ExpiringDocument[];
 }>();
 
+const { t } = useTranslations();
+const { misQuickLinks } = useMisNavigation();
+
 defineOptions({
     layout: {
         breadcrumbs: [{ title: 'Dashboard', href: dashboard() }],
@@ -86,12 +90,12 @@ const formatCurrency = (value: number): string =>
 </script>
 
 <template>
-    <Head title="Dashboard" />
+    <Head :title="t('Dashboard')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <Heading
-            title="Dashboard"
-            description="Overview of bidding, projects, finance, and HR"
+            :title="t('Dashboard')"
+            :description="t('Overview of bidding, projects, finance, and HR')"
         />
 
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -120,7 +124,9 @@ const formatCurrency = (value: number): string =>
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">Open Opportunities</CardTitle>
+                    <CardTitle class="text-sm font-medium">{{
+                        t('Open Opportunities')
+                    }}</CardTitle>
                     <Briefcase class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -128,41 +134,49 @@ const formatCurrency = (value: number): string =>
                         {{ stats.bidding.open_opportunities }}
                     </div>
                     <p class="text-xs text-muted-foreground">
-                        {{ stats.bidding.pending_bids }} pending bids
+                        {{ stats.bidding.pending_bids }}
+                        {{ t('pending bids') }}
                     </p>
                 </CardContent>
             </Card>
 
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">Win Rate</CardTitle>
+                    <CardTitle class="text-sm font-medium">{{
+                        t('Win Rate')
+                    }}</CardTitle>
                     <TrendingUp class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div class="text-2xl font-bold">{{ stats.bidding.win_rate }}%</div>
                     <p class="text-xs text-muted-foreground">
-                        {{ stats.bidding.won }} won / {{ stats.bidding.lost }} lost
+                        {{ stats.bidding.won }} {{ t('won') }} /
+                        {{ stats.bidding.lost }} {{ t('lost') }}
                     </p>
                 </CardContent>
             </Card>
 
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">Active Projects</CardTitle>
+                    <CardTitle class="text-sm font-medium">{{
+                        t('Active Projects')
+                    }}</CardTitle>
                     <Briefcase class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div class="text-2xl font-bold">{{ stats.projects.active }}</div>
                     <p class="text-xs text-muted-foreground">
-                        {{ stats.projects.planning }} planning ·
-                        {{ stats.projects.total }} total
+                        {{ stats.projects.planning }} {{ t('planning') }} ·
+                        {{ stats.projects.total }} {{ t('total') }}
                     </p>
                 </CardContent>
             </Card>
 
             <Card class="transition-colors hover:bg-muted/30">
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">Net Finance (USD)</CardTitle>
+                    <CardTitle class="text-sm font-medium">{{
+                        t('Net Finance (USD)')
+                    }}</CardTitle>
                     <DollarSign class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -177,8 +191,9 @@ const formatCurrency = (value: number): string =>
                             }}
                         </div>
                         <p class="text-xs text-muted-foreground">
-                            Income {{ formatCurrency(stats.finance.total_income_usd) }} ·
-                            View finance
+                            {{ t('Income') }}
+                            {{ formatCurrency(stats.finance.total_income_usd) }} ·
+                            {{ t('View finance') }}
                         </p>
                     </Link>
                 </CardContent>
@@ -186,7 +201,9 @@ const formatCurrency = (value: number): string =>
 
             <Card class="transition-colors hover:bg-muted/30">
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">Workforce</CardTitle>
+                    <CardTitle class="text-sm font-medium">{{
+                        t('Workforce')
+                    }}</CardTitle>
                     <Users class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -195,8 +212,9 @@ const formatCurrency = (value: number): string =>
                             {{ stats.hr.employees + stats.hr.contractors }}
                         </div>
                         <p class="text-xs text-muted-foreground">
-                            {{ stats.hr.employees }} employees ·
-                            {{ stats.hr.contractors }} contractors · View HR
+                            {{ stats.hr.employees }} {{ t('employees') }} ·
+                            {{ stats.hr.contractors }} {{ t('contractors') }} ·
+                            {{ t('View HR') }}
                         </p>
                     </Link>
                 </CardContent>
@@ -204,23 +222,31 @@ const formatCurrency = (value: number): string =>
 
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">Expiring Documents</CardTitle>
+                    <CardTitle class="text-sm font-medium">{{
+                        t('Expiring Documents')
+                    }}</CardTitle>
                     <AlertTriangle class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div class="text-2xl font-bold">{{ stats.hr.expiring_documents }}</div>
-                    <p class="text-xs text-muted-foreground">Within 30 days</p>
+                    <p class="text-xs text-muted-foreground">
+                        {{ t('Within 30 days') }}
+                    </p>
                 </CardContent>
             </Card>
 
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">Competitor Intel</CardTitle>
+                    <CardTitle class="text-sm font-medium">{{
+                        t('Competitor Intel')
+                    }}</CardTitle>
                     <TrendingUp class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div class="text-2xl font-bold">{{ stats.competitor_intel }}</div>
-                    <p class="text-xs text-muted-foreground">Recorded competitor bids</p>
+                    <p class="text-xs text-muted-foreground">
+                        {{ t('Recorded competitor bids') }}
+                    </p>
                 </CardContent>
             </Card>
         </div>
@@ -228,15 +254,17 @@ const formatCurrency = (value: number): string =>
         <div class="grid gap-4 lg:grid-cols-2">
             <Card>
                 <CardHeader>
-                    <CardTitle>Project Profitability</CardTitle>
-                    <CardDescription>Income vs expense by project</CardDescription>
+                    <CardTitle>{{ t('Project Profitability') }}</CardTitle>
+                    <CardDescription>{{
+                        t('Income vs expense by project')
+                    }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div
                         v-if="projectProfitability.length === 0"
                         class="py-8 text-center text-sm text-muted-foreground"
                     >
-                        No project data available.
+                        {{ t('No project data available.') }}
                     </div>
                     <div v-else class="divide-y">
                         <Link
@@ -266,15 +294,17 @@ const formatCurrency = (value: number): string =>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Expiring Documents</CardTitle>
-                    <CardDescription>Personnel attachments expiring soon</CardDescription>
+                    <CardTitle>{{ t('Expiring Documents') }}</CardTitle>
+                    <CardDescription>{{
+                        t('Personnel attachments expiring soon')
+                    }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div
                         v-if="expiringDocuments.length === 0"
                         class="py-8 text-center text-sm text-muted-foreground"
                     >
-                        No documents expiring within 30 days.
+                        {{ t('No documents expiring within 30 days.') }}
                     </div>
                     <div v-else class="divide-y">
                         <div
@@ -283,7 +313,7 @@ const formatCurrency = (value: number): string =>
                             class="flex items-center justify-between py-3"
                         >
                             <div>
-                                <p class="font-medium">{{ doc.type ?? 'Document' }}</p>
+                                <p class="font-medium">{{ doc.type ?? t('Document') }}</p>
                                 <p class="text-xs text-muted-foreground">
                                     {{ doc.personnel_type }} #{{ doc.personnel_id }}
                                 </p>

@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ContractorController from '@/actions/App/Http/Controllers/Hr/ContractorController';
+import { useMisPage } from '@/composables/useMisPage';
 
 interface Contractor {
     id: number;
@@ -29,6 +30,8 @@ defineProps<{
     contractor: Contractor;
 }>();
 
+const { t } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -41,16 +44,22 @@ defineOptions({
 </script>
 
 <template>
-    <Head :title="`Edit ${contractor.first_name} ${contractor.last_name}`" />
+    <Head
+        :title="
+            t('Edit :name', {
+                name: `${contractor.first_name} ${contractor.last_name}`,
+            })
+        "
+    />
 
     <MisPage narrow>
         <div class="flex items-center justify-between gap-3">
             <Heading
-                title="Edit Contractor"
+                :title="t('Edit Contractor')"
                 :description="`${contractor.first_name} ${contractor.last_name}`"
             />
             <Button variant="outline" as-child>
-                <Link :href="`/hr/contractors/${contractor.id}`">Cancel</Link>
+                <Link :href="`/hr/contractors/${contractor.id}`">{{ t('Cancel') }}</Link>
             </Button>
         </div>
 

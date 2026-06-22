@@ -12,6 +12,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useMisPage } from '@/composables/useMisPage';
 import type { Paginated } from '@/lib/format';
 
 interface PayrollRun {
@@ -28,6 +29,8 @@ interface Props {
 }
 
 defineProps<Props>();
+
+const { t } = useMisPage();
 
 defineOptions({
     layout: {
@@ -50,13 +53,13 @@ const monthName = (month: number): string => {
 </script>
 
 <template>
-    <Head title="Payroll" />
+    <Head :title="t('Payroll')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <Heading
-                title="Payroll"
-                description="Monthly payroll runs and disbursements"
+                :title="t('Payroll')"
+                :description="t('Monthly payroll runs and disbursements')"
             />
             <Form
                 action="/hr/payroll"
@@ -66,7 +69,9 @@ const monthName = (month: number): string => {
                 v-slot="{ processing }"
             >
                 <div class="grid gap-2">
-                    <label class="text-sm font-medium" for="period_year">Year</label>
+                    <label class="text-sm font-medium" for="period_year">{{
+                        t('Year')
+                    }}</label>
                     <input
                         id="period_year"
                         name="period_year"
@@ -77,7 +82,9 @@ const monthName = (month: number): string => {
                     />
                 </div>
                 <div class="grid gap-2">
-                    <label class="text-sm font-medium" for="period_month">Month</label>
+                    <label class="text-sm font-medium" for="period_month">{{
+                        t('Month')
+                    }}</label>
                     <input
                         id="period_month"
                         name="period_month"
@@ -89,7 +96,9 @@ const monthName = (month: number): string => {
                         required
                     />
                 </div>
-                <Button type="submit" :disabled="processing">New run</Button>
+                <Button type="submit" :disabled="processing">{{
+                    t('New run')
+                }}</Button>
             </Form>
         </div>
 
@@ -97,7 +106,7 @@ const monthName = (month: number): string => {
             v-if="payrollRuns.data.length === 0"
             class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
         >
-            No payroll runs recorded.
+            {{ t('No payroll runs recorded.') }}
         </div>
 
         <div v-else class="space-y-4">
@@ -116,9 +125,13 @@ const monthName = (month: number): string => {
                                 </Link>
                             </CardTitle>
                             <CardDescription>
-                                Processed by
+                                {{ t('Processed by') }}
                                 {{ run.processed_by?.name ?? '—' }} ·
-                                {{ run.items_count ?? 0 }} items
+                                {{
+                                    t(':count line items', {
+                                        count: String(run.items_count ?? 0),
+                                    })
+                                }}
                             </CardDescription>
                         </div>
                         <Badge>{{ run.status }}</Badge>
@@ -127,7 +140,7 @@ const monthName = (month: number): string => {
                 <CardContent>
                     <Button variant="outline" size="sm" as-child>
                         <Link :href="`/hr/payroll/${run.id}`">
-                            View run details
+                            {{ t('View run details') }}
                         </Link>
                     </Button>
                 </CardContent>

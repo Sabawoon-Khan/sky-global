@@ -11,6 +11,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useMisPage } from '@/composables/useMisPage';
 
 interface BidAnalytic {
     id: number;
@@ -37,6 +38,8 @@ interface Props {
 }
 
 defineProps<Props>();
+
+const { t } = useMisPage();
 
 defineOptions({
     layout: {
@@ -68,26 +71,33 @@ const formatDate = (value?: string | null): string => {
         new Date(value),
     );
 };
+
+const statusLabel = (status: string) => {
+    if (status === 'won') return t('won');
+    if (status === 'lost') return t('lost');
+    if (status === 'pending') return t('pending');
+    return status;
+};
 </script>
 
 <template>
-    <Head title="Bidding Analytics" />
+    <Head :title="t('Bidding Analytics')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <Heading
-                title="Bidding Analytics"
-                description="Win rates, bid outcomes, and competitor trends"
+                :title="t('Bidding Analytics')"
+                :description="t('Win rates, bid outcomes, and competitor trends')"
             />
             <Button variant="outline" as-child>
-                <Link href="/analytics/finance">Finance Analytics</Link>
+                <Link href="/analytics/finance">{{ t('Finance Analytics') }}</Link>
             </Button>
         </div>
 
         <div v-if="summary" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Total Bids</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Total Bids') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
                     {{ summary.total_bids ?? 0 }}
@@ -95,7 +105,7 @@ const formatDate = (value?: string | null): string => {
             </Card>
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm">Win Rate</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Win Rate') }}</CardTitle>
                     <TrendingUp class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
@@ -104,7 +114,7 @@ const formatDate = (value?: string | null): string => {
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Won / Lost</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Won / Lost') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
                     {{ summary.won ?? 0 }} / {{ summary.lost ?? 0 }}
@@ -112,7 +122,7 @@ const formatDate = (value?: string | null): string => {
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Pending</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Pending') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
                     {{ summary.pending ?? 0 }}
@@ -124,27 +134,37 @@ const formatDate = (value?: string | null): string => {
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <BarChart3 class="size-5" />
-                    Recent Bids
+                    {{ t('Recent Bids') }}
                 </CardTitle>
-                <CardDescription>Latest bid submissions and outcomes</CardDescription>
+                <CardDescription>{{
+                    t('Latest bid submissions and outcomes')
+                }}</CardDescription>
             </CardHeader>
             <CardContent>
                 <div
                     v-if="bids.length === 0"
                     class="text-sm text-muted-foreground"
                 >
-                    No bid data available.
+                    {{ t('No bid data available.') }}
                 </div>
                 <div v-else class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="border-b text-left text-muted-foreground">
-                                <th class="pb-3 pr-4 font-medium">Bid</th>
-                                <th class="pb-3 pr-4 font-medium">Organization</th>
-                                <th class="pb-3 pr-4 font-medium">Submitted</th>
-                                <th class="pb-3 pr-4 font-medium">Our Amount</th>
-                                <th class="pb-3 pr-4 font-medium">Winning</th>
-                                <th class="pb-3 font-medium">Status</th>
+                            <tr class="border-b text-start text-muted-foreground">
+                                <th class="pb-3 pe-4 font-medium">{{ t('Bid') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{
+                                    t('Organization')
+                                }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{
+                                    t('Submitted')
+                                }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{
+                                    t('Our Amount')
+                                }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{
+                                    t('Winning')
+                                }}</th>
+                                <th class="pb-3 font-medium">{{ t('Status') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -153,7 +173,7 @@ const formatDate = (value?: string | null): string => {
                                 :key="bid.id"
                                 class="border-b last:border-0"
                             >
-                                <td class="py-3 pr-4">
+                                <td class="py-3 pe-4">
                                     <Link
                                         :href="`/bidding/bids/${bid.id}`"
                                         class="font-medium hover:underline"
@@ -161,13 +181,13 @@ const formatDate = (value?: string | null): string => {
                                         {{ bid.bid_number ?? `#${bid.id}` }}
                                     </Link>
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
+                                <td class="py-3 pe-4 text-muted-foreground">
                                     {{ bid.organization ?? '—' }}
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
+                                <td class="py-3 pe-4 text-muted-foreground">
                                     {{ formatDate(bid.submitted_at) }}
                                 </td>
-                                <td class="py-3 pr-4">
+                                <td class="py-3 pe-4">
                                     {{
                                         formatCurrency(
                                             bid.our_total_amount,
@@ -175,7 +195,7 @@ const formatDate = (value?: string | null): string => {
                                         )
                                     }}
                                 </td>
-                                <td class="py-3 pr-4">
+                                <td class="py-3 pe-4">
                                     {{
                                         formatCurrency(
                                             bid.winning_amount,
@@ -193,7 +213,7 @@ const formatDate = (value?: string | null): string => {
                                                   : 'secondary'
                                         "
                                     >
-                                        {{ bid.status }}
+                                        {{ statusLabel(bid.status) }}
                                     </Badge>
                                 </td>
                             </tr>

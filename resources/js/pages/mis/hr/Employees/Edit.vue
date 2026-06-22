@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import EmployeeController from '@/actions/App/Http/Controllers/Hr/EmployeeController';
+import { useMisPage } from '@/composables/useMisPage';
 
 interface Department {
     id: number;
@@ -48,6 +49,8 @@ defineProps<{
     departments: Department[];
 }>();
 
+const { t } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -60,16 +63,22 @@ defineOptions({
 </script>
 
 <template>
-    <Head :title="`Edit ${employee.first_name} ${employee.last_name}`" />
+    <Head
+        :title="
+            t('Edit :name', {
+                name: `${employee.first_name} ${employee.last_name}`,
+            })
+        "
+    />
 
     <MisPage narrow>
         <div class="flex items-center justify-between gap-3">
             <Heading
-                title="Edit Employee"
+                :title="t('Edit Employee')"
                 :description="`${employee.first_name} ${employee.last_name}`"
             />
             <Button variant="outline" as-child>
-                <Link :href="`/hr/employees/${employee.id}`">Cancel</Link>
+                <Link :href="`/hr/employees/${employee.id}`">{{ t('Cancel') }}</Link>
             </Button>
         </div>
 

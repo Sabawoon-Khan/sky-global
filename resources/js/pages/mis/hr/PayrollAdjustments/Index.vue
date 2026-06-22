@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useMisPage } from '@/composables/useMisPage';
 import type { Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 
@@ -72,6 +73,8 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const { t } = useMisPage();
 
 defineOptions({
     layout: {
@@ -134,14 +137,14 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
 
     return [
         {
-            label: 'Remove',
+            label: t('Remove'),
             href: `/hr/payroll-adjustments/${record.id}`,
             method: 'delete',
             variant: 'destructive',
             confirm: {
-                title: 'Remove adjustment?',
-                description: 'This entry will not be applied when payroll is processed.',
-                confirmLabel: 'Remove',
+                title: t('Remove adjustment?'),
+                description: t('This entry will not be applied when payroll is processed.'),
+                confirmLabel: t('Remove'),
             },
             confirmVariant: 'destructive',
         },
@@ -150,12 +153,16 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
 </script>
 
 <template>
-    <Head title="Payroll Adjustments" />
+    <Head :title="t('Payroll Adjustments')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <Heading
-            title="Payroll Adjustments"
-            description="Record bonus, deductions, and advances by month — applied automatically when you process payroll for that period"
+            :title="t('Payroll Adjustments')"
+            :description="
+                t(
+                    'Record bonus, deductions, and advances by month — applied automatically when you process payroll for that period',
+                )
+            "
         />
 
         <div class="grid gap-6 xl:grid-cols-3">
@@ -163,10 +170,14 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
                         <Plus class="size-5" />
-                        New adjustment
+                        {{ t('New adjustment') }}
                     </CardTitle>
                     <CardDescription>
-                        Matched by person and project when payroll for the same month is processed
+                        {{
+                            t(
+                                'Matched by person and project when payroll for the same month is processed',
+                            )
+                        }}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -180,26 +191,26 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                         <input type="hidden" name="personnel_type" :value="personnelType" />
 
                         <div class="grid gap-2">
-                            <Label for="personnel_type">Personnel type</Label>
+                            <Label for="personnel_type">{{ t('Personnel type') }}</Label>
                             <select
                                 id="personnel_type"
                                 v-model="personnelType"
                                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                             >
-                                <option :value="EMPLOYEE_TYPE">Employee</option>
-                                <option :value="CONTRACTOR_TYPE">Contractor</option>
+                                <option :value="EMPLOYEE_TYPE">{{ t('Employee') }}</option>
+                                <option :value="CONTRACTOR_TYPE">{{ t('Contractor') }}</option>
                             </select>
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="personnel_id">Person *</Label>
+                            <Label for="personnel_id">{{ t('Person') }} *</Label>
                             <select
                                 id="personnel_id"
                                 name="personnel_id"
                                 required
                                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                             >
-                                <option value="" disabled selected>Select person</option>
+                                <option value="" disabled selected>{{ t('Select person') }}</option>
                                 <option
                                     v-for="person in personnelOptions"
                                     :key="person.id"
@@ -212,13 +223,13 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="project_id">Project</Label>
+                            <Label for="project_id">{{ t('Project') }}</Label>
                             <select
                                 id="project_id"
                                 name="project_id"
                                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                             >
-                                <option value="">None</option>
+                                <option value="">{{ t('None') }}</option>
                                 <option
                                     v-for="project in projects"
                                     :key="project.id"
@@ -232,7 +243,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
 
                         <div class="grid grid-cols-2 gap-3">
                             <div class="grid gap-2">
-                                <Label for="period_year">Year *</Label>
+                                <Label for="period_year">{{ t('Year') }} *</Label>
                                 <Input
                                     id="period_year"
                                     name="period_year"
@@ -243,7 +254,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                                 <InputError :message="errors.period_year" />
                             </div>
                             <div class="grid gap-2">
-                                <Label for="period_month">Month *</Label>
+                                <Label for="period_month">{{ t('Month') }} *</Label>
                                 <Input
                                     id="period_month"
                                     name="period_month"
@@ -258,14 +269,14 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="type">Type *</Label>
+                            <Label for="type">{{ t('Type') }} *</Label>
                             <select
                                 id="type"
                                 name="type"
                                 required
                                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                             >
-                                <option value="" disabled selected>Select type</option>
+                                <option value="" disabled selected>{{ t('Select type') }}</option>
                                 <option
                                     v-for="option in adjustmentTypes"
                                     :key="option.value"
@@ -278,7 +289,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="amount">Amount *</Label>
+                            <Label for="amount">{{ t('Amount') }} *</Label>
                             <Input
                                 id="amount"
                                 name="amount"
@@ -291,13 +302,13 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="notes">Notes</Label>
-                            <Input id="notes" name="notes" placeholder="Optional reason" />
+                            <Label for="notes">{{ t('Notes') }}</Label>
+                            <Input id="notes" name="notes" :placeholder="t('Optional reason')" />
                             <InputError :message="errors.notes" />
                         </div>
 
                         <Button type="submit" :disabled="processing">
-                            Save adjustment
+                            {{ t('Save adjustment') }}
                         </Button>
                     </Form>
                 </CardContent>
@@ -307,11 +318,17 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
                         <Receipt class="size-5" />
-                        Adjustments for {{ monthName(filters?.month ?? 1) }}
-                        {{ filters?.year ?? new Date().getFullYear() }}
+                        {{ t('Adjustments for :month :year', {
+                            month: monthName(filters?.month ?? 1),
+                            year: String(filters?.year ?? new Date().getFullYear()),
+                        }) }}
                     </CardTitle>
                     <CardDescription>
-                        Pending entries are included when payroll is processed for the same month
+                        {{
+                            t(
+                                'Pending entries are included when payroll is processed for the same month',
+                            )
+                        }}
                     </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
@@ -321,7 +338,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                         class="flex flex-wrap items-end gap-4"
                     >
                         <div class="grid gap-2">
-                            <Label for="year">Year</Label>
+                            <Label for="year">{{ t('Year') }}</Label>
                             <Input
                                 id="year"
                                 name="year"
@@ -331,7 +348,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                             />
                         </div>
                         <div class="grid gap-2">
-                            <Label for="month">Month</Label>
+                            <Label for="month">{{ t('Month') }}</Label>
                             <Input
                                 id="month"
                                 name="month"
@@ -342,27 +359,27 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                                 class="w-20"
                             />
                         </div>
-                        <Button type="submit" variant="outline">Filter</Button>
+                        <Button type="submit" variant="outline">{{ t('Filter') }}</Button>
                     </form>
 
                     <div
                         v-if="adjustments.data.length === 0"
                         class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
                     >
-                        No adjustments for this period.
+                        {{ t('No adjustments for this period.') }}
                     </div>
 
                     <div v-else class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b text-left text-muted-foreground">
-                                    <th class="pb-3 pr-4 font-medium">Personnel</th>
-                                    <th class="pb-3 pr-4 font-medium">Project</th>
-                                    <th class="pb-3 pr-4 font-medium">Type</th>
-                                    <th class="pb-3 pr-4 text-right font-medium">Amount</th>
-                                    <th class="pb-3 pr-4 font-medium">Status</th>
-                                    <th class="pb-3 pr-4 font-medium">Notes</th>
-                                    <th class="pb-3 text-right font-medium">Actions</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ t('Personnel') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ t('Project') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ t('Type') }}</th>
+                                    <th class="pb-3 pr-4 text-right font-medium">{{ t('Amount') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ t('Status') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ t('Notes') }}</th>
+                                    <th class="pb-3 text-right font-medium">{{ t('Actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -409,7 +426,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                                                 record.applied_at ? 'outline' : 'secondary'
                                             "
                                         >
-                                            {{ record.applied_at ? 'Applied' : 'Pending' }}
+                                            {{ record.applied_at ? t('Applied') : t('Pending') }}
                                         </Badge>
                                     </td>
                                     <td class="py-3 pr-4 text-muted-foreground">

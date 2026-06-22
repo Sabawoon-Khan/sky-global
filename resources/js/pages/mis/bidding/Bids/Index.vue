@@ -12,6 +12,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useMisPage } from '@/composables/useMisPage';
 
 interface OpportunitySummary {
     id: number;
@@ -41,6 +42,8 @@ interface Props {
 }
 
 defineProps<Props>();
+
+const { t } = useMisPage();
 
 defineOptions({
     layout: {
@@ -86,21 +89,28 @@ const statusVariant = (
 
     return 'secondary';
 };
+
+const statusLabel = (status: string) => {
+    if (status === 'won') return t('won');
+    if (status === 'lost') return t('lost');
+    if (status === 'pending') return t('pending');
+    return status;
+};
 </script>
 
 <template>
-    <Head title="Bids" />
+    <Head :title="t('Bids')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <Heading
-                title="Bids"
-                description="Manage submitted bids and outcomes"
+                :title="t('Bids')"
+                :description="t('Manage submitted bids and outcomes')"
             />
             <Button as-child>
                 <Link href="/bidding/bids/create">
-                    <Plus class="size-4" />
-                    New Bid
+                    <Plus class="me-1 size-4" />
+                    {{ t('New Bid') }}
                 </Link>
             </Button>
         </div>
@@ -109,22 +119,26 @@ const statusVariant = (
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <FileText class="size-5" />
-                    All Bids
+                    {{ t('All Bids') }}
                 </CardTitle>
                 <CardDescription>
-                    {{ bids.meta?.total ?? bids.data.length }} bids
+                    {{
+                        t(':count bids', {
+                            count: String(bids.meta?.total ?? bids.data.length),
+                        })
+                    }}
                 </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
                 <form method="get" action="/bidding/bids" class="relative max-w-sm">
                     <Search
-                        class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                        class="absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground"
                     />
                     <Input
                         name="search"
                         :default-value="filters?.search"
-                        placeholder="Search bids..."
-                        class="pl-9"
+                        :placeholder="t('Search bids...')"
+                        class="ps-9"
                     />
                 </form>
 
@@ -132,18 +146,24 @@ const statusVariant = (
                     v-if="bids.data.length === 0"
                     class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
                 >
-                    No bids found.
+                    {{ t('No bids found.') }}
                 </div>
 
                 <div v-else class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="border-b text-left text-muted-foreground">
-                                <th class="pb-3 pr-4 font-medium">Bid #</th>
-                                <th class="pb-3 pr-4 font-medium">Opportunity</th>
-                                <th class="pb-3 pr-4 font-medium">Submitted</th>
-                                <th class="pb-3 pr-4 font-medium">Our Amount</th>
-                                <th class="pb-3 font-medium">Status</th>
+                            <tr class="border-b text-start text-muted-foreground">
+                                <th class="pb-3 pe-4 font-medium">{{ t('Bid #') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{
+                                    t('Opportunity')
+                                }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{
+                                    t('Submitted')
+                                }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{
+                                    t('Our Amount')
+                                }}</th>
+                                <th class="pb-3 font-medium">{{ t('Status') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -152,7 +172,7 @@ const statusVariant = (
                                 :key="bid.id"
                                 class="border-b last:border-0"
                             >
-                                <td class="py-3 pr-4">
+                                <td class="py-3 pe-4">
                                     <Link
                                         :href="`/bidding/bids/${bid.id}`"
                                         class="font-medium hover:underline"
@@ -160,7 +180,7 @@ const statusVariant = (
                                         {{ bid.bid_number ?? `#${bid.id}` }}
                                     </Link>
                                 </td>
-                                <td class="py-3 pr-4">
+                                <td class="py-3 pe-4">
                                     <div class="font-medium">
                                         {{
                                             bid.procurement_opportunity?.title ??
@@ -174,10 +194,10 @@ const statusVariant = (
                                         }}
                                     </div>
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
+                                <td class="py-3 pe-4 text-muted-foreground">
                                     {{ formatDate(bid.submitted_at) }}
                                 </td>
-                                <td class="py-3 pr-4">
+                                <td class="py-3 pe-4">
                                     {{
                                         formatCurrency(
                                             bid.our_total_amount,
@@ -187,7 +207,7 @@ const statusVariant = (
                                 </td>
                                 <td class="py-3">
                                     <Badge :variant="statusVariant(bid.status)">
-                                        {{ bid.status }}
+                                        {{ statusLabel(bid.status) }}
                                     </Badge>
                                 </td>
                             </tr>

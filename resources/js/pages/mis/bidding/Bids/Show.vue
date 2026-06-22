@@ -10,6 +10,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useMisPage } from '@/composables/useMisPage';
 
 interface Organization {
     id: number;
@@ -59,7 +60,9 @@ interface Props {
     competitors?: CompetitorBid[];
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
+
+const { t } = useMisPage();
 
 defineOptions({
     layout: {
@@ -70,6 +73,8 @@ defineOptions({
         ],
     },
 });
+
+const bidTitle = (bid: Bid): string => bid.bid_number ?? `${t('Bid #')}${bid.id}`;
 
 const formatCurrency = (value?: number | null, currency = 'USD'): string => {
     if (value == null) {
@@ -110,13 +115,13 @@ const statusVariant = (
 </script>
 
 <template>
-    <Head :title="bid.bid_number ?? `Bid #${bid.id}`" />
+    <Head :title="bidTitle(bid)" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <Heading
-                    :title="bid.bid_number ?? `Bid #${bid.id}`"
+                    :title="bidTitle(bid)"
                     :description="bid.procurement_opportunity?.title"
                 />
                 <Badge class="mt-2" :variant="statusVariant(bid.status)">
@@ -125,7 +130,7 @@ const statusVariant = (
             </div>
             <div class="flex shrink-0 flex-wrap gap-2">
                 <Button variant="outline" as-child>
-                    <Link href="/bidding/bids">Back to list</Link>
+                    <Link href="/bidding/bids">{{ t('Back to list') }}</Link>
                 </Button>
             </div>
         </div>
@@ -133,27 +138,23 @@ const statusVariant = (
         <div class="grid gap-4 md:grid-cols-4">
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Our Amount</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Our Amount') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-lg font-semibold">
-                    {{
-                        formatCurrency(bid.our_total_amount, bid.currency ?? 'USD')
-                    }}
+                    {{ formatCurrency(bid.our_total_amount, bid.currency ?? 'USD') }}
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Winning Amount</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Winning Amount') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-lg font-semibold">
-                    {{
-                        formatCurrency(bid.winning_amount, bid.currency ?? 'USD')
-                    }}
+                    {{ formatCurrency(bid.winning_amount, bid.currency ?? 'USD') }}
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Submitted</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Submitted') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-sm">
                     {{ formatDate(bid.submitted_at) }}
@@ -161,12 +162,10 @@ const statusVariant = (
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Organization</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Organization') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-sm">
-                    {{
-                        bid.procurement_opportunity?.organization?.name ?? '—'
-                    }}
+                    {{ bid.procurement_opportunity?.organization?.name ?? '—' }}
                 </CardContent>
             </Card>
         </div>
@@ -174,27 +173,27 @@ const statusVariant = (
         <div class="grid gap-4 lg:grid-cols-2">
             <Card>
                 <CardHeader>
-                    <CardTitle>Line Items</CardTitle>
+                    <CardTitle>{{ t('Line Items') }}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div
                         v-if="!bid.line_items?.length"
                         class="text-sm text-muted-foreground"
                     >
-                        No line items recorded.
+                        {{ t('No line items recorded.') }}
                     </div>
                     <div v-else class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b text-left text-muted-foreground">
                                     <th class="pb-2 pr-4 font-medium">
-                                        Description
+                                        {{ t('Description') }}
                                     </th>
                                     <th class="pb-2 pr-4 text-right font-medium">
-                                        Qty
+                                        {{ t('Qty') }}
                                     </th>
                                     <th class="pb-2 text-right font-medium">
-                                        Total
+                                        {{ t('Total') }}
                                     </th>
                                 </tr>
                             </thead>
@@ -225,9 +224,9 @@ const statusVariant = (
 
             <Card v-if="competitors?.length">
                 <CardHeader>
-                    <CardTitle>Competitor Intelligence</CardTitle>
+                    <CardTitle>{{ t('Competitor Intelligence') }}</CardTitle>
                     <CardDescription>
-                        Known competitor bids for this opportunity
+                        {{ t('Known competitor bids for this opportunity') }}
                     </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-2">
@@ -244,7 +243,7 @@ const statusVariant = (
                                     class="ml-2"
                                     variant="default"
                                 >
-                                    Winner
+                                    {{ t('Winning') }}
                                 </Badge>
                             </div>
                             <p
@@ -268,15 +267,15 @@ const statusVariant = (
 
             <Card v-else-if="bid.status === 'lost'">
                 <CardHeader>
-                    <CardTitle>Loss Details</CardTitle>
+                    <CardTitle>{{ t('Loss Details') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="space-y-2 text-sm">
                     <div v-if="bid.winning_competitor_name">
-                        <span class="text-muted-foreground">Winner: </span>
+                        <span class="text-muted-foreground">{{ t('Winner:') }} </span>
                         {{ bid.winning_competitor_name }}
                     </div>
                     <div v-if="bid.loss_reason">
-                        <span class="text-muted-foreground">Reason: </span>
+                        <span class="text-muted-foreground">{{ t('Reason:') }} </span>
                         {{ bid.loss_reason }}
                     </div>
                     <p v-if="bid.notes" class="text-muted-foreground">

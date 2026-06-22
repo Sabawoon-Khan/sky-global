@@ -13,6 +13,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useMisPage } from '@/composables/useMisPage';
 import { formatCurrency, formatDate, type Paginated } from '@/lib/format';
 
 interface Organization {
@@ -48,6 +49,8 @@ interface Props {
 
 defineProps<Props>();
 
+const { t } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -63,21 +66,32 @@ const statusVariant = (status: string) => {
     if (status === 'awarded') return 'outline';
     return 'outline';
 };
+
+const statusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+        open: t('Open'),
+        closed: t('Closed'),
+        awarded: t('Awarded'),
+        cancelled: t('Cancelled'),
+    };
+
+    return labels[status] ?? status;
+};
 </script>
 
 <template>
-    <Head title="Bidding Opportunities" />
+    <Head :title="t('Opportunities')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <Heading
-                title="Opportunities"
-                description="Procurement requests and tenders from clients"
+                :title="t('Opportunities')"
+                :description="t('Procurement requests and tenders from clients')"
             />
             <Button as-child>
                 <Link href="/bidding/opportunities/create">
-                    <Plus class="mr-2 size-4" />
-                    New Opportunity
+                    <Plus class="me-2 size-4" />
+                    {{ t('New opportunity') }}
                 </Link>
             </Button>
         </div>
@@ -85,19 +99,19 @@ const statusVariant = (status: string) => {
         <div class="grid gap-4 md:grid-cols-3">
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>Total opportunities</CardDescription>
+                    <CardDescription>{{ t('Total opportunities') }}</CardDescription>
                     <CardTitle class="text-3xl">{{ stats.total }}</CardTitle>
                 </CardHeader>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>Open for bidding</CardDescription>
+                    <CardDescription>{{ t('Open for bidding') }}</CardDescription>
                     <CardTitle class="text-3xl">{{ stats.open }}</CardTitle>
                 </CardHeader>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>Closed / awarded</CardDescription>
+                    <CardDescription>{{ t('Closed / awarded') }}</CardDescription>
                     <CardTitle class="text-3xl">{{ stats.closed }}</CardTitle>
                 </CardHeader>
             </Card>
@@ -107,36 +121,50 @@ const statusVariant = (status: string) => {
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <FileText class="size-5" />
-                    All Opportunities
+                    {{ t('All opportunities') }}
                 </CardTitle>
                 <CardDescription>
-                    {{ opportunities.meta?.total ?? opportunities.data.length }} records
+                    {{
+                        t(':count opportunities', {
+                            count: String(
+                                opportunities.meta?.total ?? opportunities.data.length,
+                            ),
+                        })
+                    }}
                 </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
                 <form method="get" action="/bidding/opportunities" class="flex flex-col gap-3 sm:flex-row">
                     <div class="relative flex-1">
                         <Search
-                            class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                            class="absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground"
                         />
                         <Input
                             name="search"
                             :default-value="filters?.search ?? ''"
-                            placeholder="Search title or reference..."
-                            class="pl-9"
+                            :placeholder="t('Search title or reference...')"
+                            class="ps-9"
                         />
                     </div>
                     <select
                         name="status"
                         class="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                     >
-                        <option value="">All statuses</option>
-                        <option value="open" :selected="filters?.status === 'open'">Open</option>
-                        <option value="closed" :selected="filters?.status === 'closed'">Closed</option>
-                        <option value="awarded" :selected="filters?.status === 'awarded'">Awarded</option>
-                        <option value="cancelled" :selected="filters?.status === 'cancelled'">Cancelled</option>
+                        <option value="">{{ t('All statuses') }}</option>
+                        <option value="open" :selected="filters?.status === 'open'">
+                            {{ t('Open') }}
+                        </option>
+                        <option value="closed" :selected="filters?.status === 'closed'">
+                            {{ t('Closed') }}
+                        </option>
+                        <option value="awarded" :selected="filters?.status === 'awarded'">
+                            {{ t('Awarded') }}
+                        </option>
+                        <option value="cancelled" :selected="filters?.status === 'cancelled'">
+                            {{ t('Cancelled') }}
+                        </option>
                     </select>
-                    <Button type="submit" variant="secondary">Filter</Button>
+                    <Button type="submit" variant="secondary">{{ t('Filter') }}</Button>
                 </form>
 
                 <div
@@ -144,12 +172,16 @@ const statusVariant = (status: string) => {
                     class="rounded-lg border border-dashed p-10 text-center"
                 >
                     <FileText class="mx-auto mb-3 size-10 text-muted-foreground" />
-                    <p class="font-medium">No opportunities yet</p>
+                    <p class="font-medium">{{ t('No opportunities yet') }}</p>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Record procurement requests before creating bids.
+                        {{
+                            t('Record procurement requests before creating bids.')
+                        }}
                     </p>
                     <Button as-child class="mt-4">
-                        <Link href="/bidding/opportunities/create">Add first opportunity</Link>
+                        <Link href="/bidding/opportunities/create">{{
+                            t('Add first opportunity')
+                        }}</Link>
                     </Button>
                 </div>
 
@@ -157,13 +189,27 @@ const statusVariant = (status: string) => {
                     <table class="w-full text-sm">
                         <thead class="border-b bg-muted/50">
                             <tr>
-                                <th class="px-4 py-3 text-left font-medium">Reference</th>
-                                <th class="px-4 py-3 text-left font-medium">Title</th>
-                                <th class="px-4 py-3 text-left font-medium">Organization</th>
-                                <th class="px-4 py-3 text-left font-medium">Scope</th>
-                                <th class="px-4 py-3 text-left font-medium">Deadline</th>
-                                <th class="px-4 py-3 text-left font-medium">Value</th>
-                                <th class="px-4 py-3 text-left font-medium">Status</th>
+                                <th class="px-4 py-3 text-start font-medium">{{
+                                    t('Reference')
+                                }}</th>
+                                <th class="px-4 py-3 text-start font-medium">{{
+                                    t('Title')
+                                }}</th>
+                                <th class="px-4 py-3 text-start font-medium">{{
+                                    t('Organization')
+                                }}</th>
+                                <th class="px-4 py-3 text-start font-medium">{{
+                                    t('Scope')
+                                }}</th>
+                                <th class="px-4 py-3 text-start font-medium">{{
+                                    t('Deadline')
+                                }}</th>
+                                <th class="px-4 py-3 text-start font-medium">{{
+                                    t('Value')
+                                }}</th>
+                                <th class="px-4 py-3 text-start font-medium">{{
+                                    t('Status')
+                                }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y">
@@ -205,7 +251,7 @@ const statusVariant = (status: string) => {
                                 </td>
                                 <td class="px-4 py-3">
                                     <Badge :variant="statusVariant(opportunity.status)">
-                                        {{ opportunity.status }}
+                                        {{ statusLabel(opportunity.status) }}
                                     </Badge>
                                 </td>
                             </tr>

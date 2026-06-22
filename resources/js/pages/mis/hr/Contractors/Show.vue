@@ -13,6 +13,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useMisPage } from '@/composables/useMisPage';
 
 interface Agreement {
     id: number;
@@ -49,11 +50,11 @@ interface Contractor {
     attachments?: EntityAttachment[];
 }
 
-interface Props {
+defineProps<{
     contractor: Contractor;
-}
+}>();
 
-defineProps<Props>();
+const { t } = useMisPage();
 
 defineOptions({
     layout: {
@@ -96,16 +97,18 @@ const formatCurrency = (value?: number | null, currency = 'USD'): string => {
             <div>
                 <Heading
                     :title="`${contractor.first_name} ${contractor.last_name}`"
-                    description="Contractor profile and agreements"
+                    :description="t('Contractor profile and agreements')"
                 />
                 <Badge class="mt-2">{{ contractor.status }}</Badge>
             </div>
             <div class="flex shrink-0 flex-wrap gap-2">
                 <Button variant="outline" as-child>
-                    <Link href="/hr/contractors">Back to list</Link>
+                    <Link href="/hr/contractors">{{ t('Back to list') }}</Link>
                 </Button>
                 <Button as-child>
-                    <Link :href="`/hr/contractors/${contractor.id}/edit`">Edit</Link>
+                    <Link :href="`/hr/contractors/${contractor.id}/edit`">{{
+                        t('Edit')
+                    }}</Link>
                 </Button>
             </div>
         </div>
@@ -113,23 +116,23 @@ const formatCurrency = (value?: number | null, currency = 'USD'): string => {
         <div class="grid gap-4 lg:grid-cols-2">
             <Card>
                 <CardHeader>
-                    <CardTitle>Personal Information</CardTitle>
+                    <CardTitle>{{ t('Personal Information') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="grid gap-2 text-sm">
                     <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">Father's Name</span>
+                        <span class="text-muted-foreground">{{ t("Father's name") }}</span>
                         <span>{{ contractor.father_name ?? '—' }}</span>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">Tazkira</span>
+                        <span class="text-muted-foreground">{{ t('Tazkira number') }}</span>
                         <span>{{ contractor.tazkira_number ?? '—' }}</span>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">Phone</span>
+                        <span class="text-muted-foreground">{{ t('Phone') }}</span>
                         <span>{{ contractor.phone ?? '—' }}</span>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">Email</span>
+                        <span class="text-muted-foreground">{{ t('Email') }}</span>
                         <span>{{ contractor.email ?? '—' }}</span>
                     </div>
                 </CardContent>
@@ -137,15 +140,15 @@ const formatCurrency = (value?: number | null, currency = 'USD'): string => {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Agreements</CardTitle>
-                    <CardDescription>Contractor service agreements</CardDescription>
+                    <CardTitle>{{ t('Agreements') }}</CardTitle>
+                    <CardDescription>{{ t('Contractor service agreements') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div
                         v-if="!contractor.agreements?.length"
                         class="text-sm text-muted-foreground"
                     >
-                        No agreements on file.
+                        {{ t('No agreements on file.') }}
                     </div>
                     <div v-else class="space-y-2">
                         <div
@@ -154,7 +157,7 @@ const formatCurrency = (value?: number | null, currency = 'USD'): string => {
                             class="rounded-md border px-3 py-2 text-sm"
                         >
                             <div class="font-medium">
-                                {{ agreement.agreement_number ?? 'Agreement' }}
+                                {{ agreement.agreement_number ?? t('Agreement') }}
                             </div>
                             <div class="text-muted-foreground">
                                 {{ formatDate(agreement.start_date) }} —
@@ -167,24 +170,24 @@ const formatCurrency = (value?: number | null, currency = 'USD'): string => {
 
             <Card class="lg:col-span-2">
                 <CardHeader>
-                    <CardTitle>Rates</CardTitle>
-                    <CardDescription>Project-specific billing rates</CardDescription>
+                    <CardTitle>{{ t('Rates') }}</CardTitle>
+                    <CardDescription>{{ t('Project-specific billing rates') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div
                         v-if="!contractor.rates?.length"
                         class="text-sm text-muted-foreground"
                     >
-                        No rates configured.
+                        {{ t('No rates configured.') }}
                     </div>
                     <div v-else class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b text-left text-muted-foreground">
-                                    <th class="pb-2 pr-4 font-medium">Project</th>
-                                    <th class="pb-2 pr-4 font-medium">Daily</th>
-                                    <th class="pb-2 pr-4 font-medium">Monthly</th>
-                                    <th class="pb-2 font-medium">Effective</th>
+                                    <th class="pb-2 pr-4 font-medium">{{ t('Project') }}</th>
+                                    <th class="pb-2 pr-4 font-medium">{{ t('Daily') }}</th>
+                                    <th class="pb-2 pr-4 font-medium">{{ t('Monthly') }}</th>
+                                    <th class="pb-2 font-medium">{{ t('Effective') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -194,7 +197,7 @@ const formatCurrency = (value?: number | null, currency = 'USD'): string => {
                                     class="border-b last:border-0"
                                 >
                                     <td class="py-2 pr-4">
-                                        {{ rate.project?.code ?? 'General' }}
+                                        {{ rate.project?.code ?? t('General') }}
                                     </td>
                                     <td class="py-2 pr-4">
                                         {{

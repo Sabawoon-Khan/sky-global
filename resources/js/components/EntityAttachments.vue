@@ -9,6 +9,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useTranslations } from '@/composables/useTranslations';
 
 export interface EntityAttachment {
     id: number;
@@ -22,6 +23,8 @@ export interface EntityAttachment {
 const props = defineProps<{
     attachments: EntityAttachment[];
 }>();
+
+const { t } = useTranslations();
 
 const formatSize = (bytes: number | null): string => {
     if (!bytes) {
@@ -54,10 +57,10 @@ const removeAttachment = (attachmentId: number) => {
         <CardHeader class="pb-3">
             <CardTitle class="flex items-center gap-2 text-base">
                 <Paperclip class="size-4" />
-                Attachments
+                {{ t('Attachments') }}
             </CardTitle>
             <CardDescription>
-                Optional files linked to this record
+                {{ t('Optional files linked to this record') }}
             </CardDescription>
         </CardHeader>
         <CardContent>
@@ -65,7 +68,7 @@ const removeAttachment = (attachmentId: number) => {
                 v-if="attachments.length === 0"
                 class="py-4 text-center text-sm text-muted-foreground"
             >
-                No attachments yet.
+                {{ t('No attachments yet.') }}
             </div>
             <ul v-else class="divide-y">
                 <li

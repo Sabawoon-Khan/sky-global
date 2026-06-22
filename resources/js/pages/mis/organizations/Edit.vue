@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import OrganizationController from '@/actions/App/Http/Controllers/OrganizationController';
+import { useMisPage } from '@/composables/useMisPage';
 
 interface OrganizationType {
     id: number;
@@ -40,6 +41,8 @@ defineProps<{
     provinces: string[];
 }>();
 
+const { t } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -52,16 +55,16 @@ defineOptions({
 </script>
 
 <template>
-    <Head :title="`Edit ${organization.name}`" />
+    <Head :title="t('Edit :name', { name: organization.name })" />
 
     <MisPage narrow>
         <div class="flex items-center justify-between gap-3">
             <Heading
-                title="Edit Organization"
+                :title="t('Edit Organization')"
                 :description="organization.name"
             />
             <Button variant="outline" as-child>
-                <Link :href="`/organizations/${organization.id}`">Cancel</Link>
+                <Link :href="`/organizations/${organization.id}`">{{ t('Cancel') }}</Link>
             </Button>
         </div>
 
@@ -73,12 +76,12 @@ defineOptions({
         >
             <Card>
                 <CardHeader>
-                    <CardTitle>Basic information</CardTitle>
-                    <CardDescription>Name, type, and registration details</CardDescription>
+                    <CardTitle>{{ t('Basic information') }}</CardTitle>
+                    <CardDescription>{{ t('Name, type, and registration details') }}</CardDescription>
                 </CardHeader>
                 <CardContent class="grid gap-4 md:grid-cols-2">
                     <div class="grid gap-2 md:col-span-2">
-                        <Label for="name">Organization name *</Label>
+                        <Label for="name">{{ t('Organization name') }} *</Label>
                         <Input
                             id="name"
                             name="name"
@@ -89,7 +92,7 @@ defineOptions({
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="organization_type_id">Organization type *</Label>
+                        <Label for="organization_type_id">{{ t('Organization type') }} *</Label>
                         <select
                             id="organization_type_id"
                             name="organization_type_id"
@@ -109,7 +112,7 @@ defineOptions({
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="tax_id">Tax / registration ID</Label>
+                        <Label for="tax_id">{{ t('Tax / registration ID') }}</Label>
                         <Input
                             id="tax_id"
                             name="tax_id"
@@ -119,17 +122,17 @@ defineOptions({
                     </div>
 
                     <div class="grid gap-2 md:col-span-2">
-                        <Label for="is_active">Status</Label>
+                        <Label for="is_active">{{ t('Status') }}</Label>
                         <select
                             id="is_active"
                             name="is_active"
                             class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                         >
                             <option :value="1" :selected="organization.is_active">
-                                Active
+                                {{ t('Active') }}
                             </option>
                             <option :value="0" :selected="!organization.is_active">
-                                Inactive
+                                {{ t('Inactive') }}
                             </option>
                         </select>
                         <InputError :message="errors.is_active" />
@@ -139,17 +142,17 @@ defineOptions({
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Location & contact</CardTitle>
+                    <CardTitle>{{ t('Location & contact') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="grid gap-4 md:grid-cols-2">
                     <div class="grid gap-2">
-                        <Label for="province">Province</Label>
+                        <Label for="province">{{ t('Province') }}</Label>
                         <select
                             id="province"
                             name="province"
                             class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                         >
-                            <option value="">Select province</option>
+                            <option value="">{{ t('Select province') }}</option>
                             <option
                                 v-for="province in provinces"
                                 :key="province"
@@ -163,7 +166,7 @@ defineOptions({
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="phone">Phone</Label>
+                        <Label for="phone">{{ t('Phone') }}</Label>
                         <Input
                             id="phone"
                             name="phone"
@@ -174,7 +177,7 @@ defineOptions({
                     </div>
 
                     <div class="grid gap-2 md:col-span-2">
-                        <Label for="email">Email</Label>
+                        <Label for="email">{{ t('Email') }}</Label>
                         <Input
                             id="email"
                             name="email"
@@ -185,7 +188,7 @@ defineOptions({
                     </div>
 
                     <div class="grid gap-2 md:col-span-2">
-                        <Label for="address">Full address</Label>
+                        <Label for="address">{{ t('Full address') }}</Label>
                         <textarea
                             id="address"
                             name="address"
@@ -199,7 +202,7 @@ defineOptions({
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Notes</CardTitle>
+                    <CardTitle>{{ t('Notes') }}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <textarea
@@ -214,8 +217,8 @@ defineOptions({
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Attachment</CardTitle>
-                    <CardDescription>Upload a new related document if needed</CardDescription>
+                    <CardTitle>{{ t('Attachment') }}</CardTitle>
+                    <CardDescription>{{ t('Upload a new related document if needed') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <OptionalAttachmentField :error="errors.attachment" />
@@ -224,10 +227,10 @@ defineOptions({
 
             <div class="flex justify-end gap-3">
                 <Button variant="outline" as-child>
-                    <Link :href="`/organizations/${organization.id}`">Cancel</Link>
+                    <Link :href="`/organizations/${organization.id}`">{{ t('Cancel') }}</Link>
                 </Button>
                 <Button type="submit" :disabled="processing">
-                    Save changes
+                    {{ t('Save changes') }}
                 </Button>
             </div>
         </Form>

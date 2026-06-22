@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import OrganizationController from '@/actions/App/Http/Controllers/OrganizationController';
+import { useMisPage } from '@/composables/useMisPage';
 
 interface OrganizationType {
     id: number;
@@ -25,6 +26,8 @@ defineProps<{
     organizationTypes: OrganizationType[];
     provinces: string[];
 }>();
+
+const { t } = useMisPage();
 
 defineOptions({
     layout: {
@@ -38,16 +41,20 @@ defineOptions({
 </script>
 
 <template>
-    <Head title="Add Organization" />
+    <Head :title="t('Add Organization')" />
 
     <MisPage narrow>
         <div class="flex items-center justify-between gap-3">
             <Heading
-                title="Add Organization"
-                description="Register a client, partner, or procurement body with full details"
+                :title="t('Add Organization')"
+                :description="
+                    t(
+                        'Register a client, partner, or procurement body with full details',
+                    )
+                "
             />
             <Button variant="outline" as-child>
-                <Link href="/organizations">Cancel</Link>
+                <Link href="/organizations">{{ t('Cancel') }}</Link>
             </Button>
         </div>
 
@@ -59,25 +66,32 @@ defineOptions({
         >
             <Card>
                 <CardHeader>
-                    <CardTitle>Basic information</CardTitle>
-                    <CardDescription>Name, type, and registration details</CardDescription>
+                    <CardTitle>{{ t('Basic information') }}</CardTitle>
+                    <CardDescription>
+                        {{ t('Name, type, and registration details') }}
+                    </CardDescription>
                 </CardHeader>
                 <CardContent class="grid gap-4 md:grid-cols-2">
                     <div class="grid gap-2 md:col-span-2">
-                        <Label for="name">Organization name *</Label>
-                        <Input id="name" name="name" required placeholder="e.g. Ministry of Interior" />
+                        <Label for="name">{{ t('Organization name') }} *</Label>
+                        <Input
+                            id="name"
+                            name="name"
+                            required
+                            placeholder="e.g. Ministry of Interior"
+                        />
                         <InputError :message="errors.name" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="organization_type_id">Organization type *</Label>
+                        <Label for="organization_type_id">{{ t('Organization type') }} *</Label>
                         <select
                             id="organization_type_id"
                             name="organization_type_id"
                             required
                             class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                         >
-                            <option value="" disabled selected>Select type</option>
+                            <option value="" disabled selected>{{ t('Select type') }}</option>
                             <option
                                 v-for="type in organizationTypes"
                                 :key="type.id"
@@ -90,8 +104,12 @@ defineOptions({
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="tax_id">Tax / registration ID</Label>
-                        <Input id="tax_id" name="tax_id" placeholder="Optional" />
+                        <Label for="tax_id">{{ t('Tax / registration ID') }}</Label>
+                        <Input
+                            id="tax_id"
+                            name="tax_id"
+                            :placeholder="t('Optional')"
+                        />
                         <InputError :message="errors.tax_id" />
                     </div>
                 </CardContent>
@@ -99,17 +117,17 @@ defineOptions({
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Location & contact</CardTitle>
+                    <CardTitle>{{ t('Location & contact') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="grid gap-4 md:grid-cols-2">
                     <div class="grid gap-2">
-                        <Label for="province">Province</Label>
+                        <Label for="province">{{ t('Province') }}</Label>
                         <select
                             id="province"
                             name="province"
                             class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                         >
-                            <option value="">Select province</option>
+                            <option value="">{{ t('Select province') }}</option>
                             <option v-for="province in provinces" :key="province" :value="province">
                                 {{ province }}
                             </option>
@@ -118,19 +136,24 @@ defineOptions({
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="phone">Phone</Label>
+                        <Label for="phone">{{ t('Phone') }}</Label>
                         <Input id="phone" name="phone" type="tel" placeholder="+93 ..." />
                         <InputError :message="errors.phone" />
                     </div>
 
                     <div class="grid gap-2 md:col-span-2">
-                        <Label for="email">Email</Label>
-                        <Input id="email" name="email" type="email" placeholder="contact@organization.af" />
+                        <Label for="email">{{ t('Email') }}</Label>
+                        <Input
+                            id="email"
+                            name="email"
+                            type="email"
+                            placeholder="contact@organization.af"
+                        />
                         <InputError :message="errors.email" />
                     </div>
 
                     <div class="grid gap-2 md:col-span-2">
-                        <Label for="address">Full address</Label>
+                        <Label for="address">{{ t('Full address') }}</Label>
                         <textarea
                             id="address"
                             name="address"
@@ -145,8 +168,10 @@ defineOptions({
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Notes</CardTitle>
-                    <CardDescription>Internal notes about this organization</CardDescription>
+                    <CardTitle>{{ t('Notes') }}</CardTitle>
+                    <CardDescription>
+                        {{ t('Internal notes about this organization') }}
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <textarea
@@ -162,8 +187,10 @@ defineOptions({
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Attachment</CardTitle>
-                    <CardDescription>Upload a related document if available</CardDescription>
+                    <CardTitle>{{ t('Attachment') }}</CardTitle>
+                    <CardDescription>
+                        {{ t('Upload a related document if available') }}
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <OptionalAttachmentField :error="errors.attachment" />
@@ -172,9 +199,11 @@ defineOptions({
 
             <div class="flex justify-end gap-3">
                 <Button variant="outline" as-child>
-                    <Link href="/organizations">Cancel</Link>
+                    <Link href="/organizations">{{ t('Cancel') }}</Link>
                 </Button>
-                <Button type="submit" :disabled="processing">Save organization</Button>
+                <Button type="submit" :disabled="processing">
+                    {{ t('Save organization') }}
+                </Button>
             </div>
         </Form>
     </MisPage>

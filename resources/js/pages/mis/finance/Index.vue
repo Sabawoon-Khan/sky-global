@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
-import { Pencil, Trash2 } from '@lucide/vue';
+import { computed, ref } from 'vue';
 import Heading from '@/components/Heading.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +12,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useMisPage } from '@/composables/useMisPage';
 import { cn } from '@/lib/utils';
 import type { RowActionItem } from '@/lib/row-actions';
 import {
@@ -68,19 +68,21 @@ interface Props {
 
 defineProps<Props>();
 
+const { t, editAction, deleteAction } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [{ title: 'Finance', href: '/finance' }],
     },
 });
 
-const tabs = [
-    { id: 'income', label: 'Income' },
-    { id: 'expenses', label: 'Expenses' },
-    { id: 'invoices', label: 'Invoices' },
-] as const;
+const tabs = computed(() => [
+    { id: 'income' as const, label: t('Income') },
+    { id: 'expenses' as const, label: t('Expenses') },
+    { id: 'invoices' as const, label: t('Invoices') },
+]);
 
-type TabId = (typeof tabs)[number]['id'];
+type TabId = 'income' | 'expenses' | 'invoices';
 
 const activeTab = ref<TabId>('income');
 
@@ -107,55 +109,43 @@ const formatDate = (value?: string | null): string => {
 };
 
 const incomeActions = (item: Income): RowActionItem[] => [
-    {
-        label: 'Edit',
-        icon: Pencil,
-        href: item.project ? `/projects/${item.project.id}` : undefined,
-        hidden: !item.project,
-    },
+    ...(item.project
+        ? [editAction(`/projects/${item.project.id}`)]
+        : []),
     ...approvalStatusActions({
         url: `/finance/incomes/${item.id}`,
         name: item.description,
         status: item.status ?? 'pending',
+        t,
     }),
-    {
-        label: 'Delete',
-        icon: Trash2,
-        variant: 'destructive',
+    deleteAction({
         href: `/finance/incomes/${item.id}`,
-        method: 'delete',
-        confirm: {
-            title: 'Delete income record',
-            description: `Delete "${item.description}"? This cannot be undone.`,
-            confirmLabel: 'Delete',
-        },
-    },
+        title: t('Delete income record'),
+        description: t(
+            'Are you sure you want to delete ":name"? This cannot be undone.',
+            { name: item.description },
+        ),
+    }),
 ];
 
 const expenseActions = (item: Expense): RowActionItem[] => [
-    {
-        label: 'Edit',
-        icon: Pencil,
-        href: item.project ? `/projects/${item.project.id}` : undefined,
-        hidden: !item.project,
-    },
+    ...(item.project
+        ? [editAction(`/projects/${item.project.id}`)]
+        : []),
     ...approvalStatusActions({
         url: `/finance/expenses/${item.id}`,
         name: item.description,
         status: item.status ?? 'pending',
+        t,
     }),
-    {
-        label: 'Delete',
-        icon: Trash2,
-        variant: 'destructive',
+    deleteAction({
         href: `/finance/expenses/${item.id}`,
-        method: 'delete',
-        confirm: {
-            title: 'Delete expense record',
-            description: `Delete "${item.description}"? This cannot be undone.`,
-            confirmLabel: 'Delete',
-        },
-    },
+        title: t('Delete expense record'),
+        description: t(
+            'Are you sure you want to delete ":name"? This cannot be undone.',
+            { name: item.description },
+        ),
+    }),
 ];
 
 const invoiceActions = (invoice: Invoice): RowActionItem[] => [
@@ -163,35 +153,31 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
         url: `/finance/invoices/${invoice.id}`,
         label: invoice.invoice_number ?? `#${invoice.id}`,
         status: invoice.status,
+        t,
     }),
-    {
-        label: 'Delete',
-        icon: Trash2,
-        variant: 'destructive',
+    deleteAction({
         href: `/finance/invoices/${invoice.id}`,
-        method: 'delete',
-        confirm: {
-            title: 'Delete invoice',
-            description: `Delete invoice ${invoice.invoice_number ?? `#${invoice.id}`}? This cannot be undone.`,
-            confirmLabel: 'Delete',
-        },
-    },
+        title: t('Delete invoice'),
+        description: t('Delete invoice :label? This cannot be undone.', {
+            label: invoice.invoice_number ?? `#${invoice.id}`,
+        }),
+    }),
 ];
 </script>
 
 <template>
-    <Head title="Finance" />
+    <Head :title="t('Finance')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <Heading
-            title="Finance"
-            description="Track project income, expenses, and invoices"
+            :title="t('Finance')"
+            :description="t('Track project income, expenses, and invoices')"
         />
 
         <div v-if="summary" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Total Income</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Total Income') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-lg font-semibold text-green-600 dark:text-green-400">
                     {{ formatCurrency(summary.total_income) }}
@@ -199,7 +185,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Total Expenses</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Total Expenses') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-lg font-semibold text-destructive">
                     {{ formatCurrency(summary.total_expenses) }}
@@ -207,7 +193,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Invoices</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Invoices') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-lg font-semibold">
                     {{ summary.total_invoices ?? 0 }}
@@ -215,7 +201,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Outstanding</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Outstanding') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-lg font-semibold">
                     {{ formatCurrency(summary.outstanding) }}
@@ -244,26 +230,40 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
 
         <Card v-if="activeTab === 'income'">
             <CardHeader>
-                <CardTitle>Project Income</CardTitle>
-                <CardDescription>Recorded payments and receipts</CardDescription>
+                <CardTitle>{{ t('Project Income') }}</CardTitle>
+                <CardDescription>{{
+                    t('Recorded payments and receipts')
+                }}</CardDescription>
             </CardHeader>
             <CardContent>
                 <div
                     v-if="!incomes?.length"
                     class="text-sm text-muted-foreground"
                 >
-                    No income records found.
+                    {{ t('No income records found.') }}
                 </div>
                 <div v-else class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="border-b text-left text-muted-foreground">
-                                <th class="pb-2 pr-4 font-medium">Description</th>
-                                <th class="pb-2 pr-4 font-medium">Project</th>
-                                <th class="pb-2 pr-4 font-medium">Date</th>
-                                <th class="pb-2 pr-4 font-medium">Status</th>
-                                <th class="pb-2 pr-4 text-right font-medium">Amount</th>
-                                <th class="pb-2 text-right font-medium">Actions</th>
+                            <tr class="border-b text-start text-muted-foreground">
+                                <th class="pb-2 pe-4 font-medium">{{
+                                    t('Description')
+                                }}</th>
+                                <th class="pb-2 pe-4 font-medium">{{
+                                    t('Project')
+                                }}</th>
+                                <th class="pb-2 pe-4 font-medium">{{
+                                    t('Date')
+                                }}</th>
+                                <th class="pb-2 pe-4 font-medium">{{
+                                    t('Status')
+                                }}</th>
+                                <th class="pb-2 pe-4 text-end font-medium">{{
+                                    t('Amount')
+                                }}</th>
+                                <th class="pb-2 text-end font-medium">{{
+                                    t('Actions')
+                                }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -272,19 +272,19 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 :key="item.id"
                                 class="border-b last:border-0"
                             >
-                                <td class="py-2 pr-4">{{ item.description }}</td>
-                                <td class="py-2 pr-4 text-muted-foreground">
+                                <td class="py-2 pe-4">{{ item.description }}</td>
+                                <td class="py-2 pe-4 text-muted-foreground">
                                     {{ item.project?.code ?? '—' }}
                                 </td>
-                                <td class="py-2 pr-4 text-muted-foreground">
+                                <td class="py-2 pe-4 text-muted-foreground">
                                     {{ formatDate(item.received_at) }}
                                 </td>
-                                <td class="py-2 pr-4">
+                                <td class="py-2 pe-4">
                                     <Badge variant="outline">
-                                        {{ item.status ?? 'pending' }}
+                                        {{ item.status ?? t('pending') }}
                                     </Badge>
                                 </td>
-                                <td class="py-2 text-right font-medium">
+                                <td class="py-2 text-end font-medium">
                                     {{
                                         formatCurrency(
                                             item.amount_usd ?? item.amount,
@@ -292,7 +292,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                         )
                                     }}
                                 </td>
-                                <td class="py-2 text-right">
+                                <td class="py-2 text-end">
                                     <RowActionsMenu :actions="incomeActions(item)" />
                                 </td>
                             </tr>
@@ -304,26 +304,40 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
 
         <Card v-else-if="activeTab === 'expenses'">
             <CardHeader>
-                <CardTitle>Project Expenses</CardTitle>
-                <CardDescription>Operational and project costs</CardDescription>
+                <CardTitle>{{ t('Project Expenses') }}</CardTitle>
+                <CardDescription>{{
+                    t('Operational and project costs')
+                }}</CardDescription>
             </CardHeader>
             <CardContent>
                 <div
                     v-if="!expenses?.length"
                     class="text-sm text-muted-foreground"
                 >
-                    No expense records found.
+                    {{ t('No expense records found.') }}
                 </div>
                 <div v-else class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="border-b text-left text-muted-foreground">
-                                <th class="pb-2 pr-4 font-medium">Description</th>
-                                <th class="pb-2 pr-4 font-medium">Project</th>
-                                <th class="pb-2 pr-4 font-medium">Date</th>
-                                <th class="pb-2 pr-4 font-medium">Status</th>
-                                <th class="pb-2 pr-4 text-right font-medium">Amount</th>
-                                <th class="pb-2 text-right font-medium">Actions</th>
+                            <tr class="border-b text-start text-muted-foreground">
+                                <th class="pb-2 pe-4 font-medium">{{
+                                    t('Description')
+                                }}</th>
+                                <th class="pb-2 pe-4 font-medium">{{
+                                    t('Project')
+                                }}</th>
+                                <th class="pb-2 pe-4 font-medium">{{
+                                    t('Date')
+                                }}</th>
+                                <th class="pb-2 pe-4 font-medium">{{
+                                    t('Status')
+                                }}</th>
+                                <th class="pb-2 pe-4 text-end font-medium">{{
+                                    t('Amount')
+                                }}</th>
+                                <th class="pb-2 text-end font-medium">{{
+                                    t('Actions')
+                                }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -332,19 +346,19 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 :key="item.id"
                                 class="border-b last:border-0"
                             >
-                                <td class="py-2 pr-4">{{ item.description }}</td>
-                                <td class="py-2 pr-4 text-muted-foreground">
+                                <td class="py-2 pe-4">{{ item.description }}</td>
+                                <td class="py-2 pe-4 text-muted-foreground">
                                     {{ item.project?.code ?? '—' }}
                                 </td>
-                                <td class="py-2 pr-4 text-muted-foreground">
+                                <td class="py-2 pe-4 text-muted-foreground">
                                     {{ formatDate(item.incurred_at) }}
                                 </td>
-                                <td class="py-2 pr-4">
+                                <td class="py-2 pe-4">
                                     <Badge variant="outline">
-                                        {{ item.status ?? 'pending' }}
+                                        {{ item.status ?? t('pending') }}
                                     </Badge>
                                 </td>
-                                <td class="py-2 text-right font-medium">
+                                <td class="py-2 text-end font-medium">
                                     {{
                                         formatCurrency(
                                             item.amount_usd ?? item.amount,
@@ -352,7 +366,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                         )
                                     }}
                                 </td>
-                                <td class="py-2 text-right">
+                                <td class="py-2 text-end">
                                     <RowActionsMenu :actions="expenseActions(item)" />
                                 </td>
                             </tr>
@@ -364,26 +378,40 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
 
         <Card v-else>
             <CardHeader>
-                <CardTitle>Invoices</CardTitle>
-                <CardDescription>Client billing and payment status</CardDescription>
+                <CardTitle>{{ t('Invoices') }}</CardTitle>
+                <CardDescription>{{
+                    t('Client billing and payment status')
+                }}</CardDescription>
             </CardHeader>
             <CardContent>
                 <div
                     v-if="!invoices?.length"
                     class="text-sm text-muted-foreground"
                 >
-                    No invoices found.
+                    {{ t('No invoices found.') }}
                 </div>
                 <div v-else class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="border-b text-left text-muted-foreground">
-                                <th class="pb-2 pr-4 font-medium">Invoice #</th>
-                                <th class="pb-2 pr-4 font-medium">Client</th>
-                                <th class="pb-2 pr-4 font-medium">Due Date</th>
-                                <th class="pb-2 pr-4 font-medium">Status</th>
-                                <th class="pb-2 pr-4 text-right font-medium">Amount</th>
-                                <th class="pb-2 text-right font-medium">Actions</th>
+                            <tr class="border-b text-start text-muted-foreground">
+                                <th class="pb-2 pe-4 font-medium">{{
+                                    t('Invoice #')
+                                }}</th>
+                                <th class="pb-2 pe-4 font-medium">{{
+                                    t('Client')
+                                }}</th>
+                                <th class="pb-2 pe-4 font-medium">{{
+                                    t('Due Date')
+                                }}</th>
+                                <th class="pb-2 pe-4 font-medium">{{
+                                    t('Status')
+                                }}</th>
+                                <th class="pb-2 pe-4 text-end font-medium">{{
+                                    t('Amount')
+                                }}</th>
+                                <th class="pb-2 text-end font-medium">{{
+                                    t('Actions')
+                                }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -392,21 +420,21 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 :key="invoice.id"
                                 class="border-b last:border-0"
                             >
-                                <td class="py-2 pr-4 font-medium">
+                                <td class="py-2 pe-4 font-medium">
                                     {{ invoice.invoice_number ?? `#${invoice.id}` }}
                                 </td>
-                                <td class="py-2 pr-4 text-muted-foreground">
+                                <td class="py-2 pe-4 text-muted-foreground">
                                     {{ invoice.organization?.name ?? '—' }}
                                 </td>
-                                <td class="py-2 pr-4 text-muted-foreground">
+                                <td class="py-2 pe-4 text-muted-foreground">
                                     {{ formatDate(invoice.due_date) }}
                                 </td>
-                                <td class="py-2 pr-4">
+                                <td class="py-2 pe-4">
                                     <Badge variant="outline">
                                         {{ invoice.status }}
                                     </Badge>
                                 </td>
-                                <td class="py-2 text-right font-medium">
+                                <td class="py-2 text-end font-medium">
                                     {{
                                         formatCurrency(
                                             invoice.total_amount,
@@ -414,7 +442,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                         )
                                     }}
                                 </td>
-                                <td class="py-2 text-right">
+                                <td class="py-2 text-end">
                                     <RowActionsMenu
                                         :actions="invoiceActions(invoice)"
                                     />

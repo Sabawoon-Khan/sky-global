@@ -13,14 +13,18 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { misNavGroups } from '@/lib/mis-navigation';
+import { useLocale } from '@/composables/useLocale';
+import { useMisNavigation } from '@/composables/useMisNavigation';
 import { dashboard } from '@/routes';
+
+const { sidebarSide } = useLocale();
+const { misNavGroups } = useMisNavigation();
 
 const footerNavItems = [];
 </script>
 
 <template>
-    <Sidebar collapsible="icon" variant="inset">
+    <Sidebar collapsible="icon" variant="inset" :side="sidebarSide">
         <SidebarHeader>
             <SidebarMenu>
                 <SidebarMenuItem>

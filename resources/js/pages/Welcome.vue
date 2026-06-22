@@ -12,6 +12,7 @@ import {
     Users,
 } from '@lucide/vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -98,6 +99,7 @@ const modules = [
                 </Link>
 
                 <nav class="flex items-center gap-2">
+                    <LanguageSwitcher />
                     <template v-if="$page.props.auth.user">
                         <Button as-child size="sm">
                             <Link :href="dashboard()">Dashboard</Link>

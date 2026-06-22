@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Archive, Eye, Pencil, Search } from '@lucide/vue';
+import { Archive, Search } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useMisPage } from '@/composables/useMisPage';
 import type { RowActionItem } from '@/lib/row-actions';
 
 interface DocumentCategory {
@@ -42,6 +43,8 @@ interface Props {
 
 defineProps<Props>();
 
+const { t, viewAction, editAction } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [{ title: 'Archive', href: '/archive' }],
@@ -59,48 +62,46 @@ const formatDate = (value?: string | null): string => {
 };
 
 const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
-    {
-        label: 'View',
-        icon: Eye,
-        href: `/archive/${doc.id}`,
-    },
-    {
-        label: 'Edit',
-        icon: Pencil,
-        href: `/archive/${doc.id}`,
-    },
+    viewAction(`/archive/${doc.id}`),
+    editAction(`/archive/${doc.id}`),
 ];
 </script>
 
 <template>
-    <Head title="Document Archive" />
+    <Head :title="t('Document Archive')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <Heading
-            title="Document Archive"
-            description="Central repository for incoming and outgoing documents"
+            :title="t('Document Archive')"
+            :description="t('Central repository for incoming and outgoing documents')"
         />
 
         <Card>
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <Archive class="size-5" />
-                    Archived Documents
+                    {{ t('Archived Documents') }}
                 </CardTitle>
                 <CardDescription>
-                    {{ documents.meta?.total ?? documents.data.length }} documents
+                    {{
+                        t(':count documents', {
+                            count: String(
+                                documents.meta?.total ?? documents.data.length,
+                            ),
+                        })
+                    }}
                 </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
                 <form method="get" action="/archive" class="relative max-w-sm">
                     <Search
-                        class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                        class="absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground"
                     />
                     <Input
                         name="search"
                         :default-value="filters?.search"
-                        placeholder="Search archive..."
-                        class="pl-9"
+                        :placeholder="t('Search archive...')"
+                        class="ps-9"
                     />
                 </form>
 
@@ -108,20 +109,20 @@ const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
                     v-if="documents.data.length === 0"
                     class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
                 >
-                    No documents in archive.
+                    {{ t('No documents in archive.') }}
                 </div>
 
                 <div v-else class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="border-b text-left text-muted-foreground">
-                                <th class="pb-3 pr-4 font-medium">Reference</th>
-                                <th class="pb-3 pr-4 font-medium">Title</th>
-                                <th class="pb-3 pr-4 font-medium">Category</th>
-                                <th class="pb-3 pr-4 font-medium">Linked To</th>
-                                <th class="pb-3 pr-4 font-medium">Date</th>
-                                <th class="pb-3 pr-4 font-medium">Direction</th>
-                                <th class="pb-3 text-right font-medium">Actions</th>
+                            <tr class="border-b text-start text-muted-foreground">
+                                <th class="pb-3 pe-4 font-medium">{{ t('Reference') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{ t('Title') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{ t('Category') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{ t('Linked To') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{ t('Date') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{ t('Direction') }}</th>
+                                <th class="pb-3 text-end font-medium">{{ t('Actions') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -130,16 +131,16 @@ const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
                                 :key="doc.id"
                                 class="border-b last:border-0"
                             >
-                                <td class="py-3 pr-4 font-mono text-xs">
+                                <td class="py-3 pe-4 font-mono text-xs">
                                     {{ doc.reference_number ?? '—' }}
                                 </td>
-                                <td class="py-3 pr-4 font-medium">
+                                <td class="py-3 pe-4 font-medium">
                                     {{ doc.title }}
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
+                                <td class="py-3 pe-4 text-muted-foreground">
                                     {{ doc.document_category?.name ?? '—' }}
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
+                                <td class="py-3 pe-4 text-muted-foreground">
                                     <Link
                                         v-if="doc.project"
                                         :href="`/projects/${doc.project.id}`"
@@ -152,10 +153,10 @@ const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
                                     </span>
                                     <span v-else>—</span>
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
+                                <td class="py-3 pe-4 text-muted-foreground">
                                     {{ formatDate(doc.document_date) }}
                                 </td>
-                                <td class="py-3 pr-4">
+                                <td class="py-3 pe-4">
                                     <Badge
                                         v-if="doc.direction"
                                         variant="outline"
@@ -164,7 +165,7 @@ const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
                                     </Badge>
                                     <span v-else>—</span>
                                 </td>
-                                <td class="py-3 text-right">
+                                <td class="py-3 text-end">
                                     <RowActionsMenu
                                         :actions="documentActions(doc)"
                                     />

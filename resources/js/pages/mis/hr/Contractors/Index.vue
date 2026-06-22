@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Eye, Pencil, Plus, Search, UserRound } from '@lucide/vue';
+import { Plus, Search, UserRound } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useMisPage } from '@/composables/useMisPage';
 import type { RowActionItem } from '@/lib/row-actions';
 import { personnelStatusActions } from '@/lib/status-actions';
 
@@ -37,6 +38,8 @@ interface Props {
 
 defineProps<Props>();
 
+const { t, viewAction, editAction } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -50,37 +53,30 @@ const fullName = (contractor: Contractor): string =>
     `${contractor.first_name} ${contractor.last_name}`;
 
 const contractorActions = (contractor: Contractor): RowActionItem[] => [
-    {
-        label: 'View',
-        icon: Eye,
-        href: `/hr/contractors/${contractor.id}`,
-    },
-    {
-        label: 'Edit',
-        icon: Pencil,
-        href: `/hr/contractors/${contractor.id}/edit`,
-    },
+    viewAction(`/hr/contractors/${contractor.id}`),
+    editAction(`/hr/contractors/${contractor.id}/edit`),
     ...personnelStatusActions({
         url: `/hr/contractors/${contractor.id}`,
         name: fullName(contractor),
         status: contractor.status,
+        t,
     }),
 ];
 </script>
 
 <template>
-    <Head title="Contractors" />
+    <Head :title="t('Contractors')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <Heading
-                title="Contractors"
-                description="Manage contractor personnel and agreements"
+                :title="t('Contractors')"
+                :description="t('Manage contractor personnel and agreements')"
             />
             <Button as-child>
                 <Link href="/hr/contractors/create">
-                    <Plus class="size-4" />
-                    Add Contractor
+                    <Plus class="me-1 size-4" />
+                    {{ t('Add Contractor') }}
                 </Link>
             </Button>
         </div>
@@ -89,11 +85,16 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <UserRound class="size-5" />
-                    All Contractors
+                    {{ t('All Contractors') }}
                 </CardTitle>
                 <CardDescription>
-                    {{ contractors.meta?.total ?? contractors.data.length }}
-                    contractors
+                    {{
+                        t(':count contractors', {
+                            count: String(
+                                contractors.meta?.total ?? contractors.data.length,
+                            ),
+                        })
+                    }}
                 </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
@@ -103,13 +104,13 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
                     class="relative max-w-sm"
                 >
                     <Search
-                        class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                        class="absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground"
                     />
                     <Input
                         name="search"
                         :default-value="filters?.search"
-                        placeholder="Search contractors..."
-                        class="pl-9"
+                        :placeholder="t('Search contractors...')"
+                        class="ps-9"
                     />
                 </form>
 
@@ -117,18 +118,18 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
                     v-if="contractors.data.length === 0"
                     class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
                 >
-                    No contractors found.
+                    {{ t('No contractors found.') }}
                 </div>
 
                 <div v-else class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="border-b text-left text-muted-foreground">
-                                <th class="pb-3 pr-4 font-medium">Name</th>
-                                <th class="pb-3 pr-4 font-medium">Phone</th>
-                                <th class="pb-3 pr-4 font-medium">Email</th>
-                                <th class="pb-3 pr-4 font-medium">Status</th>
-                                <th class="pb-3 text-right font-medium">Actions</th>
+                            <tr class="border-b text-start text-muted-foreground">
+                                <th class="pb-3 pe-4 font-medium">{{ t('Name') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{ t('Phone') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{ t('Email') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{ t('Status') }}</th>
+                                <th class="pb-3 text-end font-medium">{{ t('Actions') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -137,7 +138,7 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
                                 :key="contractor.id"
                                 class="border-b last:border-0"
                             >
-                                <td class="py-3 pr-4">
+                                <td class="py-3 pe-4">
                                     <Link
                                         :href="`/hr/contractors/${contractor.id}`"
                                         class="font-medium hover:underline"
@@ -145,13 +146,13 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
                                         {{ fullName(contractor) }}
                                     </Link>
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
+                                <td class="py-3 pe-4 text-muted-foreground">
                                     {{ contractor.phone ?? '—' }}
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
+                                <td class="py-3 pe-4 text-muted-foreground">
                                     {{ contractor.email ?? '—' }}
                                 </td>
-                                <td class="py-3 pr-4">
+                                <td class="py-3 pe-4">
                                     <Badge
                                         :variant="
                                             contractor.status === 'active'
@@ -159,10 +160,16 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
                                                 : 'outline'
                                         "
                                     >
-                                        {{ contractor.status }}
+                                        {{
+                                            contractor.status === 'active'
+                                                ? t('Active')
+                                                : contractor.status === 'inactive'
+                                                  ? t('Inactive')
+                                                  : contractor.status
+                                        }}
                                     </Badge>
                                 </td>
-                                <td class="py-3 text-right">
+                                <td class="py-3 text-end">
                                     <RowActionsMenu
                                         :actions="contractorActions(contractor)"
                                     />

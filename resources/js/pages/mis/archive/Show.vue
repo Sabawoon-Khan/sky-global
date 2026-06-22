@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useMisPage } from '@/composables/useMisPage';
 
 interface DocumentCategory {
     id: number;
@@ -50,6 +51,8 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const { t } = useMisPage();
 
 defineOptions({
     layout: {
@@ -89,7 +92,9 @@ const formatSize = (bytes?: number | null): string => {
 const moveToLongTermArchive = (): void => {
     if (
         !confirm(
-            'Move this document to long-term archive? It will no longer appear in the active list.',
+            t(
+                'Move this document to long-term archive? It will no longer appear in the active list.',
+            ),
         )
     ) {
         return;
@@ -107,7 +112,7 @@ const moveToLongTermArchive = (): void => {
             <div>
                 <Heading
                     :title="document.title"
-                    :description="document.reference_number ?? 'Archived document'"
+                    :description="document.reference_number ?? t('Archived document')"
                 />
                 <div class="mt-3 flex flex-wrap gap-2">
                     <Badge v-if="document.direction" variant="outline">
@@ -123,10 +128,10 @@ const moveToLongTermArchive = (): void => {
             </div>
             <div class="flex shrink-0 flex-wrap gap-2">
                 <Button variant="outline" as-child>
-                    <Link href="/archive">Back to list</Link>
+                    <Link href="/archive">{{ t('Back to list') }}</Link>
                 </Button>
                 <Button variant="destructive" @click="moveToLongTermArchive">
-                    Move to long-term archive
+                    {{ t('Move to long-term archive') }}
                 </Button>
             </div>
         </div>
@@ -136,40 +141,40 @@ const moveToLongTermArchive = (): void => {
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
                         <FileText class="size-5" />
-                        Document details
+                        {{ t('Document details') }}
                     </CardTitle>
-                    <CardDescription>Metadata and linked records</CardDescription>
+                    <CardDescription>{{ t('Metadata and linked records') }}</CardDescription>
                 </CardHeader>
                 <CardContent class="grid gap-4 text-sm">
                     <div class="grid gap-1">
-                        <p class="text-muted-foreground">Description</p>
+                        <p class="text-muted-foreground">{{ t('Description') }}</p>
                         <p>{{ document.description ?? '—' }}</p>
                     </div>
                     <div class="grid gap-3 sm:grid-cols-2">
                         <div class="grid gap-1">
-                            <p class="text-muted-foreground">Document date</p>
+                            <p class="text-muted-foreground">{{ t('Document date') }}</p>
                             <p>{{ formatDate(document.document_date) }}</p>
                         </div>
                         <div class="grid gap-1">
-                            <p class="text-muted-foreground">Received</p>
+                            <p class="text-muted-foreground">{{ t('Received') }}</p>
                             <p>{{ formatDate(document.received_at) }}</p>
                         </div>
                         <div class="grid gap-1">
-                            <p class="text-muted-foreground">Sent</p>
+                            <p class="text-muted-foreground">{{ t('Sent') }}</p>
                             <p>{{ formatDate(document.sent_at) }}</p>
                         </div>
                         <div class="grid gap-1">
-                            <p class="text-muted-foreground">Uploaded by</p>
+                            <p class="text-muted-foreground">{{ t('Uploaded by') }}</p>
                             <p>{{ document.uploaded_by?.name ?? '—' }}</p>
                         </div>
                     </div>
                     <div class="grid gap-3 sm:grid-cols-2">
                         <div class="grid gap-1">
-                            <p class="text-muted-foreground">Organization</p>
+                            <p class="text-muted-foreground">{{ t('Organization') }}</p>
                             <p>{{ document.organization?.name ?? '—' }}</p>
                         </div>
                         <div class="grid gap-1">
-                            <p class="text-muted-foreground">Project</p>
+                            <p class="text-muted-foreground">{{ t('Project') }}</p>
                             <Link
                                 v-if="document.project"
                                 :href="`/projects/${document.project.id}`"
@@ -181,7 +186,7 @@ const moveToLongTermArchive = (): void => {
                         </div>
                     </div>
                     <div class="grid gap-1">
-                        <p class="text-muted-foreground">File</p>
+                        <p class="text-muted-foreground">{{ t('File') }}</p>
                         <p>
                             {{ document.original_filename ?? '—' }}
                             <span
@@ -208,9 +213,11 @@ const moveToLongTermArchive = (): void => {
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
                         <Archive class="size-5" />
-                        Edit document
+                        {{ t('Edit document') }}
                     </CardTitle>
-                    <CardDescription>Update metadata or replace the file</CardDescription>
+                    <CardDescription>{{
+                        t('Update metadata or replace the file')
+                    }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form
@@ -221,7 +228,7 @@ const moveToLongTermArchive = (): void => {
                         v-slot="{ errors, processing }"
                     >
                         <div class="grid gap-2">
-                            <Label for="title">Title *</Label>
+                            <Label for="title">{{ t('Title') }} *</Label>
                             <Input
                                 id="title"
                                 name="title"
@@ -232,7 +239,7 @@ const moveToLongTermArchive = (): void => {
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="description">Description</Label>
+                            <Label for="description">{{ t('Description') }}</Label>
                             <textarea
                                 id="description"
                                 name="description"
@@ -243,7 +250,7 @@ const moveToLongTermArchive = (): void => {
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="direction">Direction</Label>
+                            <Label for="direction">{{ t('Direction') }}</Label>
                             <select
                                 id="direction"
                                 name="direction"
@@ -253,32 +260,32 @@ const moveToLongTermArchive = (): void => {
                                     value="incoming"
                                     :selected="document.direction === 'incoming'"
                                 >
-                                    Incoming
+                                    {{ t('Incoming') }}
                                 </option>
                                 <option
                                     value="outgoing"
                                     :selected="document.direction === 'outgoing'"
                                 >
-                                    Outgoing
+                                    {{ t('Outgoing') }}
                                 </option>
                                 <option
                                     value="internal"
                                     :selected="document.direction === 'internal'"
                                 >
-                                    Internal
+                                    {{ t('Internal') }}
                                 </option>
                             </select>
                             <InputError :message="errors.direction" />
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="document_category_id">Category</Label>
+                            <Label for="document_category_id">{{ t('Category') }}</Label>
                             <select
                                 id="document_category_id"
                                 name="document_category_id"
                                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                             >
-                                <option value="">None</option>
+                                <option value="">{{ t('None') }}</option>
                                 <option
                                     v-for="category in categories"
                                     :key="category.id"
@@ -292,13 +299,13 @@ const moveToLongTermArchive = (): void => {
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="organization_id">Organization</Label>
+                            <Label for="organization_id">{{ t('Organization') }}</Label>
                             <select
                                 id="organization_id"
                                 name="organization_id"
                                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                             >
-                                <option value="">None</option>
+                                <option value="">{{ t('None') }}</option>
                                 <option
                                     v-for="organization in organizations"
                                     :key="organization.id"
@@ -312,13 +319,13 @@ const moveToLongTermArchive = (): void => {
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="project_id">Project</Label>
+                            <Label for="project_id">{{ t('Project') }}</Label>
                             <select
                                 id="project_id"
                                 name="project_id"
                                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                             >
-                                <option value="">None</option>
+                                <option value="">{{ t('None') }}</option>
                                 <option
                                     v-for="project in projects"
                                     :key="project.id"
@@ -333,7 +340,7 @@ const moveToLongTermArchive = (): void => {
 
                         <div class="grid gap-3 sm:grid-cols-3">
                             <div class="grid gap-2">
-                                <Label for="document_date">Document date</Label>
+                                <Label for="document_date">{{ t('Document date') }}</Label>
                                 <Input
                                     id="document_date"
                                     name="document_date"
@@ -343,7 +350,7 @@ const moveToLongTermArchive = (): void => {
                                 <InputError :message="errors.document_date" />
                             </div>
                             <div class="grid gap-2">
-                                <Label for="received_at">Received</Label>
+                                <Label for="received_at">{{ t('Received') }}</Label>
                                 <Input
                                     id="received_at"
                                     name="received_at"
@@ -353,7 +360,7 @@ const moveToLongTermArchive = (): void => {
                                 <InputError :message="errors.received_at" />
                             </div>
                             <div class="grid gap-2">
-                                <Label for="sent_at">Sent</Label>
+                                <Label for="sent_at">{{ t('Sent') }}</Label>
                                 <Input
                                     id="sent_at"
                                     name="sent_at"
@@ -365,13 +372,13 @@ const moveToLongTermArchive = (): void => {
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="file">Replace file</Label>
+                            <Label for="file">{{ t('Replace file') }}</Label>
                             <Input id="file" name="file" type="file" />
                             <InputError :message="errors.file" />
                         </div>
 
                         <Button type="submit" :disabled="processing">
-                            Save changes
+                            {{ t('Save changes') }}
                         </Button>
                     </Form>
                 </CardContent>

@@ -10,6 +10,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useMisPage } from '@/composables/useMisPage';
 import { formatCurrency, formatDate } from '@/lib/format';
 
 interface Organization {
@@ -47,6 +48,8 @@ defineProps<{
     opportunity: Opportunity;
 }>();
 
+const { t } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -56,7 +59,6 @@ defineOptions({
         ],
     },
 });
-
 </script>
 
 <template>
@@ -78,10 +80,12 @@ defineOptions({
             </div>
             <div class="flex shrink-0 flex-wrap gap-2">
                 <Button as-child variant="outline">
-                    <Link href="/bidding/opportunities">Back to list</Link>
+                    <Link href="/bidding/opportunities">{{ t('Back to list') }}</Link>
                 </Button>
                 <Button as-child>
-                    <Link :href="`/bidding/opportunities/${opportunity.id}/edit`">Edit</Link>
+                    <Link :href="`/bidding/opportunities/${opportunity.id}/edit`">{{
+                        t('Edit')
+                    }}</Link>
                 </Button>
             </div>
         </div>
@@ -89,39 +93,41 @@ defineOptions({
         <div class="grid gap-4 md:grid-cols-2">
             <Card>
                 <CardHeader>
-                    <CardTitle>Details</CardTitle>
+                    <CardTitle>{{ t('Details') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="space-y-3 text-sm">
                     <div class="flex justify-between">
-                        <span class="text-muted-foreground">Published</span>
+                        <span class="text-muted-foreground">{{ t('Published') }}</span>
                         <span>{{ formatDate(opportunity.published_at) }}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-muted-foreground">Submission deadline</span>
+                        <span class="text-muted-foreground">{{ t('Submission deadline') }}</span>
                         <span>{{ formatDate(opportunity.submission_deadline) }}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-muted-foreground">Estimated value</span>
+                        <span class="text-muted-foreground">{{ t('Estimated value') }}</span>
                         <span>{{
                             formatCurrency(opportunity.estimated_value, opportunity.currency)
                         }}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-muted-foreground">Location</span>
+                        <span class="text-muted-foreground">{{ t('Location') }}</span>
                         <span>{{ opportunity.location ?? '—' }}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-muted-foreground">Duration</span>
+                        <span class="text-muted-foreground">{{ t('Duration') }}</span>
                         <span>
                             {{
                                 opportunity.duration_months
-                                    ? `${opportunity.duration_months} months`
+                                    ? t(':count months', {
+                                          count: String(opportunity.duration_months),
+                                      })
                                     : '—'
                             }}
                         </span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-muted-foreground">Source</span>
+                        <span class="text-muted-foreground">{{ t('Source') }}</span>
                         <span>{{ opportunity.source ?? '—' }}</span>
                     </div>
                 </CardContent>
@@ -129,11 +135,11 @@ defineOptions({
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Scope</CardTitle>
+                    <CardTitle>{{ t('Scope') }}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p class="text-sm text-muted-foreground">
-                        {{ opportunity.security_scope ?? 'No scope defined.' }}
+                        {{ opportunity.security_scope ?? t('No scope defined.') }}
                     </p>
                     <p v-if="opportunity.description" class="mt-4 text-sm">
                         {{ opportunity.description }}
@@ -144,15 +150,15 @@ defineOptions({
 
         <Card>
             <CardHeader>
-                <CardTitle>Bids</CardTitle>
-                <CardDescription>Bids submitted for this opportunity</CardDescription>
+                <CardTitle>{{ t('Bids') }}</CardTitle>
+                <CardDescription>{{ t('Bids submitted for this opportunity') }}</CardDescription>
             </CardHeader>
             <CardContent>
                 <div
                     v-if="opportunity.bids.length === 0"
                     class="py-8 text-center text-sm text-muted-foreground"
                 >
-                    No bids yet.
+                    {{ t('No bids yet.') }}
                 </div>
                 <div v-else class="divide-y">
                     <Link
@@ -162,7 +168,12 @@ defineOptions({
                         class="flex items-center justify-between py-3 transition-colors hover:bg-muted/50"
                     >
                         <div>
-                            <p class="font-medium">{{ bid.bid_number ?? `Bid #${bid.id}` }}</p>
+                            <p class="font-medium">
+                                {{
+                                    bid.bid_number ??
+                                    t('Bid #') + bid.id
+                                }}
+                            </p>
                             <Badge variant="outline" class="mt-1">{{ bid.status }}</Badge>
                         </div>
                         <span class="text-sm font-medium">

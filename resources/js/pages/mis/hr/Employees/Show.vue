@@ -13,6 +13,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useMisPage } from '@/composables/useMisPage';
 
 interface Department {
     id: number;
@@ -59,11 +60,11 @@ interface Employee {
     attachments?: EntityAttachment[];
 }
 
-interface Props {
+defineProps<{
     employee: Employee;
-}
+}>();
 
-defineProps<Props>();
+const { t } = useMisPage();
 
 defineOptions({
     layout: {
@@ -107,10 +108,10 @@ const formatCurrency = (value: number, currency = 'USD'): string =>
             </div>
             <div class="flex shrink-0 flex-wrap gap-2">
                 <Button variant="outline" as-child>
-                    <Link href="/hr/employees">Back to list</Link>
+                    <Link href="/hr/employees">{{ t('Back to list') }}</Link>
                 </Button>
                 <Button as-child>
-                    <Link :href="`/hr/employees/${employee.id}/edit`">Edit</Link>
+                    <Link :href="`/hr/employees/${employee.id}/edit`">{{ t('Edit') }}</Link>
                 </Button>
             </div>
         </div>
@@ -118,35 +119,35 @@ const formatCurrency = (value: number, currency = 'USD'): string =>
         <div class="grid gap-4 lg:grid-cols-2">
             <Card>
                 <CardHeader>
-                    <CardTitle>Personal Information</CardTitle>
+                    <CardTitle>{{ t('Personal Information') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="grid gap-2 text-sm">
                     <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">Father's Name</span>
+                        <span class="text-muted-foreground">{{ t("Father's name") }}</span>
                         <span>{{ employee.father_name ?? '—' }}</span>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">Tazkira</span>
+                        <span class="text-muted-foreground">{{ t('Tazkira number') }}</span>
                         <span>{{ employee.tazkira_number ?? '—' }}</span>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">Date of Birth</span>
+                        <span class="text-muted-foreground">{{ t('Date of birth') }}</span>
                         <span>{{ formatDate(employee.date_of_birth) }}</span>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">Gender</span>
+                        <span class="text-muted-foreground">{{ t('Gender') }}</span>
                         <span>{{ employee.gender ?? '—' }}</span>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">Phone</span>
+                        <span class="text-muted-foreground">{{ t('Phone') }}</span>
                         <span>{{ employee.phone ?? '—' }}</span>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">Email</span>
+                        <span class="text-muted-foreground">{{ t('Email') }}</span>
                         <span>{{ employee.email ?? '—' }}</span>
                     </div>
                     <div v-if="employee.current_address">
-                        <span class="text-muted-foreground">Address</span>
+                        <span class="text-muted-foreground">{{ t('Current address') }}</span>
                         <p class="mt-1">{{ employee.current_address }}</p>
                     </div>
                 </CardContent>
@@ -154,21 +155,19 @@ const formatCurrency = (value: number, currency = 'USD'): string =>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Employment</CardTitle>
+                    <CardTitle>{{ t('Employment') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="grid gap-2 text-sm">
                     <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">Department</span>
-                        <span>{{
-                            employee.job_detail?.department?.name ?? '—'
-                        }}</span>
+                        <span class="text-muted-foreground">{{ t('Department') }}</span>
+                        <span>{{ employee.job_detail?.department?.name ?? '—' }}</span>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">Hire Date</span>
+                        <span class="text-muted-foreground">{{ t('Hire date') }}</span>
                         <span>{{ formatDate(employee.job_detail?.hire_date) }}</span>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">Salary Grade</span>
+                        <span class="text-muted-foreground">{{ t('Salary Grade') }}</span>
                         <span>{{ employee.job_detail?.salary_grade ?? '—' }}</span>
                     </div>
                 </CardContent>
@@ -176,14 +175,14 @@ const formatCurrency = (value: number, currency = 'USD'): string =>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Salary History</CardTitle>
+                    <CardTitle>{{ t('Salary History') }}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div
                         v-if="!employee.salaries?.length"
                         class="text-sm text-muted-foreground"
                     >
-                        No salary records.
+                        {{ t('No salary records.') }}
                     </div>
                     <div v-else class="space-y-2">
                         <div
@@ -212,15 +211,15 @@ const formatCurrency = (value: number, currency = 'USD'): string =>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Contracts</CardTitle>
-                    <CardDescription>Employment contract records</CardDescription>
+                    <CardTitle>{{ t('Contracts') }}</CardTitle>
+                    <CardDescription>{{ t('Employment contract records') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div
                         v-if="!employee.contracts?.length"
                         class="text-sm text-muted-foreground"
                     >
-                        No contracts on file.
+                        {{ t('No contracts on file.') }}
                     </div>
                     <div v-else class="space-y-2">
                         <div
@@ -229,7 +228,7 @@ const formatCurrency = (value: number, currency = 'USD'): string =>
                             class="rounded-md border px-3 py-2 text-sm"
                         >
                             <div class="font-medium">
-                                {{ contract.contract_number ?? 'Contract' }}
+                                {{ contract.contract_number ?? t('Contract') }}
                             </div>
                             <div class="text-muted-foreground">
                                 {{ formatDate(contract.start_date) }} —

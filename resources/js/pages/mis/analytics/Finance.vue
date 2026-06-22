@@ -10,6 +10,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useMisPage } from '@/composables/useMisPage';
 
 interface ProjectProfitability {
     id: number;
@@ -35,6 +36,8 @@ interface Props {
 
 defineProps<Props>();
 
+const { t } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -58,23 +61,23 @@ const formatCurrency = (value?: number | null): string => {
 </script>
 
 <template>
-    <Head title="Finance Analytics" />
+    <Head :title="t('Finance Analytics')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <Heading
-                title="Finance Analytics"
-                description="Revenue, expenses, and project profitability"
+                :title="t('Finance Analytics')"
+                :description="t('Revenue, expenses, and project profitability')"
             />
             <Button variant="outline" as-child>
-                <Link href="/analytics/bidding">Bidding Analytics</Link>
+                <Link href="/analytics/bidding">{{ t('Bidding Analytics') }}</Link>
             </Button>
         </div>
 
         <div v-if="summary" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Total Income</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Total Income') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-2xl font-bold text-green-600 dark:text-green-400">
                     {{ formatCurrency(summary.total_income) }}
@@ -82,7 +85,7 @@ const formatCurrency = (value?: number | null): string => {
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Project Expenses</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Project Expenses') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-2xl font-bold text-destructive">
                     {{ formatCurrency(summary.total_expense) }}
@@ -90,7 +93,7 @@ const formatCurrency = (value?: number | null): string => {
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">Overhead</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Overhead') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
                     {{ formatCurrency(summary.overhead) }}
@@ -98,7 +101,7 @@ const formatCurrency = (value?: number | null): string => {
             </Card>
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm">Net Margin</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Net Margin') }}</CardTitle>
                     <DollarSign class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
@@ -111,10 +114,10 @@ const formatCurrency = (value?: number | null): string => {
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <PieChart class="size-5" />
-                    Project Profitability
+                    {{ t('Project Profitability') }}
                 </CardTitle>
                 <CardDescription>
-                    Income vs expense by project
+                    {{ t('Income vs expense by project') }}
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -122,21 +125,27 @@ const formatCurrency = (value?: number | null): string => {
                     v-if="projectProfitability.length === 0"
                     class="text-sm text-muted-foreground"
                 >
-                    No profitability data available.
+                    {{ t('No profitability data available.') }}
                 </div>
                 <div v-else class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="border-b text-left text-muted-foreground">
-                                <th class="pb-3 pr-4 font-medium">Project</th>
-                                <th class="pb-3 pr-4 font-medium">Client</th>
-                                <th class="pb-3 pr-4 text-right font-medium">
-                                    Income
+                            <tr class="border-b text-start text-muted-foreground">
+                                <th class="pb-3 pe-4 font-medium">{{
+                                    t('Project')
+                                }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{
+                                    t('Client')
+                                }}</th>
+                                <th class="pb-3 pe-4 text-end font-medium">
+                                    {{ t('Income') }}
                                 </th>
-                                <th class="pb-3 pr-4 text-right font-medium">
-                                    Expense
+                                <th class="pb-3 pe-4 text-end font-medium">
+                                    {{ t('Expense') }}
                                 </th>
-                                <th class="pb-3 text-right font-medium">Margin</th>
+                                <th class="pb-3 text-end font-medium">{{
+                                    t('Margin')
+                                }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -145,7 +154,7 @@ const formatCurrency = (value?: number | null): string => {
                                 :key="project.id"
                                 class="border-b last:border-0"
                             >
-                                <td class="py-3 pr-4">
+                                <td class="py-3 pe-4">
                                     <Link
                                         :href="`/projects/${project.id}`"
                                         class="font-medium hover:underline"
@@ -156,17 +165,17 @@ const formatCurrency = (value?: number | null): string => {
                                         {{ project.name }}
                                     </div>
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
+                                <td class="py-3 pe-4 text-muted-foreground">
                                     {{ project.organization ?? '—' }}
                                 </td>
-                                <td class="py-3 pr-4 text-right">
+                                <td class="py-3 pe-4 text-end">
                                     {{ formatCurrency(project.income) }}
                                 </td>
-                                <td class="py-3 pr-4 text-right">
+                                <td class="py-3 pe-4 text-end">
                                     {{ formatCurrency(project.expense) }}
                                 </td>
                                 <td
-                                    class="py-3 text-right font-medium"
+                                    class="py-3 text-end font-medium"
                                     :class="
                                         project.margin >= 0
                                             ? 'text-green-600 dark:text-green-400'

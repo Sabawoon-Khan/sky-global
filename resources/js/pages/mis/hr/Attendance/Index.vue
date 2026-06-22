@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import type { Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { attendanceStatusActions } from '@/lib/status-actions';
+import { useMisPage } from '@/composables/useMisPage';
 
 const EMPLOYEE_TYPE = 'App\\Models\\Hr\\Employee';
 const CONTRACTOR_TYPE = 'App\\Models\\Hr\\Contractor';
@@ -66,6 +67,8 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const { t } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -101,16 +104,20 @@ const personnelTypeLabel = (type: string): string => {
 };
 
 const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
-    attendanceStatusActions(record.id, record.status);
+    attendanceStatusActions(record.id, record.status, t);
 </script>
 
 <template>
-    <Head title="Attendance" />
+    <Head :title="t('Attendance')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <Heading
-            title="Attendance"
-            description="Record monthly attendance, approve records, then process payroll"
+            :title="t('Attendance')"
+            :description="
+                t(
+                    'Record monthly attendance, approve records, then process payroll',
+                )
+            "
         />
 
         <div class="grid gap-6 xl:grid-cols-3">
@@ -118,10 +125,14 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
                         <Plus class="size-5" />
-                        Record attendance
+                        {{ t('Record attendance') }}
                     </CardTitle>
                     <CardDescription>
-                        Create a monthly attendance entry for an employee or contractor
+                        {{
+                            t(
+                                'Create a monthly attendance entry for an employee or contractor',
+                            )
+                        }}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -136,29 +147,43 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                         }"
                         v-slot="{ errors, processing }"
                     >
-                        <input type="hidden" name="personnel_type" :value="personnelType" />
+                        <input
+                            type="hidden"
+                            name="personnel_type"
+                            :value="personnelType"
+                        />
 
                         <div class="grid gap-2">
-                            <Label for="personnel_type">Personnel type</Label>
+                            <Label for="personnel_type">{{
+                                t('Personnel type')
+                            }}</Label>
                             <select
                                 id="personnel_type"
                                 v-model="personnelType"
                                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                             >
-                                <option :value="EMPLOYEE_TYPE">Employee</option>
-                                <option :value="CONTRACTOR_TYPE">Contractor</option>
+                                <option :value="EMPLOYEE_TYPE">
+                                    {{ t('Employee') }}
+                                </option>
+                                <option :value="CONTRACTOR_TYPE">
+                                    {{ t('Contractor') }}
+                                </option>
                             </select>
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="personnel_id">Person *</Label>
+                            <Label for="personnel_id"
+                                >{{ t('Person') }} *</Label
+                            >
                             <select
                                 id="personnel_id"
                                 name="personnel_id"
                                 required
                                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                             >
-                                <option value="" disabled selected>Select person</option>
+                                <option value="" disabled selected>
+                                    {{ t('Select person') }}
+                                </option>
                                 <option
                                     v-for="person in personnelOptions"
                                     :key="person.id"
@@ -171,13 +196,13 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="project_id">Project</Label>
+                            <Label for="project_id">{{ t('Project') }}</Label>
                             <select
                                 id="project_id"
                                 name="project_id"
                                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
                             >
-                                <option value="">None</option>
+                                <option value="">{{ t('None') }}</option>
                                 <option
                                     v-for="project in projects"
                                     :key="project.id"
@@ -191,18 +216,25 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
 
                         <div class="grid grid-cols-2 gap-3">
                             <div class="grid gap-2">
-                                <Label for="create_year">Year *</Label>
+                                <Label for="create_year"
+                                    >{{ t('Year') }} *</Label
+                                >
                                 <Input
                                     id="create_year"
                                     name="year"
                                     type="number"
                                     required
-                                    :default-value="filters?.year ?? new Date().getFullYear()"
+                                    :default-value="
+                                        filters?.year ??
+                                        new Date().getFullYear()
+                                    "
                                 />
                                 <InputError :message="errors.year" />
                             </div>
                             <div class="grid gap-2">
-                                <Label for="create_month">Month *</Label>
+                                <Label for="create_month"
+                                    >{{ t('Month') }} *</Label
+                                >
                                 <Input
                                     id="create_month"
                                     name="month"
@@ -210,7 +242,10 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                                     min="1"
                                     max="12"
                                     required
-                                    :default-value="filters?.month ?? new Date().getMonth() + 1"
+                                    :default-value="
+                                        filters?.month ??
+                                        new Date().getMonth() + 1
+                                    "
                                 />
                                 <InputError :message="errors.month" />
                             </div>
@@ -218,7 +253,9 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
 
                         <div class="grid grid-cols-3 gap-3">
                             <div class="grid gap-2">
-                                <Label for="days_present">Present</Label>
+                                <Label for="days_present">{{
+                                    t('Present')
+                                }}</Label>
                                 <Input
                                     id="days_present"
                                     name="days_present"
@@ -230,7 +267,9 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                                 <InputError :message="errors.days_present" />
                             </div>
                             <div class="grid gap-2">
-                                <Label for="days_absent">Absent</Label>
+                                <Label for="days_absent">{{
+                                    t('Absent')
+                                }}</Label>
                                 <Input
                                     id="days_absent"
                                     name="days_absent"
@@ -242,7 +281,7 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                                 <InputError :message="errors.days_absent" />
                             </div>
                             <div class="grid gap-2">
-                                <Label for="days_leave">Leave</Label>
+                                <Label for="days_leave">{{ t('Leave') }}</Label>
                                 <Input
                                     id="days_leave"
                                     name="days_leave"
@@ -256,7 +295,9 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="overtime_hours">Overtime hours</Label>
+                            <Label for="overtime_hours">{{
+                                t('Overtime hours')
+                            }}</Label>
                             <Input
                                 id="overtime_hours"
                                 name="overtime_hours"
@@ -271,7 +312,7 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                         <OptionalAttachmentField :error="errors.attachment" />
 
                         <Button type="submit" :disabled="processing">
-                            Create record
+                            {{ t('Create record') }}
                         </Button>
                     </Form>
                 </CardContent>
@@ -281,11 +322,17 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
                         <CalendarDays class="size-5" />
-                        Attendance Records
+                        {{ t('Attendance Records') }}
                     </CardTitle>
                     <CardDescription>
-                        {{ attendances.meta?.total ?? attendances.data.length }}
-                        records · filter by period
+                        {{
+                            t(':count records · filter by period', {
+                                count: String(
+                                    attendances.meta?.total ??
+                                        attendances.data.length,
+                                ),
+                            })
+                        }}
                     </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
@@ -295,51 +342,79 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                         class="flex flex-wrap items-end gap-4"
                     >
                         <div class="grid gap-2">
-                            <Label for="year">Year</Label>
+                            <Label for="year">{{ t('Year') }}</Label>
                             <Input
                                 id="year"
                                 name="year"
                                 type="number"
-                                :default-value="filters?.year ?? new Date().getFullYear()"
+                                :default-value="
+                                    filters?.year ?? new Date().getFullYear()
+                                "
                                 class="w-28"
                             />
                         </div>
                         <div class="grid gap-2">
-                            <Label for="month">Month</Label>
+                            <Label for="month">{{ t('Month') }}</Label>
                             <Input
                                 id="month"
                                 name="month"
                                 type="number"
                                 min="1"
                                 max="12"
-                                :default-value="filters?.month ?? new Date().getMonth() + 1"
+                                :default-value="
+                                    filters?.month ?? new Date().getMonth() + 1
+                                "
                                 class="w-20"
                             />
                         </div>
-                        <Button type="submit" variant="outline">Filter</Button>
+                        <Button type="submit" variant="outline">{{
+                            t('Filter')
+                        }}</Button>
                     </form>
 
                     <div
                         v-if="attendances.data.length === 0"
                         class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
                     >
-                        No attendance records for this period.
+                        {{ t('No attendance records for this period.') }}
                     </div>
 
                     <div v-else class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
-                                <tr class="border-b text-left text-muted-foreground">
-                                    <th class="pb-3 pr-4 font-medium">Personnel</th>
-                                    <th class="pb-3 pr-4 font-medium">Type</th>
-                                    <th class="pb-3 pr-4 font-medium">Project</th>
-                                    <th class="pb-3 pr-4 font-medium">Period</th>
-                                    <th class="pb-3 pr-4 font-medium">Present</th>
-                                    <th class="pb-3 pr-4 font-medium">Absent</th>
-                                    <th class="pb-3 pr-4 font-medium">Leave</th>
-                                    <th class="pb-3 pr-4 font-medium">OT Hours</th>
-                                    <th class="pb-3 pr-4 font-medium">Status</th>
-                                    <th class="pb-3 text-right font-medium">Actions</th>
+                                <tr
+                                    class="border-b text-start text-muted-foreground"
+                                >
+                                    <th class="pe-4 pb-3 font-medium">
+                                        {{ t('Personnel') }}
+                                    </th>
+                                    <th class="pe-4 pb-3 font-medium">
+                                        {{ t('Type') }}
+                                    </th>
+                                    <th class="pe-4 pb-3 font-medium">
+                                        {{ t('Project') }}
+                                    </th>
+                                    <th class="pe-4 pb-3 font-medium">
+                                        {{ t('Period') }}
+                                    </th>
+                                    <th class="pe-4 pb-3 font-medium">
+                                        {{ t('Present') }}
+                                    </th>
+                                    <th class="pe-4 pb-3 font-medium">
+                                        {{ t('Absent') }}
+                                    </th>
+                                    <th class="pe-4 pb-3 font-medium">
+                                        {{ t('Leave') }}
+                                    </th>
+                                    <th class="pe-4 pb-3 font-medium">
+                                        {{ t('OT Hours') }}
+                                    </th>
+                                    <th class="pe-4 pb-3 font-medium">
+                                        {{ t('Status') }}
+                                    </th>
+                                    <th class="pb-3 text-end font-medium">
+                                        {{ t('Actions') }}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -355,22 +430,35 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                                         }}
                                     </td>
                                     <td class="py-3 pr-4 text-muted-foreground">
-                                        {{ personnelTypeLabel(record.personnel_type) }}
+                                        {{
+                                            personnelTypeLabel(
+                                                record.personnel_type,
+                                            )
+                                        }}
                                     </td>
                                     <td class="py-3 pr-4 text-muted-foreground">
                                         {{ record.project?.code ?? '—' }}
                                     </td>
                                     <td class="py-3 pr-4 text-muted-foreground">
-                                        {{ monthName(record.month) }} {{ record.year }}
+                                        {{ monthName(record.month) }}
+                                        {{ record.year }}
                                     </td>
-                                    <td class="py-3 pr-4">{{ record.days_present }}</td>
-                                    <td class="py-3 pr-4">{{ record.days_absent }}</td>
-                                    <td class="py-3 pr-4">{{ record.days_leave }}</td>
+                                    <td class="py-3 pr-4">
+                                        {{ record.days_present }}
+                                    </td>
+                                    <td class="py-3 pr-4">
+                                        {{ record.days_absent }}
+                                    </td>
+                                    <td class="py-3 pr-4">
+                                        {{ record.days_leave }}
+                                    </td>
                                     <td class="py-3 pr-4">
                                         {{ record.overtime_hours ?? 0 }}
                                     </td>
                                     <td class="py-3 pr-4">
-                                        <Badge variant="outline">{{ record.status }}</Badge>
+                                        <Badge variant="outline">{{
+                                            record.status
+                                        }}</Badge>
                                     </td>
                                     <td class="py-3 text-right">
                                         <RowActionsMenu

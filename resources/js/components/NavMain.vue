@@ -22,7 +22,7 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
     <SidebarGroup class="px-2 py-0">
         <SidebarGroupLabel>{{ label }}</SidebarGroupLabel>
         <SidebarMenu>
-            <SidebarMenuItem v-for="item in items" :key="item.title">
+            <SidebarMenuItem v-for="item in items" :key="String(item.href)">
                 <SidebarMenuButton
                     as-child
                     :is-active="isCurrentOrParentUrl(item.href)"

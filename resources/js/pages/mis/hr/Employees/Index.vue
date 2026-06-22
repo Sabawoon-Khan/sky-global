@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Eye, Pencil, Plus, Search, Users } from '@lucide/vue';
+import { Plus, Search, Users } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useMisPage } from '@/composables/useMisPage';
 import type { RowActionItem } from '@/lib/row-actions';
 import { personnelStatusActions } from '@/lib/status-actions';
 
@@ -41,6 +42,8 @@ interface Props {
 
 defineProps<Props>();
 
+const { t, viewAction, editAction } = useMisPage();
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -54,37 +57,30 @@ const fullName = (employee: Employee): string =>
     `${employee.first_name} ${employee.last_name}`;
 
 const employeeActions = (employee: Employee): RowActionItem[] => [
-    {
-        label: 'View',
-        icon: Eye,
-        href: `/hr/employees/${employee.id}`,
-    },
-    {
-        label: 'Edit',
-        icon: Pencil,
-        href: `/hr/employees/${employee.id}/edit`,
-    },
+    viewAction(`/hr/employees/${employee.id}`),
+    editAction(`/hr/employees/${employee.id}/edit`),
     ...personnelStatusActions({
         url: `/hr/employees/${employee.id}`,
         name: fullName(employee),
         status: employee.status,
+        t,
     }),
 ];
 </script>
 
 <template>
-    <Head title="Employees" />
+    <Head :title="t('Employees')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <Heading
-                title="Employees"
-                description="Manage staff records and employment details"
+                :title="t('Employees')"
+                :description="t('Manage staff records and employment details')"
             />
             <Button as-child>
                 <Link href="/hr/employees/create">
-                    <Plus class="size-4" />
-                    Add Employee
+                    <Plus class="me-1 size-4" />
+                    {{ t('Add Employee') }}
                 </Link>
             </Button>
         </div>
@@ -93,22 +89,28 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <Users class="size-5" />
-                    All Employees
+                    {{ t('All Employees') }}
                 </CardTitle>
                 <CardDescription>
-                    {{ employees.meta?.total ?? employees.data.length }} employees
+                    {{
+                        t(':count employees', {
+                            count: String(
+                                employees.meta?.total ?? employees.data.length,
+                            ),
+                        })
+                    }}
                 </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
                 <form method="get" action="/hr/employees" class="relative max-w-sm">
                     <Search
-                        class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                        class="absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground"
                     />
                     <Input
                         name="search"
                         :default-value="filters?.search"
-                        placeholder="Search employees..."
-                        class="pl-9"
+                        :placeholder="t('Search employees...')"
+                        class="ps-9"
                     />
                 </form>
 
@@ -116,19 +118,23 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
                     v-if="employees.data.length === 0"
                     class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
                 >
-                    No employees found.
+                    {{ t('No employees found.') }}
                 </div>
 
                 <div v-else class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="border-b text-left text-muted-foreground">
-                                <th class="pb-3 pr-4 font-medium">Name</th>
-                                <th class="pb-3 pr-4 font-medium">Designation</th>
-                                <th class="pb-3 pr-4 font-medium">Department</th>
-                                <th class="pb-3 pr-4 font-medium">Contact</th>
-                                <th class="pb-3 pr-4 font-medium">Status</th>
-                                <th class="pb-3 text-right font-medium">Actions</th>
+                            <tr class="border-b text-start text-muted-foreground">
+                                <th class="pb-3 pe-4 font-medium">{{ t('Name') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{
+                                    t('Designation')
+                                }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{
+                                    t('Department')
+                                }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{ t('Contact') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{ t('Status') }}</th>
+                                <th class="pb-3 text-end font-medium">{{ t('Actions') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -137,7 +143,7 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
                                 :key="employee.id"
                                 class="border-b last:border-0"
                             >
-                                <td class="py-3 pr-4">
+                                <td class="py-3 pe-4">
                                     <Link
                                         :href="`/hr/employees/${employee.id}`"
                                         class="font-medium hover:underline"
@@ -145,20 +151,20 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
                                         {{ fullName(employee) }}
                                     </Link>
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
+                                <td class="py-3 pe-4 text-muted-foreground">
                                     {{ employee.job_detail?.designation ?? '—' }}
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
+                                <td class="py-3 pe-4 text-muted-foreground">
                                     {{
                                         employee.job_detail?.department?.name ??
                                         '—'
                                     }}
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
+                                <td class="py-3 pe-4 text-muted-foreground">
                                     <div>{{ employee.phone ?? '—' }}</div>
                                     <div class="text-xs">{{ employee.email ?? '' }}</div>
                                 </td>
-                                <td class="py-3 pr-4">
+                                <td class="py-3 pe-4">
                                     <Badge
                                         :variant="
                                             employee.status === 'active'
@@ -166,10 +172,16 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
                                                 : 'outline'
                                         "
                                     >
-                                        {{ employee.status }}
+                                        {{
+                                            employee.status === 'active'
+                                                ? t('Active')
+                                                : employee.status === 'inactive'
+                                                  ? t('Inactive')
+                                                  : employee.status
+                                        }}
                                     </Badge>
                                 </td>
-                                <td class="py-3 text-right">
+                                <td class="py-3 text-end">
                                     <RowActionsMenu
                                         :actions="employeeActions(employee)"
                                     />
