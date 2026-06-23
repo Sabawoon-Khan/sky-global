@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Finance\Currency;
+use App\Models\Finance\ExchangeRate;
 use App\Models\Finance\GeneralExpense;
 use App\Models\Finance\GeneralIncome;
 use App\Models\Finance\ProjectExpense;
@@ -24,6 +26,23 @@ class AnalyticsService
         $totalBids = Bid::query()->count();
         $wonBids = Bid::query()->where('status', 'won')->count();
         $lostBids = Bid::query()->where('status', 'lost')->count();
+        $ourBidByCurrency = Project::query()
+            ->selectRaw("UPPER(COALESCE(currency, 'USD')) as currency, SUM(COALESCE(our_bid_amount, 0)) as total")
+            ->whereNotNull('our_bid_amount')
+            ->groupByRaw("UPPER(COALESCE(currency, 'USD'))")
+            ->orderBy('currency')
+            ->get()
+            ->map(fn ($row) => [
+                'currency' => (string) $row->currency,
+                'total' => (float) $row->total,
+            ])
+            ->values()
+            ->all();
+        $totalIncomeUsd = (float) (ProjectIncome::query()->sum('amount_usd') ?: ProjectIncome::query()->sum('amount'));
+        $generalIncomeUsd = (float) (GeneralIncome::query()->sum('amount_usd') ?: GeneralIncome::query()->sum('amount'));
+        $totalExpenseUsd = (float) (ProjectExpense::query()->sum('amount_usd') ?: ProjectExpense::query()->sum('amount'));
+        $overheadUsd = (float) (GeneralExpense::query()->sum('amount_usd') ?: GeneralExpense::query()->sum('amount'));
+        $netByCurrency = $this->netFinanceByCurrency();
 
         return [
             'bidding' => [
@@ -32,6 +51,7 @@ class AnalyticsService
                 'win_rate' => $totalBids > 0 ? round(($wonBids / $totalBids) * 100, 1) : 0,
                 'won' => $wonBids,
                 'lost' => $lostBids,
+                'our_bid_by_currency' => $ourBidByCurrency,
             ],
             'projects' => [
                 'active' => Project::query()->where('status', 'active')->count(),
@@ -39,10 +59,38 @@ class AnalyticsService
                 'total' => Project::query()->count(),
             ],
             'finance' => [
-                'total_income_usd' => ProjectIncome::query()->sum('amount_usd') ?: ProjectIncome::query()->sum('amount'),
-                'general_income_usd' => GeneralIncome::query()->sum('amount_usd') ?: GeneralIncome::query()->sum('amount'),
-                'total_expense_usd' => ProjectExpense::query()->sum('amount_usd') ?: ProjectExpense::query()->sum('amount'),
-                'overhead_usd' => GeneralExpense::query()->sum('amount_usd') ?: GeneralExpense::query()->sum('amount'),
+                'total_income_usd' => $totalIncomeUsd,
+                'general_income_usd' => $generalIncomeUsd,
+                'total_expense_usd' => $totalExpenseUsd,
+                'overhead_usd' => $overheadUsd,
+                'net_usd' => $totalIncomeUsd - $totalExpenseUsd - $overheadUsd,
+                'net_by_currency' => $netByCurrency->values()->all(),
+                'currencies' => Currency::query()
+                    ->where('is_active', true)
+                    ->orderByDesc('is_default')
+                    ->orderBy('code')
+                    ->get(['code', 'name', 'symbol', 'is_default'])
+                    ->map(fn (Currency $currency) => [
+                        'code' => $currency->code,
+                        'name' => $currency->name,
+                        'symbol' => $currency->symbol,
+                        'is_default' => (bool) $currency->is_default,
+                    ])
+                    ->values()
+                    ->all(),
+                'exchange_rates' => ExchangeRate::query()
+                    ->where('to_currency', 'USD')
+                    ->orderByDesc('effective_date')
+                    ->get(['from_currency', 'to_currency', 'rate', 'effective_date'])
+                    ->unique('from_currency')
+                    ->map(fn (ExchangeRate $rate) => [
+                        'from_currency' => $rate->from_currency,
+                        'to_currency' => $rate->to_currency,
+                        'rate' => (float) $rate->rate,
+                        'effective_date' => $rate->effective_date?->toDateString(),
+                    ])
+                    ->values()
+                    ->all(),
             ],
             'hr' => [
                 'employees' => Employee::query()->where('status', 'active')->count(),
@@ -263,6 +311,50 @@ class AnalyticsService
         return (float) $modelClass::query()
             ->whereBetween($dateColumn, [$start, $end])
             ->sum('amount');
+    }
+
+    /** @return Collection<int, array<string, mixed>> */
+    private function netFinanceByCurrency(): Collection
+    {
+        $incomeByCurrency = $this->sumByCurrency([ProjectIncome::class, GeneralIncome::class]);
+        $expenseByCurrency = $this->sumByCurrency([ProjectExpense::class, GeneralExpense::class]);
+
+        return $incomeByCurrency
+            ->keys()
+            ->merge($expenseByCurrency->keys())
+            ->unique()
+            ->sort()
+            ->map(function (string $currency) use ($incomeByCurrency, $expenseByCurrency) {
+                $income = (float) ($incomeByCurrency->get($currency, 0.0));
+                $expense = (float) ($expenseByCurrency->get($currency, 0.0));
+
+                return [
+                    'currency' => $currency,
+                    'income' => $income,
+                    'expense' => $expense,
+                    'net' => $income - $expense,
+                ];
+            })
+            ->values();
+    }
+
+    /** @param array<int, class-string> $modelClasses */
+    private function sumByCurrency(array $modelClasses): Collection
+    {
+        $totals = collect();
+
+        foreach ($modelClasses as $modelClass) {
+            $sums = $modelClass::query()
+                ->selectRaw("UPPER(COALESCE(currency, 'USD')) as currency, SUM(amount) as total")
+                ->groupByRaw("UPPER(COALESCE(currency, 'USD'))")
+                ->pluck('total', 'currency');
+
+            foreach ($sums as $currency => $total) {
+                $totals[$currency] = (float) ($totals->get($currency, 0.0)) + (float) $total;
+            }
+        }
+
+        return $totals;
     }
 
     /** @return Collection<int, array<string, mixed>> */

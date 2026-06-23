@@ -62,6 +62,12 @@ const adminNavItems = computed<NavItem[]>(() =>
                   href: '/settings/form-types',
               }
             : null,
+        can('settings.edit')
+            ? {
+                  title: t('Currencies'),
+                  href: '/settings/currencies',
+              }
+            : null,
     ].filter((item): item is NavItem => item !== null),
 );
 

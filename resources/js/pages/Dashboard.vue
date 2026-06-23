@@ -26,6 +26,10 @@ interface DashboardStats {
         win_rate: number;
         won: number;
         lost: number;
+        our_bid_by_currency: Array<{
+            currency: string;
+            total: number;
+        }>;
     };
     projects: {
         active: number;
@@ -34,8 +38,28 @@ interface DashboardStats {
     };
     finance: {
         total_income_usd: number;
+        general_income_usd: number;
         total_expense_usd: number;
         overhead_usd: number;
+        net_usd: number;
+        net_by_currency: Array<{
+            currency: string;
+            income: number;
+            expense: number;
+            net: number;
+        }>;
+        currencies: Array<{
+            code: string;
+            name: string;
+            symbol: string | null;
+            is_default: boolean;
+        }>;
+        exchange_rates: Array<{
+            from_currency: string;
+            to_currency: string;
+            rate: number;
+            effective_date: string | null;
+        }>;
     };
     hr: {
         employees: number;
@@ -141,12 +165,19 @@ defineOptions({
     },
 });
 
-const formatCurrency = (value: number): string =>
-    new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 0,
-    }).format(value);
+const formatCurrency = (value: number, currency = 'USD'): string => {
+    try {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency,
+            maximumFractionDigits: 2,
+        }).format(value);
+    } catch {
+        return `${currency} ${new Intl.NumberFormat('en-US', {
+            maximumFractionDigits: 2,
+        }).format(value)}`;
+    }
+};
 </script>
 
 <template>
@@ -203,6 +234,24 @@ const formatCurrency = (value: number): string =>
                         {{ stats.bidding.pending_bids }}
                         {{ t('pending bids') }}
                     </p>
+                    <div
+                        v-if="stats.bidding.our_bid_by_currency.length"
+                        class="mt-3 space-y-1 border-t pt-3"
+                    >
+                        <p class="text-xs text-muted-foreground">
+                            {{ t('Our bid totals') }}
+                        </p>
+                        <div
+                            v-for="bid in stats.bidding.our_bid_by_currency"
+                            :key="bid.currency"
+                            class="flex items-center justify-between text-xs"
+                        >
+                            <span class="text-muted-foreground">{{ bid.currency }}</span>
+                            <span class="font-medium">
+                                {{ formatCurrency(bid.total, bid.currency) }}
+                            </span>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -241,27 +290,36 @@ const formatCurrency = (value: number): string =>
             <Card class="transition-colors hover:bg-muted/30">
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
                     <CardTitle class="text-sm font-medium">{{
-                        t('Net Finance (USD)')
+                        t('Net Finance')
                     }}</CardTitle>
                     <DollarSign class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <Link href="/finance" class="block space-y-1">
                         <div class="text-2xl font-bold">
-                            {{
-                                formatCurrency(
-                                    stats.finance.total_income_usd -
-                                        stats.finance.total_expense_usd -
-                                        stats.finance.overhead_usd,
-                                )
-                            }}
+                            {{ formatCurrency(stats.finance.net_usd, 'USD') }}
                         </div>
                         <p class="text-xs text-muted-foreground">
-                            {{ t('Income') }}
+                            {{ t('Base (USD)') }} · {{ t('Income') }}
                             {{ formatCurrency(stats.finance.total_income_usd) }} ·
                             {{ t('View finance') }}
                         </p>
                     </Link>
+                    <div
+                        v-if="stats.finance.net_by_currency.length"
+                        class="mt-3 space-y-1 border-t pt-3"
+                    >
+                        <div
+                            v-for="item in stats.finance.net_by_currency"
+                            :key="item.currency"
+                            class="flex items-center justify-between text-xs"
+                        >
+                            <span class="text-muted-foreground">{{ item.currency }}</span>
+                            <span class="font-medium">
+                                {{ formatCurrency(item.net, item.currency) }}
+                            </span>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -313,6 +371,50 @@ const formatCurrency = (value: number): string =>
                     <p class="text-xs text-muted-foreground">
                         {{ t('Recorded competitor bids') }}
                     </p>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between pb-2">
+                    <CardTitle class="text-sm font-medium">{{
+                        t('Currencies & Exchange Rates')
+                    }}</CardTitle>
+                    <DollarSign class="size-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent class="space-y-3">
+                    <div>
+                        <p class="mb-1 text-xs text-muted-foreground">
+                            {{ t('Active Currencies') }}
+                        </p>
+                        <div class="flex flex-wrap gap-1">
+                            <Badge
+                                v-for="currency in stats.finance.currencies"
+                                :key="currency.code"
+                                variant="secondary"
+                                class="text-xs"
+                            >
+                                {{ currency.code }}
+                                <span v-if="currency.is_default"> · {{ t('default') }}</span>
+                            </Badge>
+                        </div>
+                    </div>
+                    <div v-if="stats.finance.exchange_rates.length">
+                        <p class="mb-1 text-xs text-muted-foreground">
+                            {{ t('Latest to USD') }}
+                        </p>
+                        <div class="space-y-1">
+                            <div
+                                v-for="rate in stats.finance.exchange_rates"
+                                :key="`${rate.from_currency}-${rate.to_currency}`"
+                                class="flex items-center justify-between text-xs"
+                            >
+                                <span class="text-muted-foreground">
+                                    {{ rate.from_currency }} → {{ rate.to_currency }}
+                                </span>
+                                <span class="font-medium">{{ rate.rate }}</span>
+                            </div>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
         </div>

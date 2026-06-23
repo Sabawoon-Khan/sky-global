@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Finance;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
+use App\Models\Finance\Currency;
 use App\Models\Finance\GeneralExpense;
 use App\Models\Finance\GeneralIncome;
 use App\Models\Finance\Invoice;
@@ -12,6 +13,7 @@ use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -33,6 +35,7 @@ class InvoiceController extends Controller
         $totalExpenses = ProjectExpense::query()->sum('amount_usd') ?: ProjectExpense::query()->sum('amount');
         $totalGeneral = GeneralExpense::query()->sum('amount_usd') ?: GeneralExpense::query()->sum('amount');
         $totalInvoices = Invoice::query()->sum('total');
+        $currencyBreakdown = $this->buildCurrencyBreakdown();
 
         return Inertia::render('mis/finance/Index', [
             'summary' => [
@@ -44,6 +47,7 @@ class InvoiceController extends Controller
                 'general_expenses' => (float) $totalGeneral,
                 'total_invoices' => (float) $totalInvoices,
                 'outstanding' => (float) Invoice::query()->whereIn('status', ['draft', 'sent', 'overdue'])->sum('total'),
+                'currency_breakdown' => $currencyBreakdown->values()->all(),
             ],
             'incomes' => ProjectIncome::query()->with('project')->latest('transaction_date')->limit(50)->get(),
             'expenses' => ProjectExpense::query()->with('project')->latest('transaction_date')->limit(50)->get(),
@@ -135,5 +139,71 @@ class InvoiceController extends Controller
         $invoice->delete();
 
         return back()->with('success', 'Invoice deleted.');
+    }
+
+    /** @return Collection<int, array<string, float|string>> */
+    private function buildCurrencyBreakdown(): Collection
+    {
+        $currencies = Currency::query()
+            ->orderByDesc('is_default')
+            ->orderBy('code')
+            ->get(['code']);
+
+        $incomeByCurrency = $this->sumByCurrency([ProjectIncome::class, GeneralIncome::class], 'amount');
+        $expenseByCurrency = $this->sumByCurrency([ProjectExpense::class, GeneralExpense::class], 'amount');
+        $invoiceByCurrency = Invoice::query()
+            ->selectRaw("UPPER(COALESCE(currency, 'USD')) as currency, SUM(total) as total")
+            ->groupByRaw("UPPER(COALESCE(currency, 'USD'))")
+            ->pluck('total', 'currency');
+        $outstandingByCurrency = Invoice::query()
+            ->whereIn('status', ['draft', 'sent', 'overdue'])
+            ->selectRaw("UPPER(COALESCE(currency, 'USD')) as currency, SUM(total) as total")
+            ->groupByRaw("UPPER(COALESCE(currency, 'USD'))")
+            ->pluck('total', 'currency');
+
+        $allCurrencies = $currencies->pluck('code')
+            ->map(fn (string $code) => strtoupper($code))
+            ->merge($incomeByCurrency->keys())
+            ->merge($expenseByCurrency->keys())
+            ->merge($invoiceByCurrency->keys())
+            ->merge($outstandingByCurrency->keys())
+            ->unique()
+            ->sort()
+            ->values();
+
+        return $allCurrencies->map(function (string $currency) use ($incomeByCurrency, $expenseByCurrency, $invoiceByCurrency, $outstandingByCurrency) {
+            $income = (float) ($incomeByCurrency->get($currency, 0.0));
+            $expenses = (float) ($expenseByCurrency->get($currency, 0.0));
+            $invoices = (float) ($invoiceByCurrency->get($currency, 0.0));
+            $outstanding = (float) ($outstandingByCurrency->get($currency, 0.0));
+
+            return [
+                'currency' => $currency,
+                'income' => $income,
+                'expenses' => $expenses,
+                'invoices' => $invoices,
+                'outstanding' => $outstanding,
+                'net' => $income - $expenses,
+            ];
+        });
+    }
+
+    /** @param array<int, class-string> $modelClasses */
+    private function sumByCurrency(array $modelClasses, string $amountColumn): Collection
+    {
+        $totals = collect();
+
+        foreach ($modelClasses as $modelClass) {
+            $rows = $modelClass::query()
+                ->selectRaw("UPPER(COALESCE(currency, 'USD')) as currency, SUM($amountColumn) as total")
+                ->groupByRaw("UPPER(COALESCE(currency, 'USD'))")
+                ->pluck('total', 'currency');
+
+            foreach ($rows as $currency => $total) {
+                $totals[$currency] = (float) ($totals->get($currency, 0.0)) + (float) $total;
+            }
+        }
+
+        return $totals;
     }
 }

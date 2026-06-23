@@ -77,6 +77,14 @@ interface FinanceSummary {
     general_expenses?: number;
     total_invoices?: number;
     outstanding?: number;
+    currency_breakdown?: Array<{
+        currency: string;
+        income: number;
+        expenses: number;
+        invoices: number;
+        outstanding: number;
+        net: number;
+    }>;
 }
 
 interface Props {
@@ -255,6 +263,58 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                 </CardHeader>
                 <CardContent class="text-lg font-semibold">
                     {{ formatCurrency(summary.outstanding) }}
+                </CardContent>
+            </Card>
+        </div>
+
+        <div
+            v-if="summary?.currency_breakdown?.length"
+            class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        >
+            <Card
+                v-for="row in summary.currency_breakdown"
+                :key="row.currency"
+                class="border-dashed"
+            >
+                <CardHeader class="pb-2">
+                    <CardTitle class="text-sm">
+                        {{ row.currency }}
+                    </CardTitle>
+                    <CardDescription>
+                        {{ t('Currency summary') }}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent class="space-y-1 text-sm">
+                    <p class="flex items-center justify-between">
+                        <span class="text-muted-foreground">{{ t('Income') }}</span>
+                        <span class="font-medium text-green-600 dark:text-green-400">
+                            {{ formatCurrency(row.income, row.currency) }}
+                        </span>
+                    </p>
+                    <p class="flex items-center justify-between">
+                        <span class="text-muted-foreground">{{ t('Expenses') }}</span>
+                        <span class="font-medium text-destructive">
+                            {{ formatCurrency(row.expenses, row.currency) }}
+                        </span>
+                    </p>
+                    <p class="flex items-center justify-between">
+                        <span class="text-muted-foreground">{{ t('Net') }}</span>
+                        <span class="font-semibold">
+                            {{ formatCurrency(row.net, row.currency) }}
+                        </span>
+                    </p>
+                    <p class="flex items-center justify-between">
+                        <span class="text-muted-foreground">{{ t('Invoices') }}</span>
+                        <span class="font-medium">
+                            {{ formatCurrency(row.invoices, row.currency) }}
+                        </span>
+                    </p>
+                    <p class="flex items-center justify-between">
+                        <span class="text-muted-foreground">{{ t('Outstanding') }}</span>
+                        <span class="font-medium">
+                            {{ formatCurrency(row.outstanding, row.currency) }}
+                        </span>
+                    </p>
                 </CardContent>
             </Card>
         </div>

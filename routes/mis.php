@@ -30,6 +30,7 @@ use App\Http\Controllers\Project\ProjectSiteController;
 use App\Http\Controllers\Settings\OrganizationTypeController;
 use App\Http\Controllers\Settings\RoleManagementController;
 use App\Http\Controllers\Settings\UserManagementController;
+use App\Http\Controllers\Settings\CurrencySettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -195,5 +196,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('form-types', [AttachmentTypeController::class, 'store'])->name('form-types.store');
         Route::put('form-types/{attachmentType}', [AttachmentTypeController::class, 'update'])->name('form-types.update');
         Route::delete('form-types/{attachmentType}', [AttachmentTypeController::class, 'destroy'])->name('form-types.destroy');
+
+        Route::get('currencies', [CurrencySettingsController::class, 'index'])->name('currencies.index');
+        Route::post('currencies', [CurrencySettingsController::class, 'storeCurrency'])->name('currencies.store');
+        Route::put('currencies/{currency}', [CurrencySettingsController::class, 'updateCurrency'])->name('currencies.update');
+        Route::delete('currencies/{currency}', [CurrencySettingsController::class, 'destroyCurrency'])->name('currencies.destroy');
+
+        Route::post('exchange-rates', [CurrencySettingsController::class, 'storeExchangeRate'])->name('exchange-rates.store');
+        Route::put('exchange-rates/{exchangeRate}', [CurrencySettingsController::class, 'updateExchangeRate'])->name('exchange-rates.update');
+        Route::delete('exchange-rates/{exchangeRate}', [CurrencySettingsController::class, 'destroyExchangeRate'])->name('exchange-rates.destroy');
     });
 });
