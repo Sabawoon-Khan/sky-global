@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Hr\Contractor;
 use App\Models\Hr\Employee;
 use Carbon\CarbonImmutable;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Inertia\ExceptionResponse;
+use Inertia\Inertia;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -31,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configureMorphMap();
         $this->configureGates();
+        $this->configureInertiaExceptionHandling();
         $this->refreshViteFontManifestCacheInLocal();
     }
 
@@ -76,6 +80,26 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::before(function ($user, $ability) {
             return $user->hasRole('Owner') ? true : null;
+        });
+    }
+
+    protected function configureInertiaExceptionHandling(): void
+    {
+        Inertia::handleExceptionsUsing(function (ExceptionResponse $response) {
+            $component = match ($response->statusCode()) {
+                403 => 'errors/Forbidden',
+                404 => 'errors/NotFound',
+                default => null,
+            };
+
+            if ($component === null) {
+                return;
+            }
+
+            return $response
+                ->render($component)
+                ->usingMiddleware(HandleInertiaRequests::class)
+                ->withSharedData();
         });
     }
 

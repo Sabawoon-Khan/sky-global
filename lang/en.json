@@ -594,5 +594,12 @@
     "Store and retrieve historical documents and project records.": "Store and retrieve historical documents and project records.",
     "Security Operations": "Security Operations",
     "Built for teams that need reliable, centralized operational control.": "Built for teams that need reliable, centralized operational control.",
-    "All rights reserved.": "All rights reserved."
+    "All rights reserved.": "All rights reserved.",
+    "Page not found": "Page not found",
+    "Sorry, the page you are looking for does not exist or may have been moved.": "Sorry, the page you are looking for does not exist or may have been moved.",
+    "Access denied": "Access denied",
+    "You do not have permission to view this page. Contact your administrator if you believe this is a mistake.": "You do not have permission to view this page. Contact your administrator if you believe this is a mistake.",
+    "Go to dashboard": "Go to dashboard",
+    "Go to home": "Go to home",
+    "Go back": "Go back"
 }

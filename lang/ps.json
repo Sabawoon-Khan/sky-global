@@ -594,5 +594,12 @@
     "Store and retrieve historical documents and project records.": "تاریخي اسناد او د پروژې ریکارډونه ذخیره او بیرته ترلاسه کړئ.",
     "Security Operations": "امنیتي عملیات",
     "Built for teams that need reliable, centralized operational control.": "د هغو ټیمونو لپاره جوړ شوی چې باوري او مرکزي عملیاتي کنټرول ته اړتیا لري.",
-    "All rights reserved.": "ټول حقوق خوندي دي."
+    "All rights reserved.": "ټول حقوق خوندي دي.",
+    "Page not found": "پاڼه ونه موندل شوه",
+    "Sorry, the page you are looking for does not exist or may have been moved.": "بخښنه غواړو، هغه پاڼه چې تاسو یې لټوئ شتون نلري یا ممکن لیږدول شوې وي.",
+    "Access denied": "لاسرسی رد شو",
+    "You do not have permission to view this page. Contact your administrator if you believe this is a mistake.": "تاسو د دې پاڼې د لیدلو اجازه نلرئ. که فکر کوئ دا یوه تېروتنه ده، له خپل مدیر سره اړیکه ونیسئ.",
+    "Go to dashboard": "ډشبورډ ته لاړ شئ",
+    "Go to home": "کور پاڼې ته لاړ شئ",
+    "Go back": "بیرته"
 }

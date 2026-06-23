@@ -594,5 +594,12 @@
     "Store and retrieve historical documents and project records.": "اسناد تاریخی و سوابق پروژه را ذخیره و بازیابی کنید.",
     "Security Operations": "عملیات امنیتی",
     "Built for teams that need reliable, centralized operational control.": "ساخته‌شده برای تیم‌هایی که به کنترل عملیاتی متمرکز و قابل‌اعتماد نیاز دارند.",
-    "All rights reserved.": "تمامی حقوق محفوظ است."
+    "All rights reserved.": "تمامی حقوق محفوظ است.",
+    "Page not found": "صفحه یافت نشد",
+    "Sorry, the page you are looking for does not exist or may have been moved.": "متأسفانه صفحه‌ای که به دنبال آن هستید وجود ندارد یا ممکن است جابه‌جا شده باشد.",
+    "Access denied": "دسترسی رد شد",
+    "You do not have permission to view this page. Contact your administrator if you believe this is a mistake.": "شما اجازه مشاهده این صفحه را ندارید. اگر فکر می‌کنید این یک اشتباه است، با مدیر سیستم تماس بگیرید.",
+    "Go to dashboard": "رفتن به داشبورد",
+    "Go to home": "رفتن به صفحه اصلی",
+    "Go back": "بازگشت"
 }

@@ -2,12 +2,14 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Middleware\Concerns\ResolvesRequestLocale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
+    use ResolvesRequestLocale;
     /**
      * The root template that's loaded on the first page visit.
      *
@@ -36,7 +38,8 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        $locale = app()->getLocale();
+        $locale = $this->resolveLocale($request);
+        app()->setLocale($locale);
         $localeConfig = config('locale.available.'.$locale, []);
 
         return [
@@ -61,7 +64,7 @@ class HandleInertiaRequests extends Middleware
                 ])
                 ->values()
                 ->all(),
-            'translations' => fn (): array => $this->translationsFor($locale),
+            'translations' => $this->translationsFor($locale),
         ];
     }
 
