@@ -16,6 +16,8 @@ import {
 import { useMisPage } from '@/composables/useMisPage';
 import BarChart from '@/components/charts/BarChart.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
+import LineChart from '@/components/charts/LineChart.vue';
+import { translateBidStatus, translateProjectStatus } from '@/lib/status-labels';
 
 interface BidAnalytic {
     id: number;
@@ -51,12 +53,15 @@ interface Props {
     competitorIntel?: number;
     bids: BidAnalytic[];
     charts?: {
-        bidding_outcomes: Array<{ label: string; value: number }>;
+        bidding_outcomes: Array<{ key: string; value: number }>;
         project_statuses: Array<{ status: string; count: number }>;
+        monthly_bids: Array<{ label: string; submitted: number; won: number; lost: number; win_rate: number }>;
+        organization_types: Array<{ name: string; projects_count: number; total_contract_value: number }>;
+        bid_statuses: Array<{ status: string; count: number }>;
     };
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const { t, can } = useMisPage();
 
@@ -91,11 +96,13 @@ const formatDate = (value?: string | null): string => {
     );
 };
 
-const statusLabel = (status: string) => {
-    if (status === 'won') return t('won');
-    if (status === 'lost') return t('lost');
-    if (status === 'pending') return t('pending');
-    return status;
+const statusLabel = (status: string) => translateBidStatus(t, status);
+
+const outcomeLabel = (key: string): string => {
+    if (key === 'won') return t('won');
+    if (key === 'lost') return t('lost');
+    if (key === 'pending') return t('Pending');
+    return key;
 };
 </script>
 
@@ -164,14 +171,14 @@ const statusLabel = (status: string) => {
             </Card>
         </div>
 
-        <div v-if="charts" class="grid gap-4 lg:grid-cols-2">
+        <div v-if="charts" class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Bidding Outcomes') }}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <DonutChart
-                        :labels="charts.bidding_outcomes.map((b) => b.label)"
+                        :labels="charts.bidding_outcomes.map((b) => outcomeLabel(b.key))"
                         :data="charts.bidding_outcomes.map((b) => b.value)"
                     />
                 </CardContent>
@@ -182,19 +189,92 @@ const statusLabel = (status: string) => {
                 </CardHeader>
                 <CardContent>
                     <BarChart
-                        :labels="charts.project_statuses.map((s) => s.status)"
+                        :labels="charts.project_statuses.map((s) => translateProjectStatus(t, s.status))"
                         :datasets="[{ label: t('Projects'), data: charts.project_statuses.map((s) => s.count) }]"
                     />
                 </CardContent>
             </Card>
-            <Card v-if="organizationTypes?.length" class="lg:col-span-2">
+            <Card class="lg:col-span-2 xl:col-span-1">
+                <CardHeader>
+                    <CardTitle>{{ t('Monthly Bid Activity') }}</CardTitle>
+                    <CardDescription>{{ t('Submissions, wins, and losses') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <LineChart
+                        :labels="charts.monthly_bids.map((m) => m.label)"
+                        :datasets="[
+                            { label: t('Submitted'), data: charts.monthly_bids.map((m) => m.submitted) },
+                            { label: t('won'), data: charts.monthly_bids.map((m) => m.won) },
+                            { label: t('lost'), data: charts.monthly_bids.map((m) => m.lost) },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+            <Card v-if="charts.bid_statuses?.length">
+                <CardHeader>
+                    <CardTitle>{{ t('Bid Status Breakdown') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :labels="charts.bid_statuses.map((s) => translateBidStatus(t, s.status))"
+                        :data="charts.bid_statuses.map((s) => s.count)"
+                    />
+                </CardContent>
+            </Card>
+            <Card v-if="charts.organization_types.length" class="xl:col-span-2">
                 <CardHeader>
                     <CardTitle>{{ t('Contract Value by Org Type') }}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <BarChart
-                        :labels="organizationTypes.map((t) => t.name)"
-                        :datasets="[{ label: t('Contract Value'), data: organizationTypes.map((t) => t.total_contract_value) }]"
+                        :labels="charts.organization_types.map((orgType) => orgType.name)"
+                        :datasets="[{ label: t('Contract Value'), data: charts.organization_types.map((orgType) => orgType.total_contract_value) }]"
+                    />
+                </CardContent>
+            </Card>
+            <Card v-if="charts.organization_types.length">
+                <CardHeader>
+                    <CardTitle>{{ t('Projects by Org Type') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :labels="charts.organization_types.map((orgType) => orgType.name)"
+                        :data="charts.organization_types.map((orgType) => orgType.projects_count)"
+                    />
+                </CardContent>
+            </Card>
+            <Card v-if="stats" class="xl:col-span-2">
+                <CardHeader>
+                    <CardTitle>{{ t('Win Rate Overview') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="[t('won'), t('lost'), t('Pending')]"
+                        :datasets="[
+                            {
+                                label: t('Bids'),
+                                data: [stats?.won ?? 0, stats?.lost ?? 0, stats?.pending_bids ?? 0],
+                                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+            <Card class="xl:col-span-2">
+                <CardHeader>
+                    <CardTitle>{{ t('Win Rate Trend') }}</CardTitle>
+                    <CardDescription>{{ t('Monthly win rate percentage') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <LineChart
+                        :labels="charts.monthly_bids.map((m) => m.label)"
+                        :datasets="[
+                            {
+                                label: t('Win Rate'),
+                                data: charts.monthly_bids.map((m) => m.win_rate),
+                                borderColor: 'rgba(34, 197, 94, 1)',
+                            },
+                        ]"
                     />
                 </CardContent>
             </Card>

@@ -15,6 +15,7 @@ import {
 import { useMisPage } from '@/composables/useMisPage';
 import BarChart from '@/components/charts/BarChart.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
+import LineChart from '@/components/charts/LineChart.vue';
 
 interface ProjectProfitability {
     id: number;
@@ -33,9 +34,19 @@ interface FinanceStats {
 }
 
 interface ChartData {
-    monthly_finance: Array<{ label: string; income: number; expense: number }>;
-    project_statuses: Array<{ status: string; count: number }>;
-    workforce: { employees: number; contractors: number };
+    monthly_finance: Array<{
+        label: string;
+        income: number;
+        expense: number;
+        net: number;
+        overhead: number;
+        general_income: number;
+        project_income: number;
+        project_expense: number;
+    }>;
+    finance_breakdown: Array<{ key: string; value: number }>;
+    expense_by_category: Array<{ category: string; value: number }>;
+    top_projects_income: Array<{ code: string; income: number }>;
 }
 
 interface Props {
@@ -80,6 +91,42 @@ const formatCurrency = (value?: number | null): string => {
         maximumFractionDigits: 0,
     }).format(value);
 };
+
+const financeLabel = (key: string): string => {
+    const labels: Record<string, string> = {
+        project_income: t('Project Income'),
+        general_income: t('Other Income'),
+        project_expense: t('Project Expenses'),
+        overhead: t('Overhead & Salaries'),
+    };
+    return labels[key] ?? key;
+};
+
+const categoryLabel = (category: string): string => {
+    const labels: Record<string, string> = {
+        rent: t('Office Rent'),
+        salary: t('Salary'),
+        utilities: t('Utilities'),
+        equipment: t('Equipment'),
+        other: t('Other'),
+    };
+    return labels[category] ?? category;
+};
+
+const incomeSources = computed(() => {
+    if (!props.charts) {
+        return { labels: [] as string[], data: [] as number[] };
+    }
+
+    const items = props.charts.finance_breakdown.filter((f) =>
+        ['project_income', 'general_income'].includes(f.key),
+    );
+
+    return {
+        labels: items.map((f) => financeLabel(f.key)),
+        data: items.map((f) => f.value),
+    };
+});
 </script>
 
 <template>
@@ -141,8 +188,8 @@ const formatCurrency = (value?: number | null): string => {
             </Card>
         </div>
 
-        <div v-if="charts" class="grid gap-4 lg:grid-cols-2">
-            <Card>
+        <div v-if="charts" class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <Card class="xl:col-span-2">
                 <CardHeader>
                     <CardTitle>{{ t('Monthly Trends') }}</CardTitle>
                     <CardDescription>{{ t('Income vs expenses over 6 months') }}</CardDescription>
@@ -159,6 +206,128 @@ const formatCurrency = (value?: number | null): string => {
             </Card>
             <Card>
                 <CardHeader>
+                    <CardTitle>{{ t('Finance Breakdown') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :labels="charts.finance_breakdown.map((f) => financeLabel(f.key))"
+                        :data="charts.finance_breakdown.map((f) => f.value)"
+                    />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Net Cash Flow') }}</CardTitle>
+                    <CardDescription>{{ t('Monthly income minus expenses') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <LineChart
+                        :labels="charts.monthly_finance.map((m) => m.label)"
+                        :datasets="[{ label: t('Net'), data: charts.monthly_finance.map((m) => m.net) }]"
+                    />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Overhead Trend') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <LineChart
+                        :labels="charts.monthly_finance.map((m) => m.label)"
+                        :datasets="[{ label: t('Overhead & Salaries'), data: charts.monthly_finance.map((m) => m.overhead) }]"
+                    />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Other Income Trend') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <LineChart
+                        :labels="charts.monthly_finance.map((m) => m.label)"
+                        :datasets="[{ label: t('Other Income'), data: charts.monthly_finance.map((m) => m.general_income) }]"
+                    />
+                </CardContent>
+            </Card>
+            <Card v-if="incomeSources.labels.length">
+                <CardHeader>
+                    <CardTitle>{{ t('Income Sources') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :labels="incomeSources.labels"
+                        :data="incomeSources.data"
+                    />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Project Income Trend') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <LineChart
+                        :labels="charts.monthly_finance.map((m) => m.label)"
+                        :datasets="[
+                            {
+                                label: t('Project Income'),
+                                data: charts.monthly_finance.map((m) => m.project_income),
+                            },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Project Expense Trend') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <LineChart
+                        :labels="charts.monthly_finance.map((m) => m.label)"
+                        :datasets="[
+                            {
+                                label: t('Project Expenses'),
+                                data: charts.monthly_finance.map((m) => m.project_expense),
+                            },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Income Sources') }}</CardTitle>
+                    <CardDescription>{{ t('Project vs other income over 6 months') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="charts.monthly_finance.map((m) => m.label)"
+                        :datasets="[
+                            {
+                                label: t('Project Income'),
+                                data: charts.monthly_finance.map((m) => m.project_income),
+                                backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                            },
+                            {
+                                label: t('Other Income'),
+                                data: charts.monthly_finance.map((m) => m.general_income),
+                                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+            <Card v-if="charts.expense_by_category.length">
+                <CardHeader>
+                    <CardTitle>{{ t('Overhead by Category') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :labels="charts.expense_by_category.map((c) => categoryLabel(c.category))"
+                        :data="charts.expense_by_category.map((c) => c.value)"
+                    />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
                     <CardTitle>{{ t('Top Projects by Margin') }}</CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -168,6 +337,34 @@ const formatCurrency = (value?: number | null): string => {
                             { label: t('Margin'), data: projectProfitability.slice(0, 8).map((p) => p.margin), backgroundColor: 'rgba(59, 130, 246, 0.7)' },
                         ]"
                         :height="280"
+                    />
+                </CardContent>
+            </Card>
+            <Card v-if="charts.top_projects_income.length">
+                <CardHeader>
+                    <CardTitle>{{ t('Top Projects by Income') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="charts.top_projects_income.map((p) => p.code)"
+                        :datasets="[
+                            { label: t('Income'), data: charts.top_projects_income.map((p) => p.income), backgroundColor: 'rgba(34, 197, 94, 0.7)' },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+            <Card class="xl:col-span-2">
+                <CardHeader>
+                    <CardTitle>{{ t('Project Income vs Expense') }}</CardTitle>
+                    <CardDescription>{{ t('Top projects comparison') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="projectProfitability.slice(0, 6).map((p) => p.code)"
+                        :datasets="[
+                            { label: t('Income'), data: projectProfitability.slice(0, 6).map((p) => p.income), backgroundColor: 'rgba(34, 197, 94, 0.7)' },
+                            { label: t('Expense'), data: projectProfitability.slice(0, 6).map((p) => p.expense), backgroundColor: 'rgba(239, 68, 68, 0.7)' },
+                        ]"
                     />
                 </CardContent>
             </Card>

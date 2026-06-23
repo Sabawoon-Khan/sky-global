@@ -18,8 +18,8 @@ return [
             'dir' => 'ltr',
         ],
         'fa' => [
-            'name' => 'Persian',
-            'native' => 'فارسی',
+            'name' => 'Dari',
+            'native' => 'دری',
             'dir' => 'rtl',
         ],
         'ps' => [

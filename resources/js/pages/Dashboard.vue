@@ -15,6 +15,9 @@ import { useTranslations } from '@/composables/useTranslations';
 import { dashboard } from '@/routes';
 import BarChart from '@/components/charts/BarChart.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
+import LineChart from '@/components/charts/LineChart.vue';
+import { computed } from 'vue';
+import { translateProjectStatus } from '@/lib/status-labels';
 
 interface DashboardStats {
     bidding: {
@@ -69,13 +72,27 @@ interface ExpiringDocument {
 }
 
 interface ChartData {
-    monthly_finance: Array<{ label: string; income: number; expense: number }>;
+    monthly_finance: Array<{
+        label: string;
+        income: number;
+        expense: number;
+        net: number;
+        overhead: number;
+        general_income: number;
+        project_income: number;
+        project_expense: number;
+    }>;
+    monthly_bids: Array<{ label: string; submitted: number; won: number; lost: number; win_rate: number }>;
     project_statuses: Array<{ status: string; count: number }>;
     workforce: { employees: number; contractors: number };
-    bidding_outcomes: Array<{ label: string; value: number }>;
+    bidding_outcomes: Array<{ key: string; value: number }>;
+    finance_breakdown: Array<{ key: string; value: number }>;
+    expense_by_category: Array<{ category: string; value: number }>;
+    top_projects_income: Array<{ code: string; income: number }>;
+    organization_types: Array<{ name: string; projects_count: number; total_contract_value: number }>;
 }
 
-defineProps<{
+const props = defineProps<{
     stats: DashboardStats | null;
     projectProfitability: ProjectProfitability[];
     expiringDocuments: ExpiringDocument[];
@@ -84,6 +101,39 @@ defineProps<{
 
 const { t } = useTranslations();
 const { misQuickLinks } = useMisNavigation();
+
+const outcomeLabel = (key: string): string => {
+    if (key === 'won') return t('won');
+    if (key === 'lost') return t('lost');
+    if (key === 'pending') return t('Pending');
+    return key;
+};
+
+const financeLabel = (key: string): string => {
+    const labels: Record<string, string> = {
+        project_income: t('Project Income'),
+        general_income: t('Other Income'),
+        project_expense: t('Project Expenses'),
+        overhead: t('Overhead & Salaries'),
+    };
+    return labels[key] ?? key;
+};
+
+const categoryLabel = (category: string): string => {
+    const labels: Record<string, string> = {
+        rent: t('Office Rent'),
+        salary: t('Salary'),
+        utilities: t('Utilities'),
+        equipment: t('Equipment'),
+        other: t('Other'),
+    };
+    return labels[category] ?? category;
+};
+
+const projectStatusLabel = (status: string): string =>
+    translateProjectStatus(t, status);
+
+const topMarginProjects = computed(() => props.projectProfitability.slice(0, 6));
 
 defineOptions({
     layout: {
@@ -301,7 +351,7 @@ const formatCurrency = (value: number): string =>
                 </CardHeader>
                 <CardContent>
                     <DonutChart
-                        :labels="charts.project_statuses.map((s) => s.status)"
+                        :labels="charts.project_statuses.map((s) => projectStatusLabel(s.status))"
                         :data="charts.project_statuses.map((s) => s.count)"
                     />
                 </CardContent>
@@ -328,8 +378,224 @@ const formatCurrency = (value: number): string =>
                 </CardHeader>
                 <CardContent>
                     <DonutChart
-                        :labels="charts.bidding_outcomes.map((b) => b.label)"
+                        :labels="charts.bidding_outcomes.map((b) => outcomeLabel(b.key))"
                         :data="charts.bidding_outcomes.map((b) => b.value)"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Net Cash Flow') }}</CardTitle>
+                    <CardDescription>{{ t('Monthly income minus expenses') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <LineChart
+                        :labels="charts.monthly_finance.map((m) => m.label)"
+                        :datasets="[
+                            {
+                                label: t('Net'),
+                                data: charts.monthly_finance.map((m) => m.net),
+                                borderColor: 'rgba(59, 130, 246, 1)',
+                            },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Finance Breakdown') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :labels="charts.finance_breakdown.map((f) => financeLabel(f.key))"
+                        :data="charts.finance_breakdown.map((f) => f.value)"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card v-if="charts.organization_types.length">
+                <CardHeader>
+                    <CardTitle>{{ t('Contract Value by Org Type') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="charts.organization_types.map((o) => o.name)"
+                        :datasets="[
+                            {
+                                label: t('Contract Value'),
+                                data: charts.organization_types.map((o) => o.total_contract_value),
+                            },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card v-if="topMarginProjects.length">
+                <CardHeader>
+                    <CardTitle>{{ t('Top Projects by Margin') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="topMarginProjects.map((p) => p.code)"
+                        :datasets="[
+                            {
+                                label: t('Margin'),
+                                data: topMarginProjects.map((p) => p.margin),
+                                backgroundColor: 'rgba(168, 85, 247, 0.7)',
+                            },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card v-if="charts.expense_by_category.length">
+                <CardHeader>
+                    <CardTitle>{{ t('Overhead by Category') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :labels="charts.expense_by_category.map((c) => categoryLabel(c.category))"
+                        :data="charts.expense_by_category.map((c) => c.value)"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card v-if="charts.top_projects_income.length">
+                <CardHeader>
+                    <CardTitle>{{ t('Top Projects by Income') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="charts.top_projects_income.map((p) => p.code)"
+                        :datasets="[
+                            {
+                                label: t('Income'),
+                                data: charts.top_projects_income.map((p) => p.income),
+                                backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                            },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card v-if="charts.organization_types.length">
+                <CardHeader>
+                    <CardTitle>{{ t('Projects by Org Type') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :labels="charts.organization_types.map((o) => o.name)"
+                        :data="charts.organization_types.map((o) => o.projects_count)"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card v-if="topMarginProjects.length" class="xl:col-span-2">
+                <CardHeader>
+                    <CardTitle>{{ t('Project Income vs Expense') }}</CardTitle>
+                    <CardDescription>{{ t('Top projects comparison') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="topMarginProjects.map((p) => p.code)"
+                        :datasets="[
+                            {
+                                label: t('Income'),
+                                data: topMarginProjects.map((p) => p.income),
+                                backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                            },
+                            {
+                                label: t('Expense'),
+                                data: topMarginProjects.map((p) => p.expense),
+                                backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                            },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Income Sources') }}</CardTitle>
+                    <CardDescription>{{ t('Project vs other income over 6 months') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="charts.monthly_finance.map((m) => m.label)"
+                        :datasets="[
+                            {
+                                label: t('Project Income'),
+                                data: charts.monthly_finance.map((m) => m.project_income),
+                                backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                            },
+                            {
+                                label: t('Other Income'),
+                                data: charts.monthly_finance.map((m) => m.general_income),
+                                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Overhead Trend') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <LineChart
+                        :labels="charts.monthly_finance.map((m) => m.label)"
+                        :datasets="[
+                            {
+                                label: t('Overhead & Salaries'),
+                                data: charts.monthly_finance.map((m) => m.overhead),
+                            },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Other Income Trend') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <LineChart
+                        :labels="charts.monthly_finance.map((m) => m.label)"
+                        :datasets="[
+                            {
+                                label: t('Other Income'),
+                                data: charts.monthly_finance.map((m) => m.general_income),
+                            },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Monthly Bid Activity') }}</CardTitle>
+                    <CardDescription>{{ t('Submissions, wins, and losses') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <LineChart
+                        :labels="charts.monthly_bids.map((m) => m.label)"
+                        :datasets="[
+                            {
+                                label: t('Submitted'),
+                                data: charts.monthly_bids.map((m) => m.submitted),
+                            },
+                            {
+                                label: t('won'),
+                                data: charts.monthly_bids.map((m) => m.won),
+                            },
+                            {
+                                label: t('lost'),
+                                data: charts.monthly_bids.map((m) => m.lost),
+                            },
+                        ]"
                     />
                 </CardContent>
             </Card>

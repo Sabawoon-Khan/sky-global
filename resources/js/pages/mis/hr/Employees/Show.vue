@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import EntityAttachments, {
     type EntityAttachment,
 } from '@/components/EntityAttachments.vue';
@@ -113,15 +113,15 @@ defineOptions({
 
 type TabId = 'personal' | 'employment' | 'salary' | 'projects' | 'attendance' | 'payroll' | 'documents';
 
-const tabs = [
-    { id: 'personal' as const, label: 'Personal' },
-    { id: 'employment' as const, label: 'Employment' },
-    { id: 'salary' as const, label: 'Salary & Contracts' },
-    { id: 'projects' as const, label: 'Projects' },
-    { id: 'attendance' as const, label: 'Attendance' },
-    { id: 'payroll' as const, label: 'Payroll' },
-    { id: 'documents' as const, label: 'Documents' },
-];
+const tabs = computed(() => [
+    { id: 'personal' as const, label: t('Personal') },
+    { id: 'employment' as const, label: t('Employment') },
+    { id: 'salary' as const, label: t('Salary & Contracts') },
+    { id: 'projects' as const, label: t('Projects') },
+    { id: 'attendance' as const, label: t('Attendance') },
+    { id: 'payroll' as const, label: t('Payroll') },
+    { id: 'documents' as const, label: t('Documents') },
+]);
 
 const activeTab = ref<TabId>('personal');
 
@@ -159,7 +159,7 @@ const monthName = (month: number): string =>
             </div>
         </div>
 
-        <MisTabs v-model="activeTab" :tabs="tabs.map((tab) => ({ ...tab, label: t(tab.label) }))" />
+        <MisTabs v-model="activeTab" :tabs="tabs" />
 
         <Card v-if="activeTab === 'personal'">
             <CardHeader><CardTitle>{{ t('Personal Information') }}</CardTitle></CardHeader>
