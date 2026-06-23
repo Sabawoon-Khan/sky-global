@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
+import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
@@ -96,10 +97,12 @@ defineOptions({
                         </select>
                         <InputError :message="errors.organization_id" />
                         <p class="text-xs text-muted-foreground">
-                            <Link href="/organizations/create" class="underline">{{
-                                t('Add organization')
-                            }}</Link>
-                            {{ t('if not listed') }}
+                            <Can permission="bidding.create">
+                                <Link href="/organizations/create" class="underline">{{
+                                    t('Add organization')
+                                }}</Link>
+                                {{ t('if not listed') }}
+                            </Can>
                         </p>
                     </div>
 

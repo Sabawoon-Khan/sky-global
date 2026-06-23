@@ -3,6 +3,7 @@ import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { Plus, Receipt } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
@@ -74,7 +75,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const { t } = useMisPage();
+const { t, deleteAction } = useMisPage();
 
 defineOptions({
     layout: {
@@ -136,18 +137,16 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
     }
 
     return [
-        {
-            label: t('Remove'),
-            href: `/hr/payroll-adjustments/${record.id}`,
-            method: 'delete',
-            variant: 'destructive',
-            confirm: {
+        deleteAction(
+            {
+                href: `/hr/payroll-adjustments/${record.id}`,
                 title: t('Remove adjustment?'),
-                description: t('This entry will not be applied when payroll is processed.'),
-                confirmLabel: t('Remove'),
+                description: t(
+                    'This entry will not be applied when payroll is processed.',
+                ),
             },
-            confirmVariant: 'destructive',
-        },
+            'hr.delete',
+        ),
     ];
 };
 </script>
@@ -166,6 +165,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
         />
 
         <div class="grid gap-6 xl:grid-cols-3">
+            <Can permission="hr.create">
             <Card class="xl:col-span-1">
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
@@ -313,6 +313,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                     </Form>
                 </CardContent>
             </Card>
+            </Can>
 
             <Card class="xl:col-span-2">
                 <CardHeader>

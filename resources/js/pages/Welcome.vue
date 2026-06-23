@@ -11,6 +11,7 @@ import {
     Shield,
     Users,
 } from '@lucide/vue';
+import { computed } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import { Badge } from '@/components/ui/badge';
@@ -22,57 +23,75 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useTranslations } from '@/composables/useTranslations';
 import { dashboard, login } from '@/routes';
 
 const page = usePage();
 const appName = page.props.name as string;
+const { t } = useTranslations();
 
-const modules = [
+const modules = computed(() => [
     {
-        title: 'Organizations',
-        description: 'Manage clients, partners, and organization profiles in one place.',
+        title: t('Organizations'),
+        description: t(
+            'Manage clients, partners, and organization profiles in one place.',
+        ),
         icon: Building2,
     },
     {
-        title: 'Bidding',
-        description: 'Track opportunities, prepare bids, and monitor win rates.',
+        title: t('Bidding'),
+        description: t(
+            'Track opportunities, prepare bids, and monitor win rates.',
+        ),
         icon: FileText,
     },
     {
-        title: 'Projects',
-        description: 'Oversee active contracts, sites, issues, and delivery milestones.',
+        title: t('Projects'),
+        description: t(
+            'Oversee active contracts, sites, issues, and delivery milestones.',
+        ),
         icon: Briefcase,
     },
     {
-        title: 'Finance',
-        description: 'Monitor income, expenses, overhead, and project profitability.',
+        title: t('Finance'),
+        description: t(
+            'Monitor income, expenses, overhead, and project profitability.',
+        ),
         icon: DollarSign,
     },
     {
-        title: 'Human Resources',
-        description: 'Handle employees, contractors, payroll, and attendance records.',
+        title: t('Human Resources'),
+        description: t(
+            'Handle employees, contractors, payroll, and attendance records.',
+        ),
         icon: Users,
     },
     {
-        title: 'Analytics',
-        description: 'Visualize bidding performance and financial trends at a glance.',
+        title: t('Analytics'),
+        description: t(
+            'Visualize bidding performance and financial trends at a glance.',
+        ),
         icon: BarChart3,
     },
     {
-        title: 'Archive',
-        description: 'Store and retrieve historical documents and project records.',
+        title: t('Archive'),
+        description: t(
+            'Store and retrieve historical documents and project records.',
+        ),
         icon: Archive,
     },
     {
-        title: 'Security Operations',
-        description: 'Built for teams that need reliable, centralized operational control.',
+        title: t('Security Operations'),
+        description: t(
+            'Built for teams that need reliable, centralized operational control.',
+        ),
         icon: Shield,
     },
-];
+]);
 </script>
 
 <template>
-    <Head title="Welcome" />
+    <Head :title="t('Welcome')" />
 
     <div class="relative min-h-screen overflow-hidden bg-background">
         <div
@@ -102,12 +121,12 @@ const modules = [
                     <LanguageSwitcher />
                     <template v-if="$page.props.auth.user">
                         <Button as-child size="sm">
-                            <Link :href="dashboard()">Dashboard</Link>
+                            <Link :href="dashboard()">{{ t('Dashboard') }}</Link>
                         </Button>
                     </template>
                     <template v-else>
                         <Button as-child size="sm">
-                            <Link :href="login()">Log in</Link>
+                            <Link :href="login()">{{ t('Log in') }}</Link>
                         </Button>
                     </template>
                 </nav>
@@ -116,21 +135,27 @@ const modules = [
             <main class="flex flex-1 flex-col justify-center pb-16 pt-8 sm:pt-12">
                 <section class="mx-auto max-w-3xl text-center">
                     <Badge variant="secondary" class="mb-6 px-3 py-1">
-                        Management Information System
+                        {{ t('Management Information System') }}
                     </Badge>
 
                     <h1
                         class="text-4xl font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl"
                     >
-                        Run your operations from a single, secure platform
+                        {{
+                            t(
+                                'Run your operations from a single, secure platform',
+                            )
+                        }}
                     </h1>
 
                     <p
                         class="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg"
                     >
-                        Streamline bidding, projects, finance, and HR with one
-                        integrated workspace built for security and service
-                        organizations.
+                        {{
+                            t(
+                                'Streamline bidding, projects, finance, and HR with one integrated workspace built for security and service organizations.',
+                            )
+                        }}
                     </p>
 
                     <div class="mt-10 flex justify-center">
@@ -144,8 +169,8 @@ const modules = [
                             >
                                 {{
                                     $page.props.auth.user
-                                        ? 'Open dashboard'
-                                        : 'Sign in'
+                                        ? t('Open dashboard')
+                                        : t('Sign in')
                                 }}
                                 <ArrowRight class="size-4" />
                             </Link>
@@ -156,11 +181,14 @@ const modules = [
                 <section class="mt-20 sm:mt-28">
                     <div class="mb-10 text-center">
                         <h2 class="text-2xl font-semibold tracking-tight">
-                            Everything your team needs
+                            {{ t('Everything your team needs') }}
                         </h2>
                         <p class="mt-2 text-sm text-muted-foreground sm:text-base">
-                            Modular tools that work together across your entire
-                            workflow.
+                            {{
+                                t(
+                                    'Modular tools that work together across your entire workflow.',
+                                )
+                            }}
                         </p>
                     </div>
 
@@ -198,7 +226,10 @@ const modules = [
             <footer
                 class="border-t border-border/60 py-6 text-center text-sm text-muted-foreground"
             >
-                <p>&copy; {{ new Date().getFullYear() }} {{ appName }}. All rights reserved.</p>
+                <p>
+                    &copy; {{ new Date().getFullYear() }} {{ appName }}.
+                    {{ t('All rights reserved.') }}
+                </p>
             </footer>
         </div>
     </div>

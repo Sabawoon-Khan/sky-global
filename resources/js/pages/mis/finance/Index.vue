@@ -68,7 +68,7 @@ interface Props {
 
 defineProps<Props>();
 
-const { t, editAction, deleteAction } = useMisPage();
+const { t, editAction, deleteAction, gateActions } = useMisPage();
 
 defineOptions({
     layout: {
@@ -110,58 +110,76 @@ const formatDate = (value?: string | null): string => {
 
 const incomeActions = (item: Income): RowActionItem[] => [
     ...(item.project
-        ? [editAction(`/projects/${item.project.id}`)]
+        ? [editAction(`/projects/${item.project.id}`, 'projects.view')]
         : []),
-    ...approvalStatusActions({
-        url: `/finance/incomes/${item.id}`,
-        name: item.description,
-        status: item.status ?? 'pending',
-        t,
-    }),
-    deleteAction({
-        href: `/finance/incomes/${item.id}`,
-        title: t('Delete income record'),
-        description: t(
-            'Are you sure you want to delete ":name"? This cannot be undone.',
-            { name: item.description },
-        ),
-    }),
+    ...gateActions(
+        approvalStatusActions({
+            url: `/finance/incomes/${item.id}`,
+            name: item.description,
+            status: item.status ?? 'pending',
+            t,
+        }),
+        'finance.edit',
+    ),
+    deleteAction(
+        {
+            href: `/finance/incomes/${item.id}`,
+            title: t('Delete income record'),
+            description: t(
+                'Are you sure you want to delete ":name"? This cannot be undone.',
+                { name: item.description },
+            ),
+        },
+        'finance.delete',
+    ),
 ];
 
 const expenseActions = (item: Expense): RowActionItem[] => [
     ...(item.project
-        ? [editAction(`/projects/${item.project.id}`)]
+        ? [editAction(`/projects/${item.project.id}`, 'projects.view')]
         : []),
-    ...approvalStatusActions({
-        url: `/finance/expenses/${item.id}`,
-        name: item.description,
-        status: item.status ?? 'pending',
-        t,
-    }),
-    deleteAction({
-        href: `/finance/expenses/${item.id}`,
-        title: t('Delete expense record'),
-        description: t(
-            'Are you sure you want to delete ":name"? This cannot be undone.',
-            { name: item.description },
-        ),
-    }),
+    ...gateActions(
+        approvalStatusActions({
+            url: `/finance/expenses/${item.id}`,
+            name: item.description,
+            status: item.status ?? 'pending',
+            t,
+        }),
+        'finance.edit',
+    ),
+    deleteAction(
+        {
+            href: `/finance/expenses/${item.id}`,
+            title: t('Delete expense record'),
+            description: t(
+                'Are you sure you want to delete ":name"? This cannot be undone.',
+                { name: item.description },
+            ),
+        },
+        'finance.delete',
+    ),
 ];
 
 const invoiceActions = (invoice: Invoice): RowActionItem[] => [
-    ...invoiceStatusActions({
-        url: `/finance/invoices/${invoice.id}`,
-        label: invoice.invoice_number ?? `#${invoice.id}`,
-        status: invoice.status,
-        t,
-    }),
-    deleteAction({
-        href: `/finance/invoices/${invoice.id}`,
-        title: t('Delete invoice'),
-        description: t('Delete invoice :label? This cannot be undone.', {
+    ...gateActions(
+        invoiceStatusActions({
+            url: `/finance/invoices/${invoice.id}`,
             label: invoice.invoice_number ?? `#${invoice.id}`,
+            status: invoice.status,
+            t,
         }),
-    }),
+        'finance.edit',
+    ),
+    deleteAction(
+        {
+            href: `/finance/invoices/${invoice.id}`,
+            title: t('Delete invoice'),
+            description: t('Delete invoice :label? This cannot be undone.', {
+                label: invoice.invoice_number ?? `#${invoice.id}`,
+            }),
+        },
+        'finance.delete',
+    ),
 ];
 </script>
 

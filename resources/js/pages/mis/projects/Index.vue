@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { FolderKanban, Plus, Search } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import MisCreateButton from '@/components/MisCreateButton.vue';
 import MisPage from '@/components/MisPage.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
@@ -48,7 +49,7 @@ defineProps<{
     filters?: { search?: string | null; status?: string | null };
 }>();
 
-const { t, viewAction, editAction } = useMisPage();
+const { t, viewAction, editAction, gateActions } = useMisPage();
 
 defineOptions({
     layout: {
@@ -68,8 +69,11 @@ const statusLabel = (status: string) =>
 
 const projectActions = (project: Project): RowActionItem[] => [
     viewAction(`/projects/${project.id}`),
-    editAction(`/projects/${project.id}`),
-    ...projectStatusActions(project.id, project.status, t),
+    editAction(`/projects/${project.id}`, 'projects.edit'),
+    ...gateActions(
+        projectStatusActions(project.id, project.status, t),
+        'projects.edit',
+    ),
 ];
 </script>
 
@@ -82,12 +86,10 @@ const projectActions = (project: Project): RowActionItem[] => [
                 :title="t('Projects')"
                 :description="t('Every proposal and contract in one place — from first bid to final delivery')"
             />
-            <Button as-child size="sm">
-                <Link href="/projects/create">
-                    <Plus class="me-1 size-4" />
-                    {{ t('New Project') }}
-                </Link>
-            </Button>
+            <MisCreateButton href="/projects/create" permission="projects.create" size="sm">
+                <Plus class="me-1 size-4" />
+                {{ t('New Project') }}
+            </MisCreateButton>
         </div>
 
         <Card>
@@ -146,9 +148,14 @@ const projectActions = (project: Project): RowActionItem[] => [
                             t('Create a project to start bidding — win or lose, everything stays on one record.')
                         }}
                     </p>
-                    <Button as-child class="mt-4" size="sm">
-                        <Link href="/projects/create">{{ t('Create project') }}</Link>
-                    </Button>
+                    <MisCreateButton
+                        href="/projects/create"
+                        permission="projects.create"
+                        size="sm"
+                        class="mt-4"
+                    >
+                        {{ t('Create project') }}
+                    </MisCreateButton>
                 </div>
 
                 <div v-else class="overflow-x-auto rounded-md border">

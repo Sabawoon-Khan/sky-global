@@ -3,6 +3,7 @@ import { Form, Head, Link, router } from '@inertiajs/vue3';
 import { Pencil, Trash2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import Heading from '@/components/Heading.vue';
+import Can from '@/components/Can.vue';
 import EntityAttachments, {
     type EntityAttachment,
 } from '@/components/EntityAttachments.vue';
@@ -120,7 +121,7 @@ const props = defineProps<{
     statusOptions: StatusOption[];
 }>();
 
-const { t } = useMisPage();
+const { t, can, gateActions } = useMisPage();
 
 defineOptions({
     layout: {
@@ -201,32 +202,45 @@ const markLost = () => {
 const financeEntryActions = (
     row: FinanceRow,
     type: 'income' | 'expense',
-): RowActionItem[] => [
-    {
-        label: t('Edit'),
-        icon: Pencil,
-        onClick: () => {
-            editingFinance.value = { row, type };
-        },
-    },
-    {
-        label: t('Delete'),
-        icon: Trash2,
-        variant: 'destructive',
-        href:
-            type === 'income'
-                ? `/finance/incomes/${row.id}`
-                : `/finance/expenses/${row.id}`,
-        method: 'delete',
-        confirm: {
-            title: t(type === 'income' ? 'Delete income record' : 'Delete expense record'),
-            description: t('Delete ":name"? This cannot be undone.', {
-                name: row.description ?? type,
-            }),
-            confirmLabel: t('Delete'),
-        },
-    },
-];
+): RowActionItem[] => {
+    const actions: RowActionItem[] = [];
+
+    if (can('finance.edit')) {
+        actions.push({
+            label: t('Edit'),
+            icon: Pencil,
+            onClick: () => {
+                editingFinance.value = { row, type };
+            },
+        });
+    }
+
+    if (can('finance.delete')) {
+        actions.push({
+            label: t('Delete'),
+            icon: Trash2,
+            variant: 'destructive',
+            href:
+                type === 'income'
+                    ? `/finance/incomes/${row.id}`
+                    : `/finance/expenses/${row.id}`,
+            method: 'delete',
+            confirm: {
+                title: t(
+                    type === 'income'
+                        ? 'Delete income record'
+                        : 'Delete expense record',
+                ),
+                description: t('Delete ":name"? This cannot be undone.', {
+                    name: row.description ?? type,
+                }),
+                confirmLabel: t('Delete'),
+            },
+        });
+    }
+
+    return actions;
+};
 
 const issueActions = (issue: ProjectIssue): RowActionItem[] => {
     const actions: RowActionItem[] = [
@@ -282,7 +296,7 @@ const issueActions = (issue: ProjectIssue): RowActionItem[] => {
         },
     });
 
-    return actions;
+    return gateActions(actions, 'projects.edit');
 };
 
 const closeFinanceEdit = (): void => {
@@ -317,7 +331,7 @@ const closeIssueEdit = (): void => {
                 <Button variant="outline" size="sm" as-child>
                     <Link href="/projects">{{ t('Back to list') }}</Link>
                 </Button>
-                <template v-if="statusOptions.length">
+                <template v-if="can('projects.edit') && statusOptions.length">
                     <Button
                         v-for="opt in statusOptions"
                         :key="opt.value"
@@ -540,6 +554,7 @@ const closeIssueEdit = (): void => {
                     </div>
                 </CardContent>
             </Card>
+            <Can permission="bidding.view_competitors">
             <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="text-base">{{ t('Add competitor') }}</CardTitle>
@@ -567,6 +582,7 @@ const closeIssueEdit = (): void => {
                     </Form>
                 </CardContent>
             </Card>
+            </Can>
         </div>
 
         <!-- Finance -->
@@ -588,6 +604,7 @@ const closeIssueEdit = (): void => {
                 </CardContent>
             </Card>
 
+            <Can permission="finance.create">
             <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="text-base">{{ t('Add income') }}</CardTitle>
@@ -627,7 +644,9 @@ const closeIssueEdit = (): void => {
                     </Form>
                 </CardContent>
             </Card>
+            </Can>
 
+            <Can permission="finance.create">
             <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="text-base">{{ t('Add expense') }}</CardTitle>
@@ -667,6 +686,7 @@ const closeIssueEdit = (): void => {
                     </Form>
                 </CardContent>
             </Card>
+            </Can>
 
             <Card>
                 <CardHeader class="pb-2">
@@ -786,6 +806,7 @@ const closeIssueEdit = (): void => {
                 </CardContent>
             </Card>
 
+            <Can permission="projects.edit">
             <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="text-base">{{ t('Report issue') }}</CardTitle>
@@ -825,6 +846,7 @@ const closeIssueEdit = (): void => {
                     </Form>
                 </CardContent>
             </Card>
+            </Can>
         </div>
 
         <!-- Attachments -->
@@ -833,6 +855,7 @@ const closeIssueEdit = (): void => {
                 class="lg:col-span-2"
                 :attachments="project.attachments"
             />
+            <Can permission="projects.edit">
             <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="text-base">{{ t('Add attachment') }}</CardTitle>
@@ -849,6 +872,7 @@ const closeIssueEdit = (): void => {
                     </Form>
                 </CardContent>
             </Card>
+            </Can>
         </div>
 
         <Dialog

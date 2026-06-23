@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import { DollarSign, PieChart } from '@lucide/vue';
+import Can from '@/components/Can.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,21 +24,32 @@ interface ProjectProfitability {
     margin: number;
 }
 
-interface FinanceSummary {
-    total_income?: number;
-    total_expense?: number;
-    overhead?: number;
-    net_margin?: number;
+interface FinanceStats {
+    total_income_usd?: number;
+    total_expense_usd?: number;
+    overhead_usd?: number;
 }
 
 interface Props {
-    summary?: FinanceSummary;
+    stats?: FinanceStats;
     projectProfitability: ProjectProfitability[];
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
-const { t } = useMisPage();
+const { t, can } = useMisPage();
+
+const netMargin = computed(() => {
+    if (!props.stats) {
+        return null;
+    }
+
+    return (
+        (props.stats.total_income_usd ?? 0) -
+        (props.stats.total_expense_usd ?? 0) -
+        (props.stats.overhead_usd ?? 0)
+    );
+});
 
 defineOptions({
     layout: {
@@ -69,18 +82,27 @@ const formatCurrency = (value?: number | null): string => {
                 :title="t('Finance Analytics')"
                 :description="t('Revenue, expenses, and project profitability')"
             />
-            <Button variant="outline" as-child>
-                <Link href="/analytics/bidding">{{ t('Bidding Analytics') }}</Link>
-            </Button>
+            <div class="flex flex-wrap gap-2">
+                <Can permission="finance.view">
+                    <Button variant="outline" as-child>
+                        <Link href="/finance">{{ t('View Finance') }}</Link>
+                    </Button>
+                </Can>
+                <Can permission="bidding.view">
+                    <Button variant="outline" as-child>
+                        <Link href="/analytics/bidding">{{ t('Bidding Analytics') }}</Link>
+                    </Button>
+                </Can>
+            </div>
         </div>
 
-        <div v-if="summary" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div v-if="stats" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="text-sm">{{ t('Total Income') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {{ formatCurrency(summary.total_income) }}
+                    {{ formatCurrency(stats.total_income_usd) }}
                 </CardContent>
             </Card>
             <Card>
@@ -88,7 +110,7 @@ const formatCurrency = (value?: number | null): string => {
                     <CardTitle class="text-sm">{{ t('Project Expenses') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-2xl font-bold text-destructive">
-                    {{ formatCurrency(summary.total_expense) }}
+                    {{ formatCurrency(stats.total_expense_usd) }}
                 </CardContent>
             </Card>
             <Card>
@@ -96,7 +118,7 @@ const formatCurrency = (value?: number | null): string => {
                     <CardTitle class="text-sm">{{ t('Overhead') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
-                    {{ formatCurrency(summary.overhead) }}
+                    {{ formatCurrency(stats.overhead_usd) }}
                 </CardContent>
             </Card>
             <Card>
@@ -105,7 +127,7 @@ const formatCurrency = (value?: number | null): string => {
                     <DollarSign class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
-                    {{ formatCurrency(summary.net_margin) }}
+                    {{ formatCurrency(netMargin) }}
                 </CardContent>
             </Card>
         </div>
@@ -156,11 +178,15 @@ const formatCurrency = (value?: number | null): string => {
                             >
                                 <td class="py-3 pe-4">
                                     <Link
+                                        v-if="can('projects.view')"
                                         :href="`/projects/${project.id}`"
                                         class="font-medium hover:underline"
                                     >
                                         {{ project.code }}
                                     </Link>
+                                    <span v-else class="font-medium">
+                                        {{ project.code }}
+                                    </span>
                                     <div class="text-xs text-muted-foreground">
                                         {{ project.name }}
                                     </div>

@@ -2,6 +2,7 @@
 import { Form, Head, Link, router } from '@inertiajs/vue3';
 import { Archive, FileText } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -52,7 +53,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const { t } = useMisPage();
+const { t, can } = useMisPage();
 
 defineOptions({
     layout: {
@@ -130,7 +131,11 @@ const moveToLongTermArchive = (): void => {
                 <Button variant="outline" as-child>
                     <Link href="/archive">{{ t('Back to list') }}</Link>
                 </Button>
-                <Button variant="destructive" @click="moveToLongTermArchive">
+                <Button
+                    v-if="can('archive.archive')"
+                    variant="destructive"
+                    @click="moveToLongTermArchive"
+                >
                     {{ t('Move to long-term archive') }}
                 </Button>
             </div>
@@ -209,6 +214,7 @@ const moveToLongTermArchive = (): void => {
                 </CardContent>
             </Card>
 
+            <Can permission="archive.edit">
             <Card>
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
@@ -383,6 +389,7 @@ const moveToLongTermArchive = (): void => {
                     </Form>
                 </CardContent>
             </Card>
+            </Can>
         </div>
     </div>
 </template>

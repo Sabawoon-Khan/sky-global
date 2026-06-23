@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { FileText, Plus, Search } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import MisCreateButton from '@/components/MisCreateButton.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -107,12 +108,10 @@ const statusLabel = (status: string) => {
                 :title="t('Bids')"
                 :description="t('Manage submitted bids and outcomes')"
             />
-            <Button as-child>
-                <Link href="/bidding/bids/create">
-                    <Plus class="me-1 size-4" />
-                    {{ t('New Bid') }}
-                </Link>
-            </Button>
+            <MisCreateButton href="/bidding/bids/create" permission="bidding.create">
+                <Plus class="me-1 size-4" />
+                {{ t('New Bid') }}
+            </MisCreateButton>
         </div>
 
         <Card>

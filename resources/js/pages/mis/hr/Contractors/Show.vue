@@ -54,7 +54,7 @@ defineProps<{
     contractor: Contractor;
 }>();
 
-const { t } = useMisPage();
+const { t, can } = useMisPage();
 
 defineOptions({
     layout: {
@@ -105,7 +105,7 @@ const formatCurrency = (value?: number | null, currency = 'USD'): string => {
                 <Button variant="outline" as-child>
                     <Link href="/hr/contractors">{{ t('Back to list') }}</Link>
                 </Button>
-                <Button as-child>
+                <Button v-if="can('hr.edit')" as-child>
                     <Link :href="`/hr/contractors/${contractor.id}/edit`">{{
                         t('Edit')
                     }}</Link>

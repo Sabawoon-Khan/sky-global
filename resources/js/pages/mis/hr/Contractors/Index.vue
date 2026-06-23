@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { Plus, Search, UserRound } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import MisCreateButton from '@/components/MisCreateButton.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,7 @@ interface Props {
 
 defineProps<Props>();
 
-const { t, viewAction, editAction } = useMisPage();
+const { t, viewAction, editAction, gateActions } = useMisPage();
 
 defineOptions({
     layout: {
@@ -54,13 +55,16 @@ const fullName = (contractor: Contractor): string =>
 
 const contractorActions = (contractor: Contractor): RowActionItem[] => [
     viewAction(`/hr/contractors/${contractor.id}`),
-    editAction(`/hr/contractors/${contractor.id}/edit`),
-    ...personnelStatusActions({
-        url: `/hr/contractors/${contractor.id}`,
-        name: fullName(contractor),
-        status: contractor.status,
-        t,
-    }),
+    editAction(`/hr/contractors/${contractor.id}/edit`, 'hr.edit'),
+    ...gateActions(
+        personnelStatusActions({
+            url: `/hr/contractors/${contractor.id}`,
+            name: fullName(contractor),
+            status: contractor.status,
+            t,
+        }),
+        'hr.edit',
+    ),
 ];
 </script>
 
@@ -73,12 +77,10 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
                 :title="t('Contractors')"
                 :description="t('Manage contractor personnel and agreements')"
             />
-            <Button as-child>
-                <Link href="/hr/contractors/create">
-                    <Plus class="me-1 size-4" />
-                    {{ t('Add Contractor') }}
-                </Link>
-            </Button>
+            <MisCreateButton href="/hr/contractors/create" permission="hr.create">
+                <Plus class="me-1 size-4" />
+                {{ t('Add Contractor') }}
+            </MisCreateButton>
         </div>
 
         <Card>

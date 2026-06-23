@@ -2,6 +2,7 @@
 import { Form, Head, Link } from '@inertiajs/vue3';
 import { Wallet } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import Can from '@/components/Can.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -61,6 +62,7 @@ const monthName = (month: number): string => {
                 :title="t('Payroll')"
                 :description="t('Monthly payroll runs and disbursements')"
             />
+            <Can permission="hr.create">
             <Form
                 action="/hr/payroll"
                 method="post"
@@ -100,6 +102,7 @@ const monthName = (month: number): string => {
                     t('New run')
                 }}</Button>
             </Form>
+            </Can>
         </div>
 
         <div

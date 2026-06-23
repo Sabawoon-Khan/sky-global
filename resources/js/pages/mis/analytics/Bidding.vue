@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { BarChart3, TrendingUp } from '@lucide/vue';
+import Can from '@/components/Can.vue';
 import Heading from '@/components/Heading.vue';
+import MisCreateButton from '@/components/MisCreateButton.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,22 +26,33 @@ interface BidAnalytic {
     submitted_at?: string | null;
 }
 
-interface Summary {
-    total_bids?: number;
+interface BiddingStats {
+    open_opportunities?: number;
+    pending_bids?: number;
+    win_rate?: number;
     won?: number;
     lost?: number;
-    win_rate?: number;
-    pending?: number;
+}
+
+interface OrganizationTypeStat {
+    id: number;
+    name: string;
+    color: string | null;
+    organizations_count: number;
+    projects_count: number;
+    total_contract_value: number;
 }
 
 interface Props {
-    summary?: Summary;
+    stats?: BiddingStats;
+    organizationTypes?: OrganizationTypeStat[];
+    competitorIntel?: number;
     bids: BidAnalytic[];
 }
 
 defineProps<Props>();
 
-const { t } = useMisPage();
+const { t, can } = useMisPage();
 
 defineOptions({
     layout: {
@@ -89,18 +102,33 @@ const statusLabel = (status: string) => {
                 :title="t('Bidding Analytics')"
                 :description="t('Win rates, bid outcomes, and competitor trends')"
             />
-            <Button variant="outline" as-child>
-                <Link href="/analytics/finance">{{ t('Finance Analytics') }}</Link>
-            </Button>
+            <div class="flex flex-wrap gap-2">
+                <Can permission="projects.view">
+                    <Button variant="outline" as-child>
+                        <Link href="/projects">{{ t('View Projects') }}</Link>
+                    </Button>
+                </Can>
+                <MisCreateButton
+                    href="/projects/create"
+                    permission="projects.create"
+                >
+                    {{ t('New Project') }}
+                </MisCreateButton>
+                <Can permission="finance.view">
+                    <Button variant="outline" as-child>
+                        <Link href="/analytics/finance">{{ t('Finance Analytics') }}</Link>
+                    </Button>
+                </Can>
+            </div>
         </div>
 
-        <div v-if="summary" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div v-if="stats" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">{{ t('Total Bids') }}</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Open Opportunities') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
-                    {{ summary.total_bids ?? 0 }}
+                    {{ stats.open_opportunities ?? 0 }}
                 </CardContent>
             </Card>
             <Card>
@@ -109,7 +137,7 @@ const statusLabel = (status: string) => {
                     <TrendingUp class="size-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
-                    {{ summary.win_rate ?? 0 }}%
+                    {{ stats.win_rate ?? 0 }}%
                 </CardContent>
             </Card>
             <Card>
@@ -117,15 +145,64 @@ const statusLabel = (status: string) => {
                     <CardTitle class="text-sm">{{ t('Won / Lost') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
-                    {{ summary.won ?? 0 }} / {{ summary.lost ?? 0 }}
+                    {{ stats.won ?? 0 }} / {{ stats.lost ?? 0 }}
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">{{ t('Pending') }}</CardTitle>
+                    <CardTitle class="text-sm">{{ t('Pending Bids') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
-                    {{ summary.pending ?? 0 }}
+                    {{ stats.pending_bids ?? 0 }}
+                </CardContent>
+            </Card>
+        </div>
+
+        <div
+            v-if="organizationTypes?.length || competitorIntel"
+            class="grid gap-4 lg:grid-cols-2"
+        >
+            <Card v-if="organizationTypes?.length">
+                <CardHeader>
+                    <CardTitle>{{ t('By Organization Type') }}</CardTitle>
+                    <CardDescription>{{
+                        t('Projects and contract value by client type')
+                    }}</CardDescription>
+                </CardHeader>
+                <CardContent class="divide-y">
+                    <div
+                        v-for="type in organizationTypes"
+                        :key="type.id"
+                        class="flex items-center justify-between py-3 text-sm"
+                    >
+                        <div>
+                            <p class="font-medium">{{ type.name }}</p>
+                            <p class="text-xs text-muted-foreground">
+                                {{ type.organizations_count }} {{ t('organizations') }} ·
+                                {{ type.projects_count }} {{ t('projects') }}
+                            </p>
+                        </div>
+                        <span class="font-medium">
+                            {{ formatCurrency(type.total_contract_value) }}
+                        </span>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card v-if="competitorIntel !== undefined">
+                <CardHeader>
+                    <CardTitle>{{ t('Competitor Intel') }}</CardTitle>
+                    <CardDescription>{{
+                        t('Recorded competitor bids across projects')
+                    }}</CardDescription>
+                </CardHeader>
+                <CardContent class="space-y-3">
+                    <p class="text-3xl font-bold">{{ competitorIntel ?? 0 }}</p>
+                    <Can permission="bidding.view_competitors">
+                        <Button variant="outline" size="sm" as-child>
+                            <Link href="/projects">{{ t('Review on projects') }}</Link>
+                        </Button>
+                    </Can>
                 </CardContent>
             </Card>
         </div>
@@ -175,11 +252,15 @@ const statusLabel = (status: string) => {
                             >
                                 <td class="py-3 pe-4">
                                     <Link
-                                        :href="`/bidding/bids/${bid.id}`"
+                                        v-if="can('projects.view')"
+                                        :href="`/projects`"
                                         class="font-medium hover:underline"
                                     >
                                         {{ bid.bid_number ?? `#${bid.id}` }}
                                     </Link>
+                                    <span v-else class="font-medium">
+                                        {{ bid.bid_number ?? `#${bid.id}` }}
+                                    </span>
                                 </td>
                                 <td class="py-3 pe-4 text-muted-foreground">
                                     {{ bid.organization ?? '—' }}

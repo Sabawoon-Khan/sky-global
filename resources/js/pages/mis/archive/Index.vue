@@ -63,7 +63,7 @@ const formatDate = (value?: string | null): string => {
 
 const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
     viewAction(`/archive/${doc.id}`),
-    editAction(`/archive/${doc.id}`),
+    editAction(`/archive/${doc.id}`, 'archive.edit'),
 ];
 </script>
 

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
+import { usePermissions } from '@/composables/usePermissions';
 import { useTranslations } from '@/composables/useTranslations';
 import { toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
@@ -14,13 +15,7 @@ import type { NavItem } from '@/types';
 import { computed } from 'vue';
 
 const { t } = useTranslations();
-const page = usePage();
-
-const permissions = computed(
-    () => (page.props.auth?.user?.permissions as string[] | undefined) ?? [],
-);
-
-const can = (permission: string): boolean => permissions.value.includes(permission);
+const { can, canAny } = usePermissions();
 
 const accountNavItems = computed<NavItem[]>(() => [
     {

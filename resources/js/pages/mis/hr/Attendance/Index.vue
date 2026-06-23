@@ -3,6 +3,7 @@ import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { CalendarDays, Plus } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
@@ -67,7 +68,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const { t } = useMisPage();
+const { t, gateActions } = useMisPage();
 
 defineOptions({
     layout: {
@@ -104,7 +105,7 @@ const personnelTypeLabel = (type: string): string => {
 };
 
 const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
-    attendanceStatusActions(record.id, record.status, t);
+    gateActions(attendanceStatusActions(record.id, record.status, t), 'hr.edit');
 </script>
 
 <template>
@@ -121,6 +122,7 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
         />
 
         <div class="grid gap-6 xl:grid-cols-3">
+            <Can permission="hr.create">
             <Card class="xl:col-span-1">
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
@@ -317,6 +319,7 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                     </Form>
                 </CardContent>
             </Card>
+            </Can>
 
             <Card class="xl:col-span-2">
                 <CardHeader>

@@ -67,7 +67,7 @@ interface ExpiringDocument {
 }
 
 defineProps<{
-    stats: DashboardStats;
+    stats: DashboardStats | null;
     projectProfitability: ProjectProfitability[];
     expiringDocuments: ExpiringDocument[];
 }>();
@@ -98,7 +98,10 @@ const formatCurrency = (value: number): string =>
             :description="t('Overview of bidding, projects, finance, and HR')"
         />
 
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div
+            v-if="misQuickLinks.length > 0"
+            class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        >
             <Link
                 v-for="link in misQuickLinks"
                 :key="link.href"
@@ -121,7 +124,10 @@ const formatCurrency = (value: number): string =>
             </Link>
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div
+            v-if="stats"
+            class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        >
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between pb-2">
                     <CardTitle class="text-sm font-medium">{{
@@ -251,7 +257,10 @@ const formatCurrency = (value: number): string =>
             </Card>
         </div>
 
-        <div class="grid gap-4 lg:grid-cols-2">
+        <div
+            v-if="stats"
+            class="grid gap-4 lg:grid-cols-2"
+        >
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Project Profitability') }}</CardTitle>

@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { Plus, Search, Users } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import MisCreateButton from '@/components/MisCreateButton.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,7 +43,7 @@ interface Props {
 
 defineProps<Props>();
 
-const { t, viewAction, editAction } = useMisPage();
+const { t, viewAction, editAction, gateActions } = useMisPage();
 
 defineOptions({
     layout: {
@@ -58,13 +59,16 @@ const fullName = (employee: Employee): string =>
 
 const employeeActions = (employee: Employee): RowActionItem[] => [
     viewAction(`/hr/employees/${employee.id}`),
-    editAction(`/hr/employees/${employee.id}/edit`),
-    ...personnelStatusActions({
-        url: `/hr/employees/${employee.id}`,
-        name: fullName(employee),
-        status: employee.status,
-        t,
-    }),
+    editAction(`/hr/employees/${employee.id}/edit`, 'hr.edit'),
+    ...gateActions(
+        personnelStatusActions({
+            url: `/hr/employees/${employee.id}`,
+            name: fullName(employee),
+            status: employee.status,
+            t,
+        }),
+        'hr.edit',
+    ),
 ];
 </script>
 
@@ -77,12 +81,10 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
                 :title="t('Employees')"
                 :description="t('Manage staff records and employment details')"
             />
-            <Button as-child>
-                <Link href="/hr/employees/create">
-                    <Plus class="me-1 size-4" />
-                    {{ t('Add Employee') }}
-                </Link>
-            </Button>
+            <MisCreateButton href="/hr/employees/create" permission="hr.create">
+                <Plus class="me-1 size-4" />
+                {{ t('Add Employee') }}
+            </MisCreateButton>
         </div>
 
         <Card>

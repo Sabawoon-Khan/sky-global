@@ -68,7 +68,7 @@ defineProps<{
     organizationTypes: OrganizationType[];
 }>();
 
-const { t } = useMisPage();
+const { t, can } = useMisPage();
 
 defineOptions({
     layout: {
@@ -119,7 +119,7 @@ defineOptions({
                 <Button variant="outline" as-child>
                     <Link href="/organizations">{{ t('Back to list') }}</Link>
                 </Button>
-                <Button as-child>
+                <Button v-if="can('bidding.edit')" as-child>
                     <Link :href="`/organizations/${organization.id}/edit`">{{
                         t('Edit')
                     }}</Link>

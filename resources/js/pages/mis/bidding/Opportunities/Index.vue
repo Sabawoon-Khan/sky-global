@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { FileText, Plus, Search } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import MisCreateButton from '@/components/MisCreateButton.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -88,12 +89,13 @@ const statusLabel = (status: string) => {
                 :title="t('Opportunities')"
                 :description="t('Procurement requests and tenders from clients')"
             />
-            <Button as-child>
-                <Link href="/bidding/opportunities/create">
-                    <Plus class="me-2 size-4" />
-                    {{ t('New opportunity') }}
-                </Link>
-            </Button>
+            <MisCreateButton
+                href="/bidding/opportunities/create"
+                permission="bidding.create"
+            >
+                <Plus class="me-2 size-4" />
+                {{ t('New opportunity') }}
+            </MisCreateButton>
         </div>
 
         <div class="grid gap-4 md:grid-cols-3">
@@ -178,11 +180,13 @@ const statusLabel = (status: string) => {
                             t('Record procurement requests before creating bids.')
                         }}
                     </p>
-                    <Button as-child class="mt-4">
-                        <Link href="/bidding/opportunities/create">{{
-                            t('Add first opportunity')
-                        }}</Link>
-                    </Button>
+                    <MisCreateButton
+                        href="/bidding/opportunities/create"
+                        permission="bidding.create"
+                        class="mt-4"
+                    >
+                        {{ t('Add first opportunity') }}
+                    </MisCreateButton>
                 </div>
 
                 <div v-else class="overflow-x-auto rounded-md border">

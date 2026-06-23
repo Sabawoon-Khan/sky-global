@@ -48,7 +48,7 @@ defineProps<{
     opportunity: Opportunity;
 }>();
 
-const { t } = useMisPage();
+const { t, can } = useMisPage();
 
 defineOptions({
     layout: {
@@ -82,7 +82,7 @@ defineOptions({
                 <Button as-child variant="outline">
                     <Link href="/bidding/opportunities">{{ t('Back to list') }}</Link>
                 </Button>
-                <Button as-child>
+                <Button v-if="can('bidding.edit')" as-child>
                     <Link :href="`/bidding/opportunities/${opportunity.id}/edit`">{{
                         t('Edit')
                     }}</Link>

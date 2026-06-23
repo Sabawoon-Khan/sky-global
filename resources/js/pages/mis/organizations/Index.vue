@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { Building2, FolderKanban, Plus, Search, Users } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
+import MisCreateButton from '@/components/MisCreateButton.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import MisPage from '@/components/MisPage.vue';
 import MisPagination from '@/components/MisPagination.vue';
@@ -57,7 +58,7 @@ interface Props {
 
 defineProps<Props>();
 
-const { t, viewAction, editAction, deleteAction } = useMisPage();
+const { t, viewAction, editAction, deleteAction, gateActions } = useMisPage();
 
 defineOptions({
     layout: {
@@ -70,21 +71,29 @@ defineOptions({
 
 const organizationActions = (org: Organization): RowActionItem[] => [
     viewAction(`/organizations/${org.id}`),
-    editAction(`/organizations/${org.id}/edit`),
-    toggleIsActiveAction({
-        url: `/organizations/${org.id}`,
-        name: org.name,
-        isActive: org.is_active,
-        entityLabel: t('organization'),
-        t,
-    }),
-    deleteAction({
-        href: `/organizations/${org.id}`,
-        title: t('Delete organization'),
-        description: t('Are you sure you want to delete ":name"? This cannot be undone.', {
-            name: org.name,
-        }),
-    }),
+    editAction(`/organizations/${org.id}/edit`, 'bidding.edit'),
+    ...gateActions(
+        [
+            toggleIsActiveAction({
+                url: `/organizations/${org.id}`,
+                name: org.name,
+                isActive: org.is_active,
+                entityLabel: t('organization'),
+                t,
+            }),
+        ],
+        'bidding.edit',
+    ),
+    deleteAction(
+        {
+            href: `/organizations/${org.id}`,
+            title: t('Delete organization'),
+            description: t('Are you sure you want to delete ":name"? This cannot be undone.', {
+                name: org.name,
+            }),
+        },
+        'bidding.delete',
+    ),
 ];
 </script>
 
@@ -97,12 +106,10 @@ const organizationActions = (org: Organization): RowActionItem[] => [
                 :title="t('Organizations')"
                 :description="t('Register clients, partners, and procurement bodies')"
             />
-            <Button as-child>
-                <Link href="/organizations/create">
-                    <Plus class="me-2 size-4" />
-                    {{ t('Add Organization') }}
-                </Link>
-            </Button>
+            <MisCreateButton href="/organizations/create" permission="bidding.create">
+                <Plus class="me-2 size-4" />
+                {{ t('Add Organization') }}
+            </MisCreateButton>
         </div>
 
         <div class="grid gap-4 md:grid-cols-3">
@@ -191,11 +198,13 @@ const organizationActions = (org: Organization): RowActionItem[] => [
                             t('Add government bodies, NGOs, private companies, and other clients you bid to or serve.')
                         }}
                     </p>
-                    <Button as-child class="mt-4">
-                        <Link href="/organizations/create">{{
-                            t('Create first organization')
-                        }}</Link>
-                    </Button>
+                    <MisCreateButton
+                        href="/organizations/create"
+                        permission="bidding.create"
+                        class="mt-4"
+                    >
+                        {{ t('Create first organization') }}
+                    </MisCreateButton>
                 </div>
 
                 <div v-else class="overflow-x-auto rounded-md border">

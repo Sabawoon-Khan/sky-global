@@ -4,6 +4,7 @@ import { Pencil, Plus, Search, Shield, UserCog } from '@lucide/vue';
 import { computed } from 'vue';
 import UserManagementController from '@/actions/App/Http/Controllers/Settings/UserManagementController';
 import Heading from '@/components/Heading.vue';
+import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
@@ -63,7 +64,9 @@ const userActions = (user: UserRecord): RowActionItem[] => {
             label: t('Edit roles'),
             icon: Pencil,
             onClick: () => {
-                document.getElementById(`roles-${user.id}`)?.focus();
+                document
+                    .getElementById(`user-roles-${user.id}`)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             },
         },
     ];
@@ -93,6 +96,7 @@ const userActions = (user: UserRecord): RowActionItem[] => {
             :description="t('Create accounts, assign roles, and manage access')"
         />
 
+        <Can permission="settings.manage_users">
         <Card>
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
@@ -142,17 +146,30 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                         />
                     </div>
                     <div class="grid gap-2 sm:col-span-2">
-                        <Label for="create-roles">{{ t('Roles') }}</Label>
-                        <select
-                            id="create-roles"
-                            name="roles[]"
-                            multiple
-                            class="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        <Label>{{ t('Roles') }}</Label>
+                        <div
+                            class="grid gap-2 rounded-md border border-input p-3 sm:grid-cols-2"
                         >
-                            <option v-for="role in roles" :key="role.id" :value="role.name">
-                                {{ role.name }}
-                            </option>
-                        </select>
+                            <div
+                                v-for="role in roles"
+                                :key="role.id"
+                                class="flex items-center gap-2 text-sm"
+                            >
+                                <input
+                                    :id="`create-role-${role.id}`"
+                                    type="checkbox"
+                                    name="roles[]"
+                                    :value="role.name"
+                                    class="size-4 rounded border border-input accent-primary"
+                                />
+                                <Label
+                                    :for="`create-role-${role.id}`"
+                                    class="cursor-pointer font-normal"
+                                >
+                                    {{ role.name }}
+                                </Label>
+                            </div>
+                        </div>
                         <InputError :message="errors.roles" />
                     </div>
                     <div class="sm:col-span-2">
@@ -164,6 +181,7 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                 </Form>
             </CardContent>
         </Card>
+        </Can>
 
         <Card>
             <CardHeader>
@@ -242,6 +260,7 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                                     <RowActionsMenu :actions="userActions(user)" />
                                 </div>
                                 <Form
+                                    :id="`user-roles-${user.id}`"
                                     :action="
                                         UserManagementController.update.url(user.id)
                                     "
@@ -250,26 +269,37 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                                     :options="{ preserveScroll: true }"
                                     v-slot="{ processing }"
                                 >
-                                    <Label :for="`roles-${user.id}`">{{ t('Roles') }}</Label>
-                                    <select
-                                        :id="`roles-${user.id}`"
-                                        name="roles[]"
-                                        multiple
-                                        class="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    <Label>{{ t('Roles') }}</Label>
+                                    <div
+                                        class="grid gap-2 rounded-md border border-input p-3"
                                     >
-                                        <option
+                                        <div
                                             v-for="role in roles"
                                             :key="role.id"
-                                            :value="role.name"
-                                            :selected="
-                                                user.roles?.some(
-                                                    (r) => r.name === role.name,
-                                                )
-                                            "
+                                            class="flex items-center gap-2 text-sm"
                                         >
-                                            {{ role.name }}
-                                        </option>
-                                    </select>
+                                            <input
+                                                :id="`roles-${user.id}-${role.id}`"
+                                                type="checkbox"
+                                                name="roles[]"
+                                                :value="role.name"
+                                                :defaultChecked="
+                                                    user.roles?.some(
+                                                        (assignedRole) =>
+                                                            assignedRole.name ===
+                                                            role.name,
+                                                    )
+                                                "
+                                                class="size-4 rounded border border-input accent-primary"
+                                            />
+                                            <Label
+                                                :for="`roles-${user.id}-${role.id}`"
+                                                class="cursor-pointer font-normal"
+                                            >
+                                                {{ role.name }}
+                                            </Label>
+                                        </div>
+                                    </div>
                                     <Button
                                         type="submit"
                                         size="sm"
