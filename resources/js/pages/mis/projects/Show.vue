@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import ProjectController from '@/actions/App/Http/Controllers/Project/ProjectController';
 import { formatCurrency, formatDate } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
@@ -74,7 +75,26 @@ interface ProjectIssue {
     severity: string;
     status: string;
     category?: string | null;
+    resolution_notes?: string | null;
+    resolved_at?: string | null;
     opened_at: string | null;
+}
+
+interface ProjectDeployment {
+    id: number;
+    personnel_type: string;
+    personnel_id: number;
+    role: string | null;
+    start_date: string | null;
+    end_date: string | null;
+    monthly_rate: number | null;
+    currency: string | null;
+}
+
+interface PersonOption {
+    id: number;
+    first_name: string;
+    last_name: string;
 }
 
 interface Project {
@@ -102,6 +122,7 @@ interface Project {
     expenses: FinanceRow[];
     activities: ProjectActivity[];
     issues: ProjectIssue[];
+    deployments?: ProjectDeployment[];
     attachments: EntityAttachment[];
 }
 
@@ -119,6 +140,8 @@ const props = defineProps<{
         currency: string;
     };
     statusOptions: StatusOption[];
+    employees?: PersonOption[];
+    contractors?: PersonOption[];
 }>();
 
 const { t, can, gateActions } = useMisPage();
@@ -132,19 +155,25 @@ defineOptions({
     },
 });
 
+const EMPLOYEE_TYPE = 'App\\Models\\Hr\\Employee';
+const CONTRACTOR_TYPE = 'App\\Models\\Hr\\Contractor';
+
+const deploymentPersonnelType = ref(EMPLOYEE_TYPE);
+
 const tabs = computed(() => [
     { id: 'overview' as const, label: t('Overview') },
     { id: 'bid' as const, label: t('Our Bid') },
     { id: 'competitors' as const, label: t('Competitors') },
+    { id: 'personnel' as const, label: t('Personnel') },
     { id: 'finance' as const, label: t('Finance') },
     { id: 'activity' as const, label: t('Activity') },
-    { id: 'issues' as const, label: t('Issues') },
+    { id: 'issues' as const, label: t('Reports') },
     { id: 'attachments' as const, label: t('Attachments') },
 ]);
 
-type TabId = 'overview' | 'bid' | 'competitors' | 'finance' | 'activity' | 'issues' | 'attachments';
+type TabId = 'overview' | 'bid' | 'competitors' | 'personnel' | 'finance' | 'activity' | 'issues' | 'attachments';
 
-const tabIds: TabId[] = ['overview', 'bid', 'competitors', 'finance', 'activity', 'issues', 'attachments'];
+const tabIds: TabId[] = ['overview', 'bid', 'competitors', 'personnel', 'finance', 'activity', 'issues', 'attachments'];
 
 const initialTab = (): TabId => {
     const fromUrl = new URLSearchParams(window.location.search).get('tab');
@@ -585,6 +614,106 @@ const closeIssueEdit = (): void => {
             </Can>
         </div>
 
+        <!-- Personnel -->
+        <div v-else-if="activeTab === 'personnel'" class="grid gap-3 lg:grid-cols-3">
+            <Card class="lg:col-span-2">
+                <CardHeader class="pb-2">
+                    <CardTitle class="text-base">{{ t('Assigned Personnel') }}</CardTitle>
+                    <CardDescription>{{ t('Employees and contractors working on this project') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="!project.deployments?.length" class="py-6 text-center text-sm text-muted-foreground">
+                        {{ t('No personnel assigned yet.') }}
+                    </div>
+                    <div v-else class="divide-y">
+                        <div
+                            v-for="deployment in project.deployments"
+                            :key="deployment.id"
+                            class="flex items-center justify-between py-3"
+                        >
+                            <div>
+                                <p class="font-medium">
+                                    {{ deployment.personnel_type.includes('Employee') ? t('Employee') : t('Contractor') }}
+                                    #{{ deployment.personnel_id }}
+                                </p>
+                                <p v-if="deployment.role" class="text-sm text-muted-foreground">
+                                    {{ deployment.role }}
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ deployment.start_date ?? '—' }} — {{ deployment.end_date ?? t('Ongoing') }}
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span v-if="deployment.monthly_rate" class="text-sm font-medium">
+                                    {{ formatCurrency(deployment.monthly_rate, deployment.currency ?? 'USD') }}/mo
+                                </span>
+                                <Can permission="projects.delete">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    @click="
+                                        router.delete(
+                                            `/projects/${project.id}/deployments/${deployment.id}`,
+                                            { preserveScroll: true },
+                                        )
+                                    "
+                                >
+                                    <Trash2 class="size-4" />
+                                </Button>
+                                </Can>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+            <Can permission="projects.create">
+            <Card>
+                <CardHeader class="pb-2">
+                    <CardTitle class="text-base">{{ t('Assign person') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Form
+                        :action="`/projects/${project.id}/deployments`"
+                        method="post"
+                        class="grid gap-2"
+                        :options="{ preserveScroll: true }"
+                        v-slot="{ errors, processing }"
+                        @success="setActiveTab('personnel')"
+                    >
+                        <input type="hidden" name="personnel_type" :value="deploymentPersonnelType" />
+                        <select
+                            v-model="deploymentPersonnelType"
+                            class="h-9 rounded-md border border-input px-3 text-sm"
+                        >
+                            <option :value="EMPLOYEE_TYPE">{{ t('Employee') }}</option>
+                            <option :value="CONTRACTOR_TYPE">{{ t('Contractor') }}</option>
+                        </select>
+                        <select
+                            name="personnel_id"
+                            required
+                            class="h-9 rounded-md border border-input px-3 text-sm"
+                        >
+                            <option value="" disabled selected>{{ t('Select person') }}</option>
+                            <option
+                                v-for="person in deploymentPersonnelType === EMPLOYEE_TYPE ? (employees ?? []) : (contractors ?? [])"
+                                :key="person.id"
+                                :value="person.id"
+                            >
+                                {{ person.first_name }} {{ person.last_name }}
+                            </option>
+                        </select>
+                        <InputError :message="errors.personnel_id" />
+                        <Input name="role" :placeholder="t('Role on site')" />
+                        <Input name="start_date" type="date" />
+                        <Input name="end_date" type="date" />
+                        <Input name="monthly_rate" type="number" min="0" step="0.01" :placeholder="t('Monthly rate')" />
+                        <Button type="submit" size="sm" :disabled="processing">{{ t('Assign') }}</Button>
+                    </Form>
+                </CardContent>
+            </Card>
+            </Can>
+        </div>
+
         <!-- Finance -->
         <div v-else-if="activeTab === 'finance'" class="grid gap-3 lg:grid-cols-3">
             <Card class="lg:col-span-3">
@@ -634,7 +763,7 @@ const closeIssueEdit = (): void => {
                             required
                         />
                         <InputError :message="errors.transaction_date" />
-                        <Input name="description" :placeholder="t('Description')" />
+                        <Textarea name="description" rows="3" :placeholder="t('Description')" />
                         <InputError :message="errors.description" />
                         <input type="hidden" name="currency" :value="project.currency" />
                         <OptionalAttachmentField :label="t('Receipt')" :error="errors.attachment" />
@@ -676,7 +805,7 @@ const closeIssueEdit = (): void => {
                             required
                         />
                         <InputError :message="errors.transaction_date" />
-                        <Input name="description" :placeholder="t('Description')" />
+                        <Textarea name="description" rows="3" :placeholder="t('Description')" />
                         <InputError :message="errors.description" />
                         <input type="hidden" name="currency" :value="project.currency" />
                         <OptionalAttachmentField :label="t('Receipt')" :error="errors.attachment" />
@@ -761,33 +890,55 @@ const closeIssueEdit = (): void => {
             </CardContent>
         </Card>
 
-        <!-- Issues -->
+        <!-- Reports / Issues -->
         <div v-else-if="activeTab === 'issues'" class="grid gap-3 lg:grid-cols-3">
             <Card class="lg:col-span-2">
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-base">{{ t('Issues') }}</CardTitle>
-                    <CardDescription>{{ t('Track problems and resolutions for this project') }}</CardDescription>
+                    <CardTitle class="text-base">{{ t('Incident Reports') }}</CardTitle>
+                    <CardDescription>{{ t('What happened, how it was resolved') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div v-if="!project.issues.length" class="py-6 text-center text-sm text-muted-foreground">
-                        No issues reported yet.
+                        {{ t('No reports yet.') }}
                     </div>
                     <div v-else class="divide-y">
                         <div
                             v-for="issue in project.issues"
                             :key="issue.id"
-                            class="flex items-start justify-between gap-3 py-3"
+                            class="flex items-start justify-between gap-3 py-4"
                         >
-                            <div class="min-w-0">
-                                <p class="font-medium">{{ issue.title }}</p>
-                                <p
-                                    v-if="issue.description"
-                                    class="mt-1 text-sm text-muted-foreground"
-                                >
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <p class="font-medium">{{ issue.title }}</p>
+                                    <Badge v-if="issue.category" variant="secondary">{{ issue.category }}</Badge>
+                                </div>
+                                <p v-if="issue.description" class="mt-2 text-sm">
+                                    <span class="font-medium text-muted-foreground">{{ t('What happened:') }}</span>
                                     {{ issue.description }}
                                 </p>
+                                <p
+                                    v-if="issue.resolution_notes"
+                                    class="mt-2 rounded-md bg-green-50 p-2 text-sm dark:bg-green-950/30"
+                                >
+                                    <span class="font-medium text-green-700 dark:text-green-400">{{ t('How we fixed it:') }}</span>
+                                    {{ issue.resolution_notes }}
+                                </p>
+                                <p
+                                    v-else-if="['resolved', 'closed'].includes(issue.status)"
+                                    class="mt-2 text-sm text-muted-foreground italic"
+                                >
+                                    {{ t('Resolved — add resolution notes via Edit') }}
+                                </p>
                                 <div class="mt-2 flex flex-wrap gap-2">
-                                    <Badge variant="outline">{{ issue.status }}</Badge>
+                                    <Badge
+                                        :variant="
+                                            issue.status === 'resolved' || issue.status === 'closed'
+                                                ? 'default'
+                                                : 'outline'
+                                        "
+                                    >
+                                        {{ issue.status }}
+                                    </Badge>
                                     <Badge
                                         :variant="
                                             issue.severity === 'high' ||
@@ -798,6 +949,9 @@ const closeIssueEdit = (): void => {
                                     >
                                         {{ issue.severity }}
                                     </Badge>
+                                    <span v-if="issue.resolved_at" class="text-xs text-muted-foreground">
+                                        {{ t('Resolved') }} {{ formatDate(issue.resolved_at) }}
+                                    </span>
                                 </div>
                             </div>
                             <RowActionsMenu :actions="issueActions(issue)" />
@@ -809,7 +963,8 @@ const closeIssueEdit = (): void => {
             <Can permission="projects.edit">
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-base">{{ t('Report issue') }}</CardTitle>
+                    <CardTitle class="text-base">{{ t('New report') }}</CardTitle>
+                    <CardDescription>{{ t('Describe the incident or problem') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form
@@ -820,13 +975,22 @@ const closeIssueEdit = (): void => {
                         v-slot="{ errors, processing }"
                         @success="setActiveTab('issues')"
                     >
-                        <Input name="title" :placeholder="t('Issue title')" required />
+                        <Input name="title" :placeholder="t('Brief title')" required />
                         <InputError :message="errors.title" />
-                        <textarea
+                        <select name="category" class="h-9 rounded-md border border-input px-3 text-sm">
+                            <option value="">{{ t('Incident type') }}</option>
+                            <option value="security">{{ t('Security incident') }}</option>
+                            <option value="personnel">{{ t('Personnel / casualty') }}</option>
+                            <option value="equipment">{{ t('Equipment failure') }}</option>
+                            <option value="client">{{ t('Client complaint') }}</option>
+                            <option value="operational">{{ t('Operational issue') }}</option>
+                            <option value="other">{{ t('Other') }}</option>
+                        </select>
+                        <Textarea
                             name="description"
-                            rows="3"
-                            :placeholder="t('Description')"
-                            class="w-full rounded-md border border-input px-3 py-2 text-sm"
+                            rows="4"
+                            :placeholder="t('What happened? e.g. guard killed, vehicle breakdown, client dispute...')"
+                            required
                         />
                         <InputError :message="errors.description" />
                         <select
@@ -841,7 +1005,7 @@ const closeIssueEdit = (): void => {
                         <InputError :message="errors.severity" />
                         <OptionalAttachmentField :error="errors.attachment" />
                         <Button type="submit" size="sm" :disabled="processing">
-                            Create issue
+                            {{ t('Submit report') }}
                         </Button>
                     </Form>
                 </CardContent>
@@ -1000,14 +1164,25 @@ const closeIssueEdit = (): void => {
                             <InputError :message="errors.title" />
                         </div>
                         <div class="grid gap-2">
-                            <Label for="edit-issue-description">{{ t('Description') }}</Label>
-                            <textarea
+                            <Label for="edit-issue-description">{{ t('What happened') }}</Label>
+                            <Textarea
                                 id="edit-issue-description"
                                 name="description"
-                                rows="3"
-                                class="w-full rounded-md border border-input px-3 py-2 text-sm"
-                            >{{ editingIssue.description ?? '' }}</textarea>
+                                rows="4"
+                                :default-value="editingIssue.description ?? ''"
+                            />
                             <InputError :message="errors.description" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="edit-issue-resolution">{{ t('How we fixed it') }}</Label>
+                            <Textarea
+                                id="edit-issue-resolution"
+                                name="resolution_notes"
+                                rows="4"
+                                :placeholder="t('Describe the resolution and actions taken')"
+                                :default-value="editingIssue.resolution_notes ?? ''"
+                            />
+                            <InputError :message="errors.resolution_notes" />
                         </div>
                         <div class="grid gap-2">
                             <Label for="edit-issue-severity">{{ t('Severity') }}</Label>

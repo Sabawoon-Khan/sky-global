@@ -13,6 +13,8 @@ import {
 import { useMisNavigation } from '@/composables/useMisNavigation';
 import { useTranslations } from '@/composables/useTranslations';
 import { dashboard } from '@/routes';
+import BarChart from '@/components/charts/BarChart.vue';
+import DonutChart from '@/components/charts/DonutChart.vue';
 
 interface DashboardStats {
     bidding: {
@@ -66,10 +68,18 @@ interface ExpiringDocument {
     expires_at: string | null;
 }
 
+interface ChartData {
+    monthly_finance: Array<{ label: string; income: number; expense: number }>;
+    project_statuses: Array<{ status: string; count: number }>;
+    workforce: { employees: number; contractors: number };
+    bidding_outcomes: Array<{ label: string; value: number }>;
+}
+
 defineProps<{
     stats: DashboardStats | null;
     projectProfitability: ProjectProfitability[];
     expiringDocuments: ExpiringDocument[];
+    charts: ChartData | null;
 }>();
 
 const { t } = useTranslations();
@@ -253,6 +263,74 @@ const formatCurrency = (value: number): string =>
                     <p class="text-xs text-muted-foreground">
                         {{ t('Recorded competitor bids') }}
                     </p>
+                </CardContent>
+            </Card>
+        </div>
+
+        <div
+            v-if="charts"
+            class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3"
+        >
+            <Card class="xl:col-span-2">
+                <CardHeader>
+                    <CardTitle>{{ t('Monthly Finance') }}</CardTitle>
+                    <CardDescription>{{ t('Project income vs expenses') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="charts.monthly_finance.map((m) => m.label)"
+                        :datasets="[
+                            {
+                                label: t('Income'),
+                                data: charts.monthly_finance.map((m) => m.income),
+                                backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                            },
+                            {
+                                label: t('Expenses'),
+                                data: charts.monthly_finance.map((m) => m.expense),
+                                backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                            },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Project Status') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :labels="charts.project_statuses.map((s) => s.status)"
+                        :data="charts.project_statuses.map((s) => s.count)"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Workforce Split') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :labels="[t('Employees'), t('Contractors')]"
+                        :data="[
+                            charts.workforce.employees,
+                            charts.workforce.contractors,
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Bidding Outcomes') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :labels="charts.bidding_outcomes.map((b) => b.label)"
+                        :data="charts.bidding_outcomes.map((b) => b.value)"
+                    />
                 </CardContent>
             </Card>
         </div>

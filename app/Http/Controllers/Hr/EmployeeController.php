@@ -9,6 +9,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Forms\AttachmentType;
 use App\Models\Hr\Employee;
+use App\Models\Hr\PersonnelAttendance;
+use App\Models\Hr\PersonnelPayrollAdjustment;
+use App\Models\Project\ProjectDeployment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -130,6 +133,26 @@ class EmployeeController extends Controller
             'employee' => $employee,
             'departments' => Department::query()->orderBy('name')->get(),
             'attachmentTypes' => $this->activeAttachmentTypes(),
+            'attendances' => PersonnelAttendance::query()
+                ->where('personnel_type', Employee::class)
+                ->where('personnel_id', $employee->id)
+                ->with('project')
+                ->latest()
+                ->limit(24)
+                ->get(),
+            'payrollAdjustments' => PersonnelPayrollAdjustment::query()
+                ->where('personnel_type', Employee::class)
+                ->where('personnel_id', $employee->id)
+                ->with('project')
+                ->latest()
+                ->limit(24)
+                ->get(),
+            'deployments' => ProjectDeployment::query()
+                ->where('personnel_type', Employee::class)
+                ->where('personnel_id', $employee->id)
+                ->with('project')
+                ->latest()
+                ->get(),
         ]);
     }
 

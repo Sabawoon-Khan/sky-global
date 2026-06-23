@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import { Plus, Receipt } from '@lucide/vue';
+import { Plus, Receipt, Users } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
 import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useMisPage } from '@/composables/useMisPage';
 import type { Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
@@ -87,6 +88,8 @@ defineOptions({
 });
 
 const personnelType = ref(EMPLOYEE_TYPE);
+const bulkMode = ref(false);
+const bulkEntries = ref<Record<number, { amount: string; notes: string }>>({});
 
 const personnelOptions = computed(() =>
     personnelType.value === EMPLOYEE_TYPE ? props.employees : props.contractors,
@@ -131,6 +134,22 @@ const formatCurrency = (value: number): string =>
         maximumFractionDigits: 0,
     }).format(value);
 
+const initBulkEntry = (id: number): void => {
+    if (!bulkEntries.value[id]) {
+        bulkEntries.value[id] = { amount: '', notes: '' };
+    }
+};
+
+const toggleBulkPerson = (id: number): void => {
+    if (bulkEntries.value[id]) {
+        delete bulkEntries.value[id];
+    } else {
+        initBulkEntry(id);
+    }
+};
+
+const bulkSelectedCount = computed(() => Object.keys(bulkEntries.value).length);
+
 const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
     if (record.applied_at) {
         return [];
@@ -170,18 +189,84 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
                         <Plus class="size-5" />
-                        {{ t('New adjustment') }}
+                        {{ bulkMode ? t('Bulk adjustments') : t('New adjustment') }}
                     </CardTitle>
                     <CardDescription>
-                        {{
-                            t(
-                                'Matched by person and project when payroll for the same month is processed',
-                            )
-                        }}
+                        <button type="button" class="text-primary underline-offset-4 hover:underline" @click="bulkMode = !bulkMode">
+                            {{ bulkMode ? t('Switch to single entry') : t('Add many people at once') }}
+                        </button>
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form
+                        v-if="bulkMode"
+                        action="/hr/payroll-adjustments/bulk"
+                        method="post"
+                        class="grid gap-4"
+                        :options="{ preserveScroll: true, resetOnSuccess: true }"
+                        v-slot="{ errors, processing }"
+                    >
+                        <input type="hidden" name="personnel_type" :value="personnelType" />
+                        <template v-for="(entry, personId) in bulkEntries" :key="personId">
+                            <input type="hidden" :name="`entries[${personId}][personnel_id]`" :value="personId" />
+                            <input type="hidden" :name="`entries[${personId}][amount]`" :value="entry.amount" />
+                            <input type="hidden" :name="`entries[${personId}][notes]`" :value="entry.notes" />
+                        </template>
+
+                        <div class="grid gap-2">
+                            <Label>{{ t('Personnel type') }}</Label>
+                            <select v-model="personnelType" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs">
+                                <option :value="EMPLOYEE_TYPE">{{ t('Employee') }}</option>
+                                <option :value="CONTRACTOR_TYPE">{{ t('Contractor') }}</option>
+                            </select>
+                        </div>
+
+                        <div class="grid gap-2">
+                            <Label for="bulk_type">{{ t('Type') }} *</Label>
+                            <select id="bulk_type" name="type" required class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs">
+                                <option v-for="option in adjustmentTypes" :key="option.value" :value="option.value">{{ option.label }}</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="grid gap-2">
+                                <Label for="bulk_period_year">{{ t('Year') }} *</Label>
+                                <Input id="bulk_period_year" name="period_year" type="number" required :default-value="filters?.year ?? new Date().getFullYear()" />
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="bulk_period_month">{{ t('Month') }} *</Label>
+                                <Input id="bulk_period_month" name="period_month" type="number" min="1" max="12" required :default-value="filters?.month ?? new Date().getMonth() + 1" />
+                            </div>
+                        </div>
+
+                        <div class="grid gap-2">
+                            <Label>{{ t('People & amounts') }}</Label>
+                            <div class="max-h-64 space-y-2 overflow-y-auto rounded-md border p-2">
+                                <div v-for="person in personnelOptions" :key="person.id" class="flex items-center gap-2 rounded px-1 py-1">
+                                    <input type="checkbox" :checked="!!bulkEntries[person.id]" @change="toggleBulkPerson(person.id)" />
+                                    <span class="min-w-0 flex-1 truncate text-sm">{{ personLabel(person) }}</span>
+                                    <Input
+                                        v-if="bulkEntries[person.id]"
+                                        v-model="bulkEntries[person.id].amount"
+                                        type="number"
+                                        min="0.01"
+                                        step="0.01"
+                                        class="w-24"
+                                        :placeholder="t('Amount')"
+                                    />
+                                </div>
+                            </div>
+                            <InputError :message="errors.entries" />
+                        </div>
+
+                        <Button type="submit" :disabled="processing || bulkSelectedCount === 0">
+                            <Users class="size-4" />
+                            {{ t('Save for :count people', { count: String(bulkSelectedCount) }) }}
+                        </Button>
+                    </Form>
+
+                    <Form
+                        v-else
                         action="/hr/payroll-adjustments"
                         method="post"
                         class="grid gap-4"
@@ -303,7 +388,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
 
                         <div class="grid gap-2">
                             <Label for="notes">{{ t('Notes') }}</Label>
-                            <Input id="notes" name="notes" :placeholder="t('Optional reason')" />
+                            <Textarea id="notes" name="notes" rows="3" :placeholder="t('Optional reason')" />
                             <InputError :message="errors.notes" />
                         </div>
 
@@ -402,11 +487,11 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                                     </td>
                                     <td class="py-3 pr-4">
                                         <Badge
-                                            :variant="
-                                                record.type === 'bonus'
-                                                    ? 'default'
-                                                    : 'secondary'
-                                            "
+                                        :variant="
+                                            record.type === 'bonus' || record.type === 'salary'
+                                                ? 'default'
+                                                : 'secondary'
+                                        "
                                         >
                                             {{ typeLabel(record.type) }}
                                         </Badge>
@@ -414,7 +499,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                                     <td
                                         class="py-3 pr-4 text-right font-medium"
                                         :class="
-                                            record.type === 'bonus'
+                                            record.type === 'bonus' || record.type === 'salary'
                                                 ? 'text-green-700 dark:text-green-400'
                                                 : 'text-destructive'
                                         "

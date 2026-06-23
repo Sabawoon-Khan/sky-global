@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Requests\StoreOrganizationRequest;
 use App\Http\Requests\UpdateOrganizationRequest;
+use App\Models\Finance\ProjectIncome;
 use App\Models\Organization;
 use App\Models\OrganizationType;
 use Illuminate\Http\RedirectResponse;
@@ -83,13 +84,38 @@ class OrganizationController extends Controller
             'organizationType',
             'contacts',
             'attachments',
-            'procurementOpportunities' => fn ($q) => $q->latest()->limit(10),
-            'projects' => fn ($q) => $q->latest()->limit(10),
+            'procurementOpportunities' => fn ($q) => $q->latest(),
+            'projects' => fn ($q) => $q->latest(),
         ]);
+
+        $projectIds = $organization->projects->pluck('id');
+        $totalIncome = ProjectIncome::query()
+            ->whereIn('project_id', $projectIds)
+            ->sum('amount_usd') ?: ProjectIncome::query()
+            ->whereIn('project_id', $projectIds)
+            ->sum('amount');
+
+        $submittedProjects = $organization->projects->filter(
+            fn ($p) => $p->bid_submitted_at !== null
+                || in_array($p->status, ['submitted', 'won', 'lost', 'active', 'completed', 'closed'], true),
+        );
+
+        $completedProjects = $organization->projects->filter(
+            fn ($p) => in_array($p->status, ['completed', 'closed', 'won'], true),
+        );
 
         return Inertia::render('mis/organizations/Show', [
             'organization' => $organization,
             'organizationTypes' => OrganizationType::query()->where('is_active', true)->orderBy('name')->get(),
+            'stats' => [
+                'projects_total' => $organization->projects->count(),
+                'projects_completed' => $completedProjects->count(),
+                'bids_submitted' => $submittedProjects->count(),
+                'opportunities_total' => $organization->procurementOpportunities->count(),
+                'total_contract_value' => (float) $organization->projects->sum('total_contract_value'),
+                'total_income' => (float) $totalIncome,
+                'contacts_count' => $organization->contacts->count(),
+            ],
         ]);
     }
 

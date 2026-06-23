@@ -12,6 +12,8 @@ use App\Http\Requests\Project\StoreProjectRequest;
 use App\Http\Requests\Project\UpdateProjectRequest;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
+use App\Models\Hr\Contractor;
+use App\Models\Hr\Employee;
 use App\Models\Organization;
 use App\Models\OrganizationType;
 use App\Models\Procurement\CompetitorBid;
@@ -119,6 +121,7 @@ class ProjectController extends Controller
             'issues' => fn ($q) => $q->where('is_archived', false)->latest(),
             'documents' => fn ($q) => $q->latest(),
             'sites',
+            'deployments' => fn ($q) => $q->with('projectSite')->latest(),
             'incomes' => fn ($q) => $q->latest('transaction_date')->limit(20),
             'expenses' => fn ($q) => $q->latest('transaction_date')->limit(20),
         ]);
@@ -139,6 +142,16 @@ class ProjectController extends Controller
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'employees' => Employee::query()
+                ->where('status', 'active')
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get(['id', 'first_name', 'last_name']),
+            'contractors' => Contractor::query()
+                ->where('status', 'active')
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get(['id', 'first_name', 'last_name']),
         ]);
     }
 

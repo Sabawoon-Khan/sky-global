@@ -13,6 +13,8 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { useMisPage } from '@/composables/useMisPage';
+import BarChart from '@/components/charts/BarChart.vue';
+import DonutChart from '@/components/charts/DonutChart.vue';
 
 interface ProjectProfitability {
     id: number;
@@ -30,9 +32,16 @@ interface FinanceStats {
     overhead_usd?: number;
 }
 
+interface ChartData {
+    monthly_finance: Array<{ label: string; income: number; expense: number }>;
+    project_statuses: Array<{ status: string; count: number }>;
+    workforce: { employees: number; contractors: number };
+}
+
 interface Props {
     stats?: FinanceStats;
     projectProfitability: ProjectProfitability[];
+    charts?: ChartData;
 }
 
 const props = defineProps<Props>();
@@ -128,6 +137,38 @@ const formatCurrency = (value?: number | null): string => {
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
                     {{ formatCurrency(netMargin) }}
+                </CardContent>
+            </Card>
+        </div>
+
+        <div v-if="charts" class="grid gap-4 lg:grid-cols-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Monthly Trends') }}</CardTitle>
+                    <CardDescription>{{ t('Income vs expenses over 6 months') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="charts.monthly_finance.map((m) => m.label)"
+                        :datasets="[
+                            { label: t('Income'), data: charts.monthly_finance.map((m) => m.income), backgroundColor: 'rgba(34, 197, 94, 0.7)' },
+                            { label: t('Expenses'), data: charts.monthly_finance.map((m) => m.expense), backgroundColor: 'rgba(239, 68, 68, 0.7)' },
+                        ]"
+                    />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Top Projects by Margin') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="projectProfitability.slice(0, 8).map((p) => p.code)"
+                        :datasets="[
+                            { label: t('Margin'), data: projectProfitability.slice(0, 8).map((p) => p.margin), backgroundColor: 'rgba(59, 130, 246, 0.7)' },
+                        ]"
+                        :height="280"
+                    />
                 </CardContent>
             </Card>
         </div>

@@ -40,6 +40,9 @@ class ArchivedDocumentController extends Controller
 
         return Inertia::render('mis/archive/Index', [
             'documents' => $documents,
+            'categories' => DocumentCategory::query()->orderBy('name')->get(['id', 'name']),
+            'organizations' => Organization::query()->orderBy('name')->get(['id', 'name']),
+            'projects' => Project::query()->orderBy('name')->get(['id', 'code', 'name']),
             'filters' => [
                 'search' => $search ?: null,
                 'direction' => $direction ?: null,

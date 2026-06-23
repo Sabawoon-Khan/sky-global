@@ -14,6 +14,8 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { useMisPage } from '@/composables/useMisPage';
+import BarChart from '@/components/charts/BarChart.vue';
+import DonutChart from '@/components/charts/DonutChart.vue';
 
 interface BidAnalytic {
     id: number;
@@ -48,6 +50,10 @@ interface Props {
     organizationTypes?: OrganizationTypeStat[];
     competitorIntel?: number;
     bids: BidAnalytic[];
+    charts?: {
+        bidding_outcomes: Array<{ label: string; value: number }>;
+        project_statuses: Array<{ status: string; count: number }>;
+    };
 }
 
 defineProps<Props>();
@@ -154,6 +160,42 @@ const statusLabel = (status: string) => {
                 </CardHeader>
                 <CardContent class="text-2xl font-bold">
                     {{ stats.pending_bids ?? 0 }}
+                </CardContent>
+            </Card>
+        </div>
+
+        <div v-if="charts" class="grid gap-4 lg:grid-cols-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Bidding Outcomes') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <DonutChart
+                        :labels="charts.bidding_outcomes.map((b) => b.label)"
+                        :data="charts.bidding_outcomes.map((b) => b.value)"
+                    />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Project Status Breakdown') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="charts.project_statuses.map((s) => s.status)"
+                        :datasets="[{ label: t('Projects'), data: charts.project_statuses.map((s) => s.count) }]"
+                    />
+                </CardContent>
+            </Card>
+            <Card v-if="organizationTypes?.length" class="lg:col-span-2">
+                <CardHeader>
+                    <CardTitle>{{ t('Contract Value by Org Type') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <BarChart
+                        :labels="organizationTypes.map((t) => t.name)"
+                        :datasets="[{ label: t('Contract Value'), data: organizationTypes.map((t) => t.total_contract_value) }]"
+                    />
                 </CardContent>
             </Card>
         </div>

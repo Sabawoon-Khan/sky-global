@@ -5,86 +5,65 @@ namespace App\Http\Controllers\Finance;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
-use App\Models\Finance\GeneralExpense;
+use App\Models\Finance\GeneralIncome;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
 
-class GeneralExpenseController extends Controller
+class GeneralIncomeController extends Controller
 {
     use AuthorizesMisPermissions, StoresOptionalAttachments;
-
-    public function index(Request $request): Response
-    {
-        $this->authorizePermission($request, 'finance.view');
-
-        $expenses = GeneralExpense::query()
-            ->with('account')
-            ->latest('transaction_date')
-            ->paginate(20);
-
-        return Inertia::render('mis/finance/GeneralExpenses/Index', [
-            'expenses' => $expenses,
-        ]);
-    }
 
     public function store(Request $request): RedirectResponse
     {
         $this->authorizePermission($request, 'finance.create');
 
         $validated = $request->validate([
-            'account_id' => ['nullable', 'exists:chart_of_accounts,id'],
             'amount' => ['required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
-            'exchange_rate' => ['nullable', 'numeric', 'min:0'],
-            'amount_usd' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
             'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],
-            'status' => ['nullable', 'string', 'in:pending,approved,rejected'],
+            'status' => ['nullable', 'string', 'in:pending,approved,rejected,recorded'],
         ]);
 
-        $expense = GeneralExpense::query()->create([
+        $income = GeneralIncome::query()->create([
             ...$validated,
+            'amount_usd' => $validated['amount'],
             'created_by' => $request->user()->id,
         ]);
-        $this->storeOptionalAttachment($request, $expense);
+        $this->storeOptionalAttachment($request, $income);
 
-        return back()->with('success', 'General expense recorded.');
+        return back()->with('success', 'General income recorded.');
     }
 
-    public function update(Request $request, GeneralExpense $expense): RedirectResponse
+    public function update(Request $request, GeneralIncome $generalIncome): RedirectResponse
     {
         $this->authorizePermission($request, 'finance.edit');
 
         $validated = $request->validate([
-            'account_id' => ['nullable', 'exists:chart_of_accounts,id'],
             'amount' => ['sometimes', 'required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
-            'exchange_rate' => ['nullable', 'numeric', 'min:0'],
-            'amount_usd' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
             'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['sometimes', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],
-            'status' => ['nullable', 'string', 'in:pending,approved,rejected'],
+            'status' => ['nullable', 'string', 'in:pending,approved,rejected,recorded'],
         ]);
 
-        $expense->update($validated);
+        $generalIncome->update($validated);
 
-        return back()->with('success', 'General expense updated.');
+        return back()->with('success', 'General income updated.');
     }
 
-    public function destroy(Request $request, GeneralExpense $expense): RedirectResponse
+    public function destroy(Request $request, GeneralIncome $generalIncome): RedirectResponse
     {
         $this->authorizePermission($request, 'finance.delete');
 
-        $expense->delete();
+        $generalIncome->delete();
 
-        return back()->with('success', 'General expense deleted.');
+        return back()->with('success', 'General income deleted.');
     }
 }

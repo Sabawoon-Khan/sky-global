@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import Can from '@/components/Can.vue';
 import Heading from '@/components/Heading.vue';
+import InputError from '@/components/InputError.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +14,9 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useMisPage } from '@/composables/useMisPage';
 import { cn } from '@/lib/utils';
 import type { RowActionItem } from '@/lib/row-actions';
@@ -52,9 +57,24 @@ interface Invoice {
     organization?: { id: number; name: string } | null;
 }
 
+interface GeneralRecord {
+    id: number;
+    description: string | null;
+    category?: string | null;
+    amount: number;
+    amount_usd?: number | null;
+    currency?: string | null;
+    transaction_date?: string | null;
+    status?: string | null;
+}
+
 interface FinanceSummary {
     total_income?: number;
+    project_income?: number;
+    general_income?: number;
     total_expenses?: number;
+    project_expenses?: number;
+    general_expenses?: number;
     total_invoices?: number;
     outstanding?: number;
 }
@@ -63,6 +83,8 @@ interface Props {
     summary?: FinanceSummary;
     incomes?: Income[];
     expenses?: Expense[];
+    generalIncomes?: GeneralRecord[];
+    generalExpenses?: GeneralRecord[];
     invoices?: Invoice[];
 }
 
@@ -77,12 +99,14 @@ defineOptions({
 });
 
 const tabs = computed(() => [
-    { id: 'income' as const, label: t('Income') },
-    { id: 'expenses' as const, label: t('Expenses') },
+    { id: 'income' as const, label: t('Project Income') },
+    { id: 'expenses' as const, label: t('Project Expenses') },
+    { id: 'general-income' as const, label: t('Other Income') },
+    { id: 'general-expenses' as const, label: t('Overhead & Salaries') },
     { id: 'invoices' as const, label: t('Invoices') },
 ]);
 
-type TabId = 'income' | 'expenses' | 'invoices';
+type TabId = 'income' | 'expenses' | 'general-income' | 'general-expenses' | 'invoices';
 
 const activeTab = ref<TabId>('income');
 
@@ -189,16 +213,20 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
     <div class="flex flex-1 flex-col gap-6 p-4">
         <Heading
             :title="t('Finance')"
-            :description="t('Track project income, expenses, and invoices')"
+            :description="t('Project finance, overhead, salaries, and other income')"
         />
 
-        <div v-if="summary" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div v-if="summary" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="text-sm">{{ t('Total Income') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="text-lg font-semibold text-green-600 dark:text-green-400">
                     {{ formatCurrency(summary.total_income) }}
+                    <p class="mt-1 text-xs font-normal text-muted-foreground">
+                        {{ t('Project') }} {{ formatCurrency(summary.project_income) }} ·
+                        {{ t('Other') }} {{ formatCurrency(summary.general_income) }}
+                    </p>
                 </CardContent>
             </Card>
             <Card>
@@ -207,6 +235,10 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                 </CardHeader>
                 <CardContent class="text-lg font-semibold text-destructive">
                     {{ formatCurrency(summary.total_expenses) }}
+                    <p class="mt-1 text-xs font-normal text-muted-foreground">
+                        {{ t('Project') }} {{ formatCurrency(summary.project_expenses) }} ·
+                        {{ t('Overhead') }} {{ formatCurrency(summary.general_expenses) }}
+                    </p>
                 </CardContent>
             </Card>
             <Card>
@@ -393,6 +425,159 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                 </div>
             </CardContent>
         </Card>
+
+        <div v-else-if="activeTab === 'general-income'" class="grid gap-4 xl:grid-cols-3">
+            <Can permission="finance.create">
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Add Other Income') }}</CardTitle>
+                    <CardDescription>{{ t('Non-project income such as investments or grants') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Form
+                        action="/finance/general-incomes"
+                        method="post"
+                        class="grid gap-3"
+                        :options="{ preserveScroll: true, resetOnSuccess: true }"
+                        v-slot="{ errors, processing }"
+                    >
+                        <div class="grid gap-2">
+                            <Label for="gi-description">{{ t('Description') }}</Label>
+                            <Textarea id="gi-description" name="description" rows="3" required />
+                            <InputError :message="errors.description" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="gi-category">{{ t('Category') }}</Label>
+                            <Input id="gi-category" name="category" :placeholder="t('e.g. Grant, Investment')" />
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="grid gap-2">
+                                <Label for="gi-amount">{{ t('Amount') }} *</Label>
+                                <Input id="gi-amount" name="amount" type="number" min="0" step="0.01" required />
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="gi-date">{{ t('Date') }} *</Label>
+                                <Input id="gi-date" name="transaction_date" type="date" required />
+                            </div>
+                        </div>
+                        <Button type="submit" :disabled="processing">{{ t('Save') }}</Button>
+                    </Form>
+                </CardContent>
+            </Card>
+            </Can>
+            <Card class="xl:col-span-2">
+                <CardHeader>
+                    <CardTitle>{{ t('Other Income') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="!generalIncomes?.length" class="text-sm text-muted-foreground">
+                        {{ t('No other income records.') }}
+                    </div>
+                    <div v-else class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b text-start text-muted-foreground">
+                                    <th class="pb-2 pe-4 font-medium">{{ t('Description') }}</th>
+                                    <th class="pb-2 pe-4 font-medium">{{ t('Category') }}</th>
+                                    <th class="pb-2 pe-4 font-medium">{{ t('Date') }}</th>
+                                    <th class="pb-2 text-end font-medium">{{ t('Amount') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="item in generalIncomes" :key="item.id" class="border-b last:border-0">
+                                    <td class="py-2 pe-4">{{ item.description }}</td>
+                                    <td class="py-2 pe-4 text-muted-foreground">{{ item.category ?? '—' }}</td>
+                                    <td class="py-2 pe-4 text-muted-foreground">{{ formatDate(item.transaction_date) }}</td>
+                                    <td class="py-2 text-end font-medium text-green-600 dark:text-green-400">
+                                        {{ formatCurrency(item.amount_usd ?? item.amount, item.currency ?? 'USD') }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+
+        <div v-else-if="activeTab === 'general-expenses'" class="grid gap-4 xl:grid-cols-3">
+            <Can permission="finance.create">
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Add Overhead / Salary') }}</CardTitle>
+                    <CardDescription>{{ t('Office rent, salaries, utilities — not tied to a project') }}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Form
+                        action="/finance/general-expenses"
+                        method="post"
+                        class="grid gap-3"
+                        :options="{ preserveScroll: true, resetOnSuccess: true, forceFormData: true }"
+                        v-slot="{ errors, processing }"
+                    >
+                        <div class="grid gap-2">
+                            <Label for="ge-description">{{ t('Description') }}</Label>
+                            <Textarea id="ge-description" name="description" rows="3" required />
+                            <InputError :message="errors.description" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="ge-category">{{ t('Category') }}</Label>
+                            <select id="ge-category" name="category" class="h-9 rounded-md border border-input px-3 text-sm">
+                                <option value="">{{ t('Select category') }}</option>
+                                <option value="rent">{{ t('Office Rent') }}</option>
+                                <option value="salary">{{ t('Salary') }}</option>
+                                <option value="utilities">{{ t('Utilities') }}</option>
+                                <option value="equipment">{{ t('Equipment') }}</option>
+                                <option value="other">{{ t('Other') }}</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="grid gap-2">
+                                <Label for="ge-amount">{{ t('Amount') }} *</Label>
+                                <Input id="ge-amount" name="amount" type="number" min="0" step="0.01" required />
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="ge-date">{{ t('Date') }} *</Label>
+                                <Input id="ge-date" name="transaction_date" type="date" required />
+                            </div>
+                        </div>
+                        <Button type="submit" :disabled="processing">{{ t('Save') }}</Button>
+                    </Form>
+                </CardContent>
+            </Card>
+            </Can>
+            <Card class="xl:col-span-2">
+                <CardHeader>
+                    <CardTitle>{{ t('Overhead & Salaries') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="!generalExpenses?.length" class="text-sm text-muted-foreground">
+                        {{ t('No overhead records.') }}
+                    </div>
+                    <div v-else class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b text-start text-muted-foreground">
+                                    <th class="pb-2 pe-4 font-medium">{{ t('Description') }}</th>
+                                    <th class="pb-2 pe-4 font-medium">{{ t('Category') }}</th>
+                                    <th class="pb-2 pe-4 font-medium">{{ t('Date') }}</th>
+                                    <th class="pb-2 text-end font-medium">{{ t('Amount') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="item in generalExpenses" :key="item.id" class="border-b last:border-0">
+                                    <td class="py-2 pe-4">{{ item.description }}</td>
+                                    <td class="py-2 pe-4 text-muted-foreground">{{ item.category ?? '—' }}</td>
+                                    <td class="py-2 pe-4 text-muted-foreground">{{ formatDate(item.transaction_date) }}</td>
+                                    <td class="py-2 text-end font-medium text-destructive">
+                                        {{ formatCurrency(item.amount_usd ?? item.amount, item.currency ?? 'USD') }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
 
         <Card v-else>
             <CardHeader>

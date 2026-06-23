@@ -6,11 +6,10 @@ use App\Concerns\HasAttachments;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class GeneralExpense extends Model
+class GeneralIncome extends Model
 {
     use HasAttachments, SoftDeletes;
 
@@ -53,11 +52,6 @@ class GeneralExpense extends Model
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
-    }
-
-    public function allocations(): HasMany
-    {
-        return $this->hasMany(ExpenseAllocation::class);
     }
 
     public function payments(): MorphMany

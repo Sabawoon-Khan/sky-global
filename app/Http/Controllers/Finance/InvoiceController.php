@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\Finance\GeneralExpense;
+use App\Models\Finance\GeneralIncome;
 use App\Models\Finance\Invoice;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
@@ -28,19 +29,26 @@ class InvoiceController extends Controller
             ->paginate(20);
 
         $totalIncome = ProjectIncome::query()->sum('amount_usd') ?: ProjectIncome::query()->sum('amount');
+        $totalGeneralIncome = GeneralIncome::query()->sum('amount_usd') ?: GeneralIncome::query()->sum('amount');
         $totalExpenses = ProjectExpense::query()->sum('amount_usd') ?: ProjectExpense::query()->sum('amount');
         $totalGeneral = GeneralExpense::query()->sum('amount_usd') ?: GeneralExpense::query()->sum('amount');
         $totalInvoices = Invoice::query()->sum('total');
 
         return Inertia::render('mis/finance/Index', [
             'summary' => [
-                'total_income' => (float) $totalIncome,
+                'total_income' => (float) $totalIncome + (float) $totalGeneralIncome,
+                'project_income' => (float) $totalIncome,
+                'general_income' => (float) $totalGeneralIncome,
                 'total_expenses' => (float) $totalExpenses + (float) $totalGeneral,
+                'project_expenses' => (float) $totalExpenses,
+                'general_expenses' => (float) $totalGeneral,
                 'total_invoices' => (float) $totalInvoices,
                 'outstanding' => (float) Invoice::query()->whereIn('status', ['draft', 'sent', 'overdue'])->sum('total'),
             ],
             'incomes' => ProjectIncome::query()->with('project')->latest('transaction_date')->limit(50)->get(),
             'expenses' => ProjectExpense::query()->with('project')->latest('transaction_date')->limit(50)->get(),
+            'generalIncomes' => GeneralIncome::query()->latest('transaction_date')->limit(50)->get(),
+            'generalExpenses' => GeneralExpense::query()->latest('transaction_date')->limit(50)->get(),
             'invoices' => $invoices,
         ]);
     }

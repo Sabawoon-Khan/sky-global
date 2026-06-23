@@ -1,10 +1,21 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Building2, FileText, FolderKanban, Mail, MapPin, Phone } from '@lucide/vue';
+import { computed, ref } from 'vue';
+import {
+    Building2,
+    DollarSign,
+    FileText,
+    FolderKanban,
+    Mail,
+    MapPin,
+    Phone,
+    Send,
+} from '@lucide/vue';
 import EntityAttachments, {
     type EntityAttachment,
 } from '@/components/EntityAttachments.vue';
 import Heading from '@/components/Heading.vue';
+import MisTabs from '@/components/MisTabs.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -59,13 +70,25 @@ interface Organization {
         status: string;
         total_contract_value: number | null;
         currency: string | null;
+        bid_submitted_at?: string | null;
     }>;
     attachments: EntityAttachment[];
 }
 
-defineProps<{
+interface OrgStats {
+    projects_total: number;
+    projects_completed: number;
+    bids_submitted: number;
+    opportunities_total: number;
+    total_contract_value: number;
+    total_income: number;
+    contacts_count: number;
+}
+
+const props = defineProps<{
     organization: Organization;
     organizationTypes: OrganizationType[];
+    stats: OrgStats;
 }>();
 
 const { t, can } = useMisPage();
@@ -79,12 +102,41 @@ defineOptions({
         ],
     },
 });
+
+type TabId = 'overview' | 'projects' | 'bids' | 'opportunities' | 'contacts' | 'attachments';
+
+const tabs = computed(() => [
+    { id: 'overview' as const, label: t('Overview') },
+    { id: 'projects' as const, label: `${t('Projects')} (${props.stats.projects_total})` },
+    { id: 'bids' as const, label: `${t('Bids Submitted')} (${props.stats.bids_submitted})` },
+    { id: 'opportunities' as const, label: `${t('Opportunities')} (${props.stats.opportunities_total})` },
+    { id: 'contacts' as const, label: `${t('Contacts')} (${props.stats.contacts_count})` },
+    { id: 'attachments' as const, label: t('Attachments') },
+]);
+
+const activeTab = ref<TabId>('overview');
+
+const submittedProjects = computed(() =>
+    props.organization.projects.filter(
+        (p) =>
+            p.bid_submitted_at ||
+            ['submitted', 'won', 'lost', 'active', 'completed', 'closed'].includes(
+                p.status,
+            ),
+    ),
+);
+
+const completedProjects = computed(() =>
+    props.organization.projects.filter((p) =>
+        ['completed', 'closed', 'won'].includes(p.status),
+    ),
+);
 </script>
 
 <template>
     <Head :title="organization.name" />
 
-    <div class="flex flex-1 flex-col gap-6 p-4">
+    <div class="flex w-full flex-1 flex-col gap-6 p-4 sm:p-6">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
                 <Heading
@@ -92,9 +144,7 @@ defineOptions({
                     :description="organization.organization_type.name"
                 />
                 <div class="mt-3 flex flex-wrap gap-2">
-                    <Badge
-                        :variant="organization.is_active ? 'default' : 'outline'"
-                    >
+                    <Badge :variant="organization.is_active ? 'default' : 'outline'">
                         {{ organization.is_active ? t('Active') : t('Inactive') }}
                     </Badge>
                     <Badge
@@ -110,9 +160,6 @@ defineOptions({
                     >
                         {{ organization.organization_type.name }}
                     </Badge>
-                    <Badge v-if="organization.tax_id" variant="outline">
-                        {{ t('Tax ID') }}: {{ organization.tax_id }}
-                    </Badge>
                 </div>
             </div>
             <div class="flex shrink-0 flex-wrap gap-2">
@@ -127,160 +174,106 @@ defineOptions({
             </div>
         </div>
 
-        <div class="grid gap-4 lg:grid-cols-3">
-            <Card class="lg:col-span-2">
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2">
-                        <Building2 class="size-5" />
-                        {{ t('Organization profile') }}
-                    </CardTitle>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <Card>
+                <CardHeader class="pb-2">
+                    <CardTitle class="text-sm">{{ t('Projects Done') }}</CardTitle>
                 </CardHeader>
-                <CardContent class="grid gap-4 sm:grid-cols-2">
-                    <div v-if="organization.phone" class="flex gap-3">
-                        <Phone class="mt-0.5 size-4 text-muted-foreground" />
-                        <div>
-                            <p class="text-xs text-muted-foreground">{{ t('Phone') }}</p>
-                            <p class="text-sm">{{ organization.phone }}</p>
-                        </div>
-                    </div>
-                    <div v-if="organization.email" class="flex gap-3">
-                        <Mail class="mt-0.5 size-4 text-muted-foreground" />
-                        <div>
-                            <p class="text-xs text-muted-foreground">{{ t('Email') }}</p>
-                            <p class="text-sm">{{ organization.email }}</p>
-                        </div>
-                    </div>
-                    <div
-                        v-if="organization.province || organization.address"
-                        class="flex gap-3 sm:col-span-2"
-                    >
-                        <MapPin class="mt-0.5 size-4 text-muted-foreground" />
-                        <div>
-                            <p class="text-xs text-muted-foreground">{{ t('Location') }}</p>
-                            <p class="text-sm">
-                                {{ organization.province }}
-                                <span v-if="organization.address">
-                                    — {{ organization.address }}</span
-                                >
-                            </p>
-                        </div>
-                    </div>
-                    <div v-if="organization.notes" class="sm:col-span-2">
-                        <p class="text-xs text-muted-foreground">{{ t('Notes') }}</p>
-                        <p class="mt-1 whitespace-pre-wrap text-sm">{{ organization.notes }}</p>
-                    </div>
+                <CardContent class="text-2xl font-bold">
+                    {{ stats.projects_completed }} / {{ stats.projects_total }}
                 </CardContent>
             </Card>
-
             <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Summary') }}</CardTitle>
+                <CardHeader class="pb-2">
+                    <CardTitle class="text-sm">{{ t('Bids Submitted') }}</CardTitle>
                 </CardHeader>
-                <CardContent class="space-y-3 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">{{ t('Opportunities') }}</span>
-                        <span class="font-medium">{{
-                            organization.procurement_opportunities.length
-                        }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">{{ t('Projects') }}</span>
-                        <span class="font-medium">{{ organization.projects.length }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">{{ t('Contacts') }}</span>
-                        <span class="font-medium">{{ organization.contacts.length }}</span>
-                    </div>
+                <CardContent class="text-2xl font-bold">
+                    {{ stats.bids_submitted }}
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader class="pb-2">
+                    <CardTitle class="text-sm">{{ t('Contract Value') }}</CardTitle>
+                </CardHeader>
+                <CardContent class="text-2xl font-bold">
+                    {{ formatCurrency(stats.total_contract_value) }}
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader class="pb-2">
+                    <CardTitle class="text-sm">{{ t('Total Income') }}</CardTitle>
+                </CardHeader>
+                <CardContent class="text-2xl font-bold text-green-600 dark:text-green-400">
+                    {{ formatCurrency(stats.total_income) }}
                 </CardContent>
             </Card>
         </div>
 
-        <Card v-if="organization.contacts.length">
+        <MisTabs v-model="activeTab" :tabs="tabs" />
+
+        <!-- Overview -->
+        <Card v-if="activeTab === 'overview'">
             <CardHeader>
-                <CardTitle>{{ t('Contacts') }}</CardTitle>
+                <CardTitle class="flex items-center gap-2">
+                    <Building2 class="size-5" />
+                    {{ t('Organization profile') }}
+                </CardTitle>
             </CardHeader>
-            <CardContent>
-                <div class="grid gap-3 md:grid-cols-2">
-                    <div
-                        v-for="contact in organization.contacts"
-                        :key="contact.id"
-                        class="rounded-lg border p-4"
-                    >
-                        <div class="flex items-center justify-between">
-                            <p class="font-medium">{{ contact.name }}</p>
-                            <Badge v-if="contact.is_primary" variant="secondary">{{
-                                t('Primary')
-                            }}</Badge>
-                        </div>
-                        <p v-if="contact.title" class="text-sm text-muted-foreground">
-                            {{ contact.title }}
-                        </p>
-                        <p v-if="contact.phone" class="mt-2 text-sm">{{ contact.phone }}</p>
-                        <p v-if="contact.email" class="text-sm">{{ contact.email }}</p>
+            <CardContent class="grid gap-4 sm:grid-cols-2">
+                <div v-if="organization.phone" class="flex gap-3">
+                    <Phone class="mt-0.5 size-4 text-muted-foreground" />
+                    <div>
+                        <p class="text-xs text-muted-foreground">{{ t('Phone') }}</p>
+                        <p class="text-sm">{{ organization.phone }}</p>
                     </div>
+                </div>
+                <div v-if="organization.email" class="flex gap-3">
+                    <Mail class="mt-0.5 size-4 text-muted-foreground" />
+                    <div>
+                        <p class="text-xs text-muted-foreground">{{ t('Email') }}</p>
+                        <p class="text-sm">{{ organization.email }}</p>
+                    </div>
+                </div>
+                <div
+                    v-if="organization.province || organization.address"
+                    class="flex gap-3 sm:col-span-2"
+                >
+                    <MapPin class="mt-0.5 size-4 text-muted-foreground" />
+                    <div>
+                        <p class="text-xs text-muted-foreground">{{ t('Location') }}</p>
+                        <p class="text-sm">
+                            {{ organization.province }}
+                            <span v-if="organization.address">
+                                — {{ organization.address }}</span
+                            >
+                        </p>
+                    </div>
+                </div>
+                <div v-if="organization.notes" class="sm:col-span-2">
+                    <p class="text-xs text-muted-foreground">{{ t('Notes') }}</p>
+                    <p class="mt-1 whitespace-pre-wrap text-sm">{{ organization.notes }}</p>
                 </div>
             </CardContent>
         </Card>
 
-        <Card>
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2">
-                    <FileText class="size-5" />
-                    {{ t('Procurement opportunities') }}
-                </CardTitle>
-                <CardDescription>{{
-                    t('RFPs and tenders from this organization')
-                }}</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ul v-if="organization.procurement_opportunities.length" class="space-y-3">
-                    <li
-                        v-for="item in organization.procurement_opportunities"
-                        :key="item.id"
-                        class="flex flex-col gap-2 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                        <div>
-                            <Link
-                                :href="`/bidding/opportunities/${item.id}`"
-                                class="font-medium hover:underline"
-                            >
-                                {{ item.title }}
-                            </Link>
-                            <p class="text-xs text-muted-foreground">
-                                {{ t('Deadline:') }}
-                                {{ item.submission_deadline ?? t('Not set') }}
-                            </p>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-sm font-medium">
-                                {{ formatCurrency(item.estimated_value, item.currency) }}
-                            </span>
-                            <Badge variant="outline">{{ item.status }}</Badge>
-                        </div>
-                    </li>
-                </ul>
-                <p v-else class="text-sm text-muted-foreground">
-                    {{ t('No opportunities recorded yet.') }}
-                </p>
-            </CardContent>
-        </Card>
-
-        <Card>
+        <!-- Projects -->
+        <Card v-else-if="activeTab === 'projects'">
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <FolderKanban class="size-5" />
                     {{ t('Projects') }}
                 </CardTitle>
-                <CardDescription>{{
-                    t('Won contracts and active service delivery')
-                }}</CardDescription>
+                <CardDescription>
+                    {{ completedProjects.length }} {{ t('completed') }} ·
+                    {{ organization.projects.length }} {{ t('total') }}
+                </CardDescription>
             </CardHeader>
             <CardContent>
-                <ul v-if="organization.projects.length" class="space-y-3">
+                <ul v-if="organization.projects.length" class="divide-y">
                     <li
                         v-for="project in organization.projects"
                         :key="project.id"
-                        class="flex flex-col gap-2 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+                        class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                         <div>
                             <Link
@@ -309,6 +302,110 @@ defineOptions({
             </CardContent>
         </Card>
 
-        <EntityAttachments :attachments="organization.attachments" />
+        <!-- Bids -->
+        <Card v-else-if="activeTab === 'bids'">
+            <CardHeader>
+                <CardTitle class="flex items-center gap-2">
+                    <Send class="size-5" />
+                    {{ t('Bids Submitted') }}
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <ul v-if="submittedProjects.length" class="divide-y">
+                    <li
+                        v-for="project in submittedProjects"
+                        :key="project.id"
+                        class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                        <Link
+                            :href="`/projects/${project.id}?tab=bid`"
+                            class="font-medium hover:underline"
+                        >
+                            {{ project.code }} — {{ project.name }}
+                        </Link>
+                        <Badge variant="outline">{{ project.status }}</Badge>
+                    </li>
+                </ul>
+                <p v-else class="text-sm text-muted-foreground">
+                    {{ t('No bids submitted yet.') }}
+                </p>
+            </CardContent>
+        </Card>
+
+        <!-- Opportunities -->
+        <Card v-else-if="activeTab === 'opportunities'">
+            <CardHeader>
+                <CardTitle class="flex items-center gap-2">
+                    <FileText class="size-5" />
+                    {{ t('Procurement opportunities') }}
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <ul v-if="organization.procurement_opportunities.length" class="divide-y">
+                    <li
+                        v-for="item in organization.procurement_opportunities"
+                        :key="item.id"
+                        class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                        <div>
+                            <p class="font-medium">{{ item.title }}</p>
+                            <p class="text-xs text-muted-foreground">
+                                {{ t('Deadline:') }}
+                                {{ item.submission_deadline ?? t('Not set') }}
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-medium">
+                                {{ formatCurrency(item.estimated_value, item.currency) }}
+                            </span>
+                            <Badge variant="outline">{{ item.status }}</Badge>
+                        </div>
+                    </li>
+                </ul>
+                <p v-else class="text-sm text-muted-foreground">
+                    {{ t('No opportunities recorded yet.') }}
+                </p>
+            </CardContent>
+        </Card>
+
+        <!-- Contacts -->
+        <Card v-else-if="activeTab === 'contacts'">
+            <CardHeader>
+                <CardTitle>{{ t('Contacts') }}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div
+                    v-if="organization.contacts.length"
+                    class="grid gap-3 md:grid-cols-2 lg:grid-cols-3"
+                >
+                    <div
+                        v-for="contact in organization.contacts"
+                        :key="contact.id"
+                        class="rounded-lg border p-4"
+                    >
+                        <div class="flex items-center justify-between">
+                            <p class="font-medium">{{ contact.name }}</p>
+                            <Badge v-if="contact.is_primary" variant="secondary">{{
+                                t('Primary')
+                            }}</Badge>
+                        </div>
+                        <p v-if="contact.title" class="text-sm text-muted-foreground">
+                            {{ contact.title }}
+                        </p>
+                        <p v-if="contact.phone" class="mt-2 text-sm">{{ contact.phone }}</p>
+                        <p v-if="contact.email" class="text-sm">{{ contact.email }}</p>
+                    </div>
+                </div>
+                <p v-else class="text-sm text-muted-foreground">
+                    {{ t('No contacts on file.') }}
+                </p>
+            </CardContent>
+        </Card>
+
+        <!-- Attachments -->
+        <EntityAttachments
+            v-else
+            :attachments="organization.attachments"
+        />
     </div>
 </template>

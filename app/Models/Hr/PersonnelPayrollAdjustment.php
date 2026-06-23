@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class PersonnelPayrollAdjustment extends Model
 {
+    public const TYPE_SALARY = 'salary';
+
     public const TYPE_BONUS = 'bonus';
 
     public const TYPE_DEDUCTION = 'deduction';
@@ -37,7 +39,7 @@ class PersonnelPayrollAdjustment extends Model
     }
 
     /**
-     * @return array{bonus: float, deductions: float, advance: float}
+     * @return array{salary: float, bonus: float, deductions: float, advance: float}
      */
     public static function pendingTotalsForLine(
         string $personnelType,
@@ -53,6 +55,7 @@ class PersonnelPayrollAdjustment extends Model
             ->get();
 
         return [
+            'salary' => round((float) $rows->where('type', self::TYPE_SALARY)->sum('amount'), 2),
             'bonus' => round((float) $rows->where('type', self::TYPE_BONUS)->sum('amount'), 2),
             'deductions' => round((float) $rows->where('type', self::TYPE_DEDUCTION)->sum('amount'), 2),
             'advance' => round((float) $rows->where('type', self::TYPE_ADVANCE)->sum('amount'), 2),

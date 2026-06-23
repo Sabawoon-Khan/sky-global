@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Finance\GeneralExpense;
+use App\Models\Finance\GeneralIncome;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
 use App\Models\Forms\PersonnelAttachment;
@@ -39,6 +40,7 @@ class AnalyticsService
             ],
             'finance' => [
                 'total_income_usd' => ProjectIncome::query()->sum('amount_usd') ?: ProjectIncome::query()->sum('amount'),
+                'general_income_usd' => GeneralIncome::query()->sum('amount_usd') ?: GeneralIncome::query()->sum('amount'),
                 'total_expense_usd' => ProjectExpense::query()->sum('amount_usd') ?: ProjectExpense::query()->sum('amount'),
                 'overhead_usd' => GeneralExpense::query()->sum('amount_usd') ?: GeneralExpense::query()->sum('amount'),
             ],
@@ -115,6 +117,57 @@ class AnalyticsService
                 'type' => $attachment->attachmentType?->name,
                 'expires_at' => $attachment->expires_at?->toDateString(),
             ]);
+    }
+
+    /** @return array<string, mixed> */
+    public function chartData(): array
+    {
+        $months = collect(range(5, 0))->map(fn (int $i) => now()->subMonths($i));
+
+        $monthlyFinance = $months->map(function ($date) {
+            $start = $date->copy()->startOfMonth();
+            $end = $date->copy()->endOfMonth();
+
+            $income = (float) (ProjectIncome::query()
+                ->whereBetween('transaction_date', [$start, $end])
+                ->sum('amount_usd') ?: ProjectIncome::query()
+                ->whereBetween('transaction_date', [$start, $end])
+                ->sum('amount'));
+
+            $expense = (float) (ProjectExpense::query()
+                ->whereBetween('transaction_date', [$start, $end])
+                ->sum('amount_usd') ?: ProjectExpense::query()
+                ->whereBetween('transaction_date', [$start, $end])
+                ->sum('amount'));
+
+            return [
+                'label' => $start->format('M Y'),
+                'income' => $income,
+                'expense' => $expense,
+            ];
+        });
+
+        $projectStatuses = Project::query()
+            ->selectRaw('status, count(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        return [
+            'monthly_finance' => $monthlyFinance->values()->all(),
+            'project_statuses' => $projectStatuses->map(fn ($count, $status) => [
+                'status' => (string) $status,
+                'count' => (int) $count,
+            ])->values()->all(),
+            'workforce' => [
+                'employees' => Employee::query()->where('status', 'active')->count(),
+                'contractors' => Contractor::query()->where('status', 'active')->count(),
+            ],
+            'bidding_outcomes' => [
+                ['label' => 'Won', 'value' => Bid::query()->where('status', 'won')->count()],
+                ['label' => 'Lost', 'value' => Bid::query()->where('status', 'lost')->count()],
+                ['label' => 'Pending', 'value' => Bid::query()->whereIn('status', ['draft', 'submitted', 'under_review'])->count()],
+            ],
+        ];
     }
 
     /** @return Collection<int, array<string, mixed>> */

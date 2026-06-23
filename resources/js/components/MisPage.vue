@@ -8,8 +8,8 @@ defineProps<{
 
 <template>
     <div
-        class="flex flex-1 flex-col gap-4 px-2 py-3 sm:px-4 sm:py-4"
-        :class="narrow ? 'mx-auto w-full max-w-3xl' : 'mx-auto w-full max-w-6xl'"
+        class="flex w-full flex-1 flex-col gap-4 px-3 py-3 sm:px-6 sm:py-4"
+        :class="narrow ? 'max-w-5xl' : ''"
     >
         <slot />
     </div>

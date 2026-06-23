@@ -63,6 +63,7 @@ class PersonnelPayrollAdjustmentController extends Controller
             'period_year' => ['required', 'integer', 'min:2000', 'max:2100'],
             'period_month' => ['required', 'integer', 'min:1', 'max:12'],
             'type' => ['required', Rule::in([
+                PersonnelPayrollAdjustment::TYPE_SALARY,
                 PersonnelPayrollAdjustment::TYPE_BONUS,
                 PersonnelPayrollAdjustment::TYPE_DEDUCTION,
                 PersonnelPayrollAdjustment::TYPE_ADVANCE,
@@ -79,6 +80,55 @@ class PersonnelPayrollAdjustmentController extends Controller
         Inertia::flash('toast', [
             'type' => 'success',
             'message' => 'Payroll adjustment recorded.',
+        ]);
+
+        return redirect()->route('hr.payroll-adjustments.index', [
+            'year' => $validated['period_year'],
+            'month' => $validated['period_month'],
+        ]);
+    }
+
+    public function storeBulk(Request $request): RedirectResponse
+    {
+        $this->authorizePermission($request, 'hr.create');
+
+        $validated = $request->validate([
+            'personnel_type' => ['required', 'string'],
+            'project_id' => ['nullable', 'exists:projects,id'],
+            'period_year' => ['required', 'integer', 'min:2000', 'max:2100'],
+            'period_month' => ['required', 'integer', 'min:1', 'max:12'],
+            'type' => ['required', Rule::in([
+                PersonnelPayrollAdjustment::TYPE_SALARY,
+                PersonnelPayrollAdjustment::TYPE_BONUS,
+                PersonnelPayrollAdjustment::TYPE_DEDUCTION,
+                PersonnelPayrollAdjustment::TYPE_ADVANCE,
+            ])],
+            'entries' => ['required', 'array', 'min:1'],
+            'entries.*.personnel_id' => ['required', 'integer'],
+            'entries.*.amount' => ['required', 'numeric', 'min:0.01'],
+            'entries.*.notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $created = 0;
+        $entries = array_values($validated['entries']);
+
+        foreach ($entries as $entry) {
+            PersonnelPayrollAdjustment::query()->create([
+                'personnel_type' => $validated['personnel_type'],
+                'personnel_id' => $entry['personnel_id'],
+                'project_id' => $validated['project_id'] ?? null,
+                'period_year' => $validated['period_year'],
+                'period_month' => $validated['period_month'],
+                'type' => $validated['type'],
+                'amount' => round((float) $entry['amount'], 2),
+                'notes' => $entry['notes'] ?? null,
+            ]);
+            $created++;
+        }
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => "{$created} payroll adjustments recorded.",
         ]);
 
         return redirect()->route('hr.payroll-adjustments.index', [
@@ -122,6 +172,7 @@ class PersonnelPayrollAdjustmentController extends Controller
     private function adjustmentTypeOptions(): array
     {
         return [
+            ['value' => PersonnelPayrollAdjustment::TYPE_SALARY, 'label' => 'Salary'],
             ['value' => PersonnelPayrollAdjustment::TYPE_BONUS, 'label' => 'Bonus'],
             ['value' => PersonnelPayrollAdjustment::TYPE_DEDUCTION, 'label' => 'Deduction'],
             ['value' => PersonnelPayrollAdjustment::TYPE_ADVANCE, 'label' => 'Advance'],

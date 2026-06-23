@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import { CalendarDays, Plus } from '@lucide/vue';
+import { CalendarDays, Plus, Users } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
 import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import type { Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { attendanceStatusActions } from '@/lib/status-actions';
@@ -80,6 +81,8 @@ defineOptions({
 });
 
 const personnelType = ref(EMPLOYEE_TYPE);
+const bulkMode = ref(false);
+const selectedPersonnel = ref<number[]>([]);
 
 const personnelOptions = computed(() =>
     personnelType.value === EMPLOYEE_TYPE ? props.employees : props.contractors,
@@ -102,6 +105,19 @@ const personnelTypeLabel = (type: string): string => {
     const parts = type.split('\\');
 
     return parts[parts.length - 1] ?? type;
+};
+
+const togglePerson = (id: number): void => {
+    const idx = selectedPersonnel.value.indexOf(id);
+    if (idx === -1) {
+        selectedPersonnel.value.push(id);
+    } else {
+        selectedPersonnel.value.splice(idx, 1);
+    }
+};
+
+const selectAllPersonnel = (): void => {
+    selectedPersonnel.value = personnelOptions.value.map((p) => p.id);
 };
 
 const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
@@ -127,18 +143,91 @@ const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
                         <Plus class="size-5" />
-                        {{ t('Record attendance') }}
+                        {{ bulkMode ? t('Bulk attendance') : t('Record attendance') }}
                     </CardTitle>
                     <CardDescription>
-                        {{
-                            t(
-                                'Create a monthly attendance entry for an employee or contractor',
-                            )
-                        }}
+                        <button
+                            type="button"
+                            class="text-primary underline-offset-4 hover:underline"
+                            @click="bulkMode = !bulkMode"
+                        >
+                            {{ bulkMode ? t('Switch to single entry') : t('Record many staff at once') }}
+                        </button>
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form
+                        v-if="bulkMode"
+                        action="/hr/attendance/bulk"
+                        method="post"
+                        class="grid gap-4"
+                        :options="{ preserveScroll: true, resetOnSuccess: true }"
+                        v-slot="{ errors, processing }"
+                    >
+                        <input type="hidden" name="personnel_type" :value="personnelType" />
+                        <template v-for="id in selectedPersonnel" :key="id">
+                            <input type="hidden" name="personnel_ids[]" :value="id" />
+                        </template>
+
+                        <div class="grid gap-2">
+                            <Label>{{ t('Personnel type') }}</Label>
+                            <select v-model="personnelType" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs">
+                                <option :value="EMPLOYEE_TYPE">{{ t('Employee') }}</option>
+                                <option :value="CONTRACTOR_TYPE">{{ t('Contractor') }}</option>
+                            </select>
+                        </div>
+
+                        <div class="grid gap-2">
+                            <div class="flex items-center justify-between">
+                                <Label>{{ t('Select staff') }} ({{ selectedPersonnel.length }})</Label>
+                                <Button type="button" variant="ghost" size="sm" @click="selectAllPersonnel">{{ t('Select all') }}</Button>
+                            </div>
+                            <div class="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2">
+                                <label
+                                    v-for="person in personnelOptions"
+                                    :key="person.id"
+                                    class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted/50"
+                                >
+                                    <input type="checkbox" :checked="selectedPersonnel.includes(person.id)" @change="togglePerson(person.id)" />
+                                    {{ personLabel(person) }}
+                                </label>
+                            </div>
+                            <InputError :message="errors.personnel_ids" />
+                        </div>
+
+                        <div class="grid gap-2">
+                            <Label for="bulk_project_id">{{ t('Project') }}</Label>
+                            <select id="bulk_project_id" name="project_id" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs">
+                                <option value="">{{ t('None') }}</option>
+                                <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.code }} — {{ project.name }}</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="grid gap-2">
+                                <Label for="bulk_year">{{ t('Year') }} *</Label>
+                                <Input id="bulk_year" name="year" type="number" required :default-value="filters?.year ?? new Date().getFullYear()" />
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="bulk_month">{{ t('Month') }} *</Label>
+                                <Input id="bulk_month" name="month" type="number" min="1" max="12" required :default-value="filters?.month ?? new Date().getMonth() + 1" />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="grid gap-2"><Label for="bulk_present">{{ t('Present') }}</Label><Input id="bulk_present" name="days_present" type="number" min="0" max="31" default-value="22" /></div>
+                            <div class="grid gap-2"><Label for="bulk_absent">{{ t('Absent') }}</Label><Input id="bulk_absent" name="days_absent" type="number" min="0" max="31" default-value="0" /></div>
+                            <div class="grid gap-2"><Label for="bulk_leave">{{ t('Leave') }}</Label><Input id="bulk_leave" name="days_leave" type="number" min="0" max="31" default-value="0" /></div>
+                        </div>
+
+                        <Button type="submit" :disabled="processing || selectedPersonnel.length === 0">
+                            <Users class="size-4" />
+                            {{ t('Record for :count staff', { count: String(selectedPersonnel.length) }) }}
+                        </Button>
+                    </Form>
+
+                    <Form
+                        v-else
                         action="/hr/attendance"
                         method="post"
                         class="grid gap-4"

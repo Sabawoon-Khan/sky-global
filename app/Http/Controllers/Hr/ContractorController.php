@@ -5,7 +5,11 @@ namespace App\Http\Controllers\Hr;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
+use App\Models\Forms\AttachmentType;
 use App\Models\Hr\Contractor;
+use App\Models\Hr\PersonnelAttendance;
+use App\Models\Hr\PersonnelPayrollAdjustment;
+use App\Models\Project\ProjectDeployment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -82,10 +86,36 @@ class ContractorController extends Controller
     {
         $this->authorizePermission($request, 'hr.view');
 
-        $contractor->load(['agreements', 'rates', 'attachments']);
+        $contractor->load([
+            'agreements',
+            'rates.project',
+            'attachments',
+            'personnelAttachments.attachmentType',
+        ]);
 
         return Inertia::render('mis/hr/Contractors/Show', [
             'contractor' => $contractor,
+            'attachmentTypes' => AttachmentType::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'requires_expiry']),
+            'attendances' => PersonnelAttendance::query()
+                ->where('personnel_type', Contractor::class)
+                ->where('personnel_id', $contractor->id)
+                ->with('project')
+                ->latest()
+                ->limit(24)
+                ->get(),
+            'payrollAdjustments' => PersonnelPayrollAdjustment::query()
+                ->where('personnel_type', Contractor::class)
+                ->where('personnel_id', $contractor->id)
+                ->with('project')
+                ->latest()
+                ->limit(24)
+                ->get(),
+            'deployments' => ProjectDeployment::query()
+                ->where('personnel_type', Contractor::class)
+                ->where('personnel_id', $contractor->id)
+                ->with('project')
+                ->latest()
+                ->get(),
         ]);
     }
 

@@ -23,6 +23,7 @@ class AnalyticsController extends Controller
             'organizationTypes' => $stats['organization_types'] ?? [],
             'competitorIntel' => $stats['competitor_intel'] ?? 0,
             'bids' => $analytics->bidAnalytics(),
+            'charts' => $analytics->chartData(),
         ]);
     }
 
@@ -35,6 +36,7 @@ class AnalyticsController extends Controller
         return Inertia::render('mis/analytics/Finance', [
             'stats' => $stats['finance'] ?? [],
             'projectProfitability' => $analytics->projectProfitability(),
+            'charts' => $analytics->chartData(),
         ]);
     }
 }

@@ -3,13 +3,14 @@
 namespace App\Models\Hr;
 
 use App\Concerns\HasAttachments;
+use App\Concerns\HasPersonnelAttachments;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Contractor extends Model
 {
-    use HasAttachments, SoftDeletes;
+    use HasAttachments, HasPersonnelAttachments, SoftDeletes;
 
     protected $fillable = [
         'first_name',

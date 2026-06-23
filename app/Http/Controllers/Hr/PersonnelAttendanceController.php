@@ -116,6 +116,68 @@ class PersonnelAttendanceController extends Controller
         return $this->attendanceCreatedResponse($attributes);
     }
 
+    public function storeBulk(Request $request): RedirectResponse
+    {
+        $this->authorizePermission($request, 'hr.create');
+
+        $validated = $request->validate([
+            'personnel_type' => ['required', 'string'],
+            'project_id' => ['nullable', 'exists:projects,id'],
+            'year' => ['required', 'integer', 'min:2000', 'max:2100'],
+            'month' => ['required', 'integer', 'min:1', 'max:12'],
+            'days_present' => ['nullable', 'integer', 'min:0', 'max:31'],
+            'days_absent' => ['nullable', 'integer', 'min:0', 'max:31'],
+            'days_leave' => ['nullable', 'integer', 'min:0', 'max:31'],
+            'overtime_hours' => ['nullable', 'numeric', 'min:0'],
+            'personnel_ids' => ['required', 'array', 'min:1'],
+            'personnel_ids.*' => ['integer'],
+        ]);
+
+        $created = 0;
+        $skipped = 0;
+
+        foreach ($validated['personnel_ids'] as $personnelId) {
+            $attributes = $this->normalizeAttendanceAttributes([
+                'personnel_type' => $validated['personnel_type'],
+                'personnel_id' => $personnelId,
+                'project_id' => $validated['project_id'] ?? null,
+                'year' => $validated['year'],
+                'month' => $validated['month'],
+                'days_present' => $validated['days_present'] ?? 0,
+                'days_absent' => $validated['days_absent'] ?? 0,
+                'days_leave' => $validated['days_leave'] ?? 0,
+                'overtime_hours' => $validated['overtime_hours'] ?? 0,
+            ]);
+
+            if ($this->findDuplicateAttendance($attributes) !== null) {
+                $skipped++;
+
+                continue;
+            }
+
+            try {
+                PersonnelAttendance::query()->create([
+                    ...$attributes,
+                    'status' => 'draft',
+                ]);
+                $created++;
+            } catch (QueryException) {
+                $skipped++;
+            }
+        }
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => "{$created} attendance records created.".($skipped > 0 ? " {$skipped} skipped (already exist)." : ''),
+        ]);
+
+        return redirect()->route('hr.attendance.index', [
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+            'project_id' => $validated['project_id'] ?? null,
+        ]);
+    }
+
     public function update(Request $request, PersonnelAttendance $attendance): RedirectResponse
     {
         $this->authorizePermission($request, 'hr.edit');

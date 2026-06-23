@@ -19,6 +19,7 @@ class DashboardController extends Controller
                 'stats' => $analytics->dashboard(),
                 'projectProfitability' => $analytics->projectProfitability(),
                 'expiringDocuments' => $analytics->expiringDocuments(),
+                'charts' => $analytics->chartData(),
             ]);
         }
 
@@ -26,6 +27,7 @@ class DashboardController extends Controller
             'stats' => null,
             'projectProfitability' => [],
             'expiringDocuments' => [],
+            'charts' => null,
         ]);
     }
 }

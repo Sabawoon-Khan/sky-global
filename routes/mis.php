@@ -9,6 +9,7 @@ use App\Http\Controllers\Equipment\PersonnelEquipmentIssueController;
 use App\Http\Controllers\Equipment\PersonnelTrainingController;
 use App\Http\Controllers\Equipment\TrainingSessionController;
 use App\Http\Controllers\Finance\GeneralExpenseController;
+use App\Http\Controllers\Finance\GeneralIncomeController;
 use App\Http\Controllers\Finance\InvoiceController;
 use App\Http\Controllers\Finance\ProjectExpenseController;
 use App\Http\Controllers\Finance\ProjectIncomeController;
@@ -102,6 +103,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('general-expenses/{generalExpense}', [GeneralExpenseController::class, 'update'])->name('general-expenses.update');
         Route::delete('general-expenses/{generalExpense}', [GeneralExpenseController::class, 'destroy'])->name('general-expenses.destroy');
 
+        Route::post('general-incomes', [GeneralIncomeController::class, 'store'])->name('general-incomes.store');
+        Route::put('general-incomes/{generalIncome}', [GeneralIncomeController::class, 'update'])->name('general-incomes.update');
+        Route::delete('general-incomes/{generalIncome}', [GeneralIncomeController::class, 'destroy'])->name('general-incomes.destroy');
+
         Route::post('invoices', [InvoiceController::class, 'store'])->name('invoices.store');
         Route::put('invoices/{invoice}', [InvoiceController::class, 'update'])->name('invoices.update');
         Route::delete('invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
@@ -124,11 +129,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('attendance', [PersonnelAttendanceController::class, 'index'])->name('attendance.index');
         Route::post('attendance', [PersonnelAttendanceController::class, 'store'])->name('attendance.store');
+        Route::post('attendance/bulk', [PersonnelAttendanceController::class, 'storeBulk'])->name('attendance.bulk');
         Route::put('attendance/{attendance}', [PersonnelAttendanceController::class, 'update'])->name('attendance.update');
         Route::post('attendance/{attendance}/approve', [PersonnelAttendanceController::class, 'approve'])->name('attendance.approve');
 
         Route::get('payroll-adjustments', [PersonnelPayrollAdjustmentController::class, 'index'])->name('payroll-adjustments.index');
         Route::post('payroll-adjustments', [PersonnelPayrollAdjustmentController::class, 'store'])->name('payroll-adjustments.store');
+        Route::post('payroll-adjustments/bulk', [PersonnelPayrollAdjustmentController::class, 'storeBulk'])->name('payroll-adjustments.bulk');
         Route::delete('payroll-adjustments/{payrollAdjustment}', [PersonnelPayrollAdjustmentController::class, 'destroy'])->name('payroll-adjustments.destroy');
 
         Route::get('payroll', [PayrollRunController::class, 'index'])->name('payroll.index');

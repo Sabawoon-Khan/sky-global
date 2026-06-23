@@ -134,7 +134,10 @@ class PayrollRunController extends Controller
                 ->get();
 
             foreach ($attendances as $attendance) {
-                $baseAmount = $this->calculateBaseAmount($attendance);
+                $baseAmount = max(
+                    $this->calculateBaseAmount($attendance),
+                    0.0,
+                );
                 $adjustments = PersonnelPayrollAdjustment::pendingTotalsForLine(
                     $attendance->personnel_type,
                     $attendance->personnel_id,
@@ -142,6 +145,10 @@ class PayrollRunController extends Controller
                     $payrollRun->period_year,
                     $payrollRun->period_month,
                 );
+
+                if ($adjustments['salary'] > 0) {
+                    $baseAmount = $adjustments['salary'];
+                }
 
                 $item = PayrollItem::query()->create([
                     'payroll_run_id' => $payrollRun->id,
@@ -160,6 +167,61 @@ class PayrollRunController extends Controller
                     ),
                     'currency' => 'USD',
                     'notes' => "Generated from attendance #{$attendance->id}",
+                ]);
+
+                PersonnelPayrollAdjustment::markAppliedForPayrollItem(
+                    $item,
+                    $payrollRun->period_year,
+                    $payrollRun->period_month,
+                );
+
+                $itemCount++;
+            }
+
+            $processedKeys = $payrollRun->items()
+                ->get(['personnel_type', 'personnel_id', 'project_id'])
+                ->map(fn ($item) => "{$item->personnel_type}:{$item->personnel_id}:".($item->project_id ?? 'null'))
+                ->all();
+
+            $salaryOnlyAdjustments = PersonnelPayrollAdjustment::query()
+                ->pending()
+                ->where('period_year', $payrollRun->period_year)
+                ->where('period_month', $payrollRun->period_month)
+                ->where('type', PersonnelPayrollAdjustment::TYPE_SALARY)
+                ->get()
+                ->groupBy(fn ($row) => "{$row->personnel_type}:{$row->personnel_id}:".($row->project_id ?? 'null'));
+
+            foreach ($salaryOnlyAdjustments as $key => $rows) {
+                if (in_array($key, $processedKeys, true)) {
+                    continue;
+                }
+
+                $first = $rows->first();
+                $adjustments = PersonnelPayrollAdjustment::pendingTotalsForLine(
+                    $first->personnel_type,
+                    $first->personnel_id,
+                    $first->project_id,
+                    $payrollRun->period_year,
+                    $payrollRun->period_month,
+                );
+
+                $item = PayrollItem::query()->create([
+                    'payroll_run_id' => $payrollRun->id,
+                    'personnel_type' => $first->personnel_type,
+                    'personnel_id' => $first->personnel_id,
+                    'project_id' => $first->project_id,
+                    'base_amount' => $adjustments['salary'],
+                    'bonus' => $adjustments['bonus'],
+                    'deductions' => $adjustments['deductions'],
+                    'advance' => $adjustments['advance'],
+                    'net_amount' => PayrollItem::calculateNetAmount(
+                        $adjustments['salary'],
+                        $adjustments['bonus'],
+                        $adjustments['deductions'],
+                        $adjustments['advance'],
+                    ),
+                    'currency' => 'USD',
+                    'notes' => 'Generated from salary adjustment',
                 ]);
 
                 PersonnelPayrollAdjustment::markAppliedForPayrollItem(
