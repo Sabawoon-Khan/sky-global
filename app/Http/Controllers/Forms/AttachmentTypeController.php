@@ -19,14 +19,12 @@ class AttachmentTypeController extends Controller
     {
         $this->authorizePermission($request, 'settings.edit');
 
-        $attachmentTypes = AttachmentType::query()
-            ->withCount('personnelAttachments')
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->paginate(20);
-
-        return Inertia::render('mis/forms/AttachmentTypes/Index', [
-            'attachmentTypes' => $attachmentTypes,
+        return Inertia::render('settings/AttachmentTypes/Index', [
+            'attachmentTypes' => AttachmentType::query()
+                ->withCount('personnelAttachments')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -47,7 +45,7 @@ class AttachmentTypeController extends Controller
             'slug' => $validated['slug'] ?? Str::slug($validated['name']),
         ]);
 
-        return back()->with('success', 'Attachment type created.');
+        return back()->with('success', 'Form type created.');
     }
 
     public function update(Request $request, AttachmentType $attachmentType): RedirectResponse
@@ -64,6 +62,21 @@ class AttachmentTypeController extends Controller
 
         $attachmentType->update($validated);
 
-        return back()->with('success', 'Attachment type updated.');
+        return back()->with('success', 'Form type updated.');
+    }
+
+    public function destroy(Request $request, AttachmentType $attachmentType): RedirectResponse
+    {
+        $this->authorizePermission($request, 'settings.edit');
+
+        if ($attachmentType->personnelAttachments()->exists()) {
+            return back()->withErrors([
+                'attachment_type' => 'Cannot delete a form type that has uploaded documents.',
+            ]);
+        }
+
+        $attachmentType->delete();
+
+        return back()->with('success', 'Form type deleted.');
     }
 }

@@ -8,10 +8,23 @@ use App\Models\Forms\PersonnelAttachment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PersonnelAttachmentController extends Controller
 {
     use AuthorizesMisPermissions;
+
+    public function download(Request $request, PersonnelAttachment $personnelAttachment): StreamedResponse
+    {
+        $this->authorizePermission($request, 'hr.view');
+
+        abort_unless(Storage::disk('local')->exists($personnelAttachment->file_path), 404);
+
+        return Storage::disk('local')->download(
+            $personnelAttachment->file_path,
+            basename($personnelAttachment->file_path),
+        );
+    }
 
     public function store(Request $request): RedirectResponse
     {

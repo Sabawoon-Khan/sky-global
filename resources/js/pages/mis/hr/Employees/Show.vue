@@ -3,6 +3,10 @@ import { Head, Link } from '@inertiajs/vue3';
 import EntityAttachments, {
     type EntityAttachment,
 } from '@/components/EntityAttachments.vue';
+import PersonnelFormsCard, {
+    type PersonnelFormRecord,
+} from '@/components/PersonnelFormsCard.vue';
+import type { AttachmentTypeOption } from '@/components/PersonnelFormsField.vue';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -58,10 +62,12 @@ interface Employee {
     salaries?: Salary[];
     contracts?: Contract[];
     attachments?: EntityAttachment[];
+    personnel_attachments?: PersonnelFormRecord[];
 }
 
 defineProps<{
     employee: Employee;
+    attachmentTypes: AttachmentTypeOption[];
 }>();
 
 const { t, can } = useMisPage();
@@ -239,6 +245,14 @@ const formatCurrency = (value: number, currency = 'USD'): string =>
                 </CardContent>
             </Card>
         </div>
+
+        <PersonnelFormsCard
+            personnel-type="employee"
+            :personnel-id="employee.id"
+            :forms="employee.personnel_attachments ?? []"
+            :attachment-types="attachmentTypes"
+            :can-manage="can('hr.create')"
+        />
 
         <EntityAttachments :attachments="employee.attachments ?? []" />
     </div>

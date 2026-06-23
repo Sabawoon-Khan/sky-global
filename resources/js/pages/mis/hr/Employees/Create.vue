@@ -4,6 +4,9 @@ import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
+import PersonnelFormsField, {
+    type AttachmentTypeOption,
+} from '@/components/PersonnelFormsField.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -24,6 +27,7 @@ interface Department {
 
 defineProps<{
     departments: Department[];
+    attachmentTypes: AttachmentTypeOption[];
 }>();
 
 const { t } = useMisPage();
@@ -165,6 +169,21 @@ defineOptions({
                             type="date"
                         />
                     </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ t('Employee forms') }}</CardTitle>
+                    <CardDescription>
+                        {{ t('Upload guarantee forms, certificates, and other HR documents') }}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <PersonnelFormsField
+                        :attachment-types="attachmentTypes"
+                        :errors="errors"
+                    />
                 </CardContent>
             </Card>
 

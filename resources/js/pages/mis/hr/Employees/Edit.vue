@@ -4,6 +4,12 @@ import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
+import PersonnelFormsField, {
+    type AttachmentTypeOption,
+} from '@/components/PersonnelFormsField.vue';
+import PersonnelFormsCard, {
+    type PersonnelFormRecord,
+} from '@/components/PersonnelFormsCard.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -42,11 +48,13 @@ interface Employee {
     current_address?: string | null;
     status: string;
     job_detail?: JobDetail | null;
+    personnel_attachments?: PersonnelFormRecord[];
 }
 
 defineProps<{
     employee: Employee;
     departments: Department[];
+    attachmentTypes: AttachmentTypeOption[];
 }>();
 
 const { t } = useMisPage();
@@ -272,6 +280,29 @@ defineOptions({
                             :default-value="employee.job_detail?.hire_date ?? ''"
                         />
                     </div>
+                </CardContent>
+            </Card>
+
+            <PersonnelFormsCard
+                personnel-type="employee"
+                :personnel-id="employee.id"
+                :forms="employee.personnel_attachments ?? []"
+                :attachment-types="attachmentTypes"
+                :can-manage="true"
+            />
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Employee forms</CardTitle>
+                    <CardDescription>
+                        Add new guarantee forms, certificates, or other documents
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <PersonnelFormsField
+                        :attachment-types="attachmentTypes"
+                        :errors="errors"
+                    />
                 </CardContent>
             </Card>
 

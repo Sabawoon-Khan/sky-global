@@ -146,7 +146,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('attachment-types', [AttachmentTypeController::class, 'index'])->name('attachment-types.index');
         Route::post('attachment-types', [AttachmentTypeController::class, 'store'])->name('attachment-types.store');
         Route::put('attachment-types/{attachmentType}', [AttachmentTypeController::class, 'update'])->name('attachment-types.update');
+        Route::delete('attachment-types/{attachmentType}', [AttachmentTypeController::class, 'destroy'])->name('attachment-types.destroy');
 
+        Route::get('personnel-attachments/{personnelAttachment}/download', [PersonnelAttachmentController::class, 'download'])->name('personnel-attachments.download');
         Route::post('personnel-attachments', [PersonnelAttachmentController::class, 'store'])->name('personnel-attachments.store');
         Route::delete('personnel-attachments/{personnelAttachment}', [PersonnelAttachmentController::class, 'destroy'])->name('personnel-attachments.destroy');
     });
@@ -181,5 +183,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('organization-types', [OrganizationTypeController::class, 'store'])->name('organization-types.store');
         Route::put('organization-types/{organizationType}', [OrganizationTypeController::class, 'update'])->name('organization-types.update');
         Route::delete('organization-types/{organizationType}', [OrganizationTypeController::class, 'destroy'])->name('organization-types.destroy');
+
+        Route::get('form-types', [AttachmentTypeController::class, 'index'])->name('form-types.index');
+        Route::post('form-types', [AttachmentTypeController::class, 'store'])->name('form-types.store');
+        Route::put('form-types/{attachmentType}', [AttachmentTypeController::class, 'update'])->name('form-types.update');
+        Route::delete('form-types/{attachmentType}', [AttachmentTypeController::class, 'destroy'])->name('form-types.destroy');
     });
 });

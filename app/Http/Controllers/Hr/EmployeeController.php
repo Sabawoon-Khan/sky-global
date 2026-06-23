@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Hr;
 
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
+use App\Http\Controllers\Concerns\StoresPersonnelAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
+use App\Models\Forms\AttachmentType;
 use App\Models\Hr\Employee;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,7 +16,7 @@ use Inertia\Response;
 
 class EmployeeController extends Controller
 {
-    use AuthorizesMisPermissions, StoresOptionalAttachments;
+    use AuthorizesMisPermissions, StoresOptionalAttachments, StoresPersonnelAttachments;
 
     public function index(Request $request): Response
     {
@@ -59,6 +61,7 @@ class EmployeeController extends Controller
 
         return Inertia::render('mis/hr/Employees/Create', [
             'departments' => Department::query()->orderBy('name')->get(),
+            'attachmentTypes' => $this->activeAttachmentTypes(),
         ]);
     }
 
@@ -83,10 +86,11 @@ class EmployeeController extends Controller
             'job_detail.designation' => ['nullable', 'string', 'max:100'],
             'job_detail.hire_date' => ['nullable', 'date'],
             'job_detail.salary_grade' => ['nullable', 'string', 'max:50'],
+            ...$this->personnelAttachmentValidationRules(),
         ]);
 
         $jobDetail = $validated['job_detail'] ?? null;
-        unset($validated['job_detail']);
+        unset($validated['job_detail'], $validated['personnel_forms']);
 
         $employee = Employee::query()->create([
             ...$validated,
@@ -97,6 +101,7 @@ class EmployeeController extends Controller
             $employee->jobDetails()->create($jobDetail);
         }
         $this->storeOptionalAttachment($request, $employee);
+        $this->storePersonnelAttachments($request, $employee, 'employee');
 
         return redirect()
             ->route('hr.employees.show', $employee)
@@ -113,6 +118,7 @@ class EmployeeController extends Controller
             'contracts',
             'user',
             'attachments',
+            'personnelAttachments.attachmentType',
         ]);
 
         $employee->setAttribute(
@@ -123,6 +129,7 @@ class EmployeeController extends Controller
         return Inertia::render('mis/hr/Employees/Show', [
             'employee' => $employee,
             'departments' => Department::query()->orderBy('name')->get(),
+            'attachmentTypes' => $this->activeAttachmentTypes(),
         ]);
     }
 
@@ -130,7 +137,7 @@ class EmployeeController extends Controller
     {
         $this->authorizePermission($request, 'hr.edit');
 
-        $employee->load(['jobDetails.department']);
+        $employee->load(['jobDetails.department', 'personnelAttachments.attachmentType']);
 
         $employee->setAttribute(
             'job_detail',
@@ -140,6 +147,7 @@ class EmployeeController extends Controller
         return Inertia::render('mis/hr/Employees/Edit', [
             'employee' => $employee,
             'departments' => Department::query()->orderBy('name')->get(),
+            'attachmentTypes' => $this->activeAttachmentTypes(),
         ]);
     }
 
@@ -164,10 +172,11 @@ class EmployeeController extends Controller
             'job_detail.designation' => ['nullable', 'string', 'max:100'],
             'job_detail.hire_date' => ['nullable', 'date'],
             'job_detail.salary_grade' => ['nullable', 'string', 'max:50'],
+            ...$this->personnelAttachmentValidationRules(),
         ]);
 
         $jobDetail = $validated['job_detail'] ?? null;
-        unset($validated['job_detail']);
+        unset($validated['job_detail'], $validated['personnel_forms']);
 
         $employee->update($validated);
 
@@ -178,6 +187,7 @@ class EmployeeController extends Controller
             );
         }
         $this->storeOptionalAttachment($request, $employee);
+        $this->storePersonnelAttachments($request, $employee, 'employee');
 
         if (array_keys($validated) === ['status']) {
             return back()->with('success', 'Employee status updated.');
@@ -186,5 +196,17 @@ class EmployeeController extends Controller
         return redirect()
             ->route('hr.employees.show', $employee)
             ->with('success', 'Employee updated.');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, AttachmentType>
+     */
+    private function activeAttachmentTypes()
+    {
+        return AttachmentType::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'requires_expiry', 'sort_order']);
     }
 }

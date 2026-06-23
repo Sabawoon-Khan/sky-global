@@ -68,7 +68,7 @@ class MisSeeder extends Seeder
             );
         }
 
-        foreach (['Tazkira', 'Police Clearance', 'Medical Certificate', 'Training Certificate', 'Weapon License'] as $index => $type) {
+        foreach (['Tazkira', 'Police Clearance', 'Medical Certificate', 'Training Certificate', 'Weapon License', 'Guarantee Form'] as $index => $type) {
             AttachmentType::query()->firstOrCreate(
                 ['slug' => Str::slug($type)],
                 [

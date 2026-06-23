@@ -56,6 +56,12 @@ const adminNavItems = computed<NavItem[]>(() =>
                   href: '/settings/organization-types',
               }
             : null,
+        can('settings.edit')
+            ? {
+                  title: t('Form Types'),
+                  href: '/settings/form-types',
+              }
+            : null,
     ].filter((item): item is NavItem => item !== null),
 );
 

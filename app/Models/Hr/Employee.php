@@ -3,6 +3,7 @@
 namespace App\Models\Hr;
 
 use App\Concerns\HasAttachments;
+use App\Concerns\HasPersonnelAttachments;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
 {
-    use HasAttachments, SoftDeletes;
+    use HasAttachments, HasPersonnelAttachments, SoftDeletes;
 
     protected $fillable = [
         'first_name',
