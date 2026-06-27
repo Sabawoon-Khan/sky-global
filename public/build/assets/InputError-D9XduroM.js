@@ -1,0 +1,1 @@
+import{B as e,S as t,T as n,Tt as r,d as i,tt as a,y as o}from"./dist-DIhmlTl4.js";var s={class:`text-sm text-red-600 dark:text-red-500`},c=n({__name:`InputError`,props:{message:{}},setup(n){return(c,l)=>a((e(),t(`div`,null,[o(`p`,s,r(n.message),1)],512)),[[i,n.message]])}});export{c as t};

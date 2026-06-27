@@ -1,0 +1,1 @@
+import{B as e,S as t,St as n,T as r,U as i}from"./dist-DIhmlTl4.js";var a=r({__name:`MisPage`,props:{title:{},description:{},narrow:{type:Boolean}},setup(r){return(a,o)=>(e(),t(`div`,{class:n([`flex w-full flex-1 flex-col gap-4 px-3 py-3 sm:px-6 sm:py-4`,r.narrow?`max-w-5xl`:``])},[i(a.$slots,`default`)],2))}});export{a as t};

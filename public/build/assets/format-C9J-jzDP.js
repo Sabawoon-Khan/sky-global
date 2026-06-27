@@ -1,0 +1,1 @@
+var e=new Set([`USD`,`AFN`,`EUR`,`GBP`]);function t(t){let n=t?.trim().toUpperCase();return n&&e.has(n)?n:`USD`}function n(e,n){return e==null?`—`:new Intl.NumberFormat(`en-US`,{style:`currency`,currency:t(n),maximumFractionDigits:0}).format(e)}function r(e){return e?new Intl.DateTimeFormat(`en-US`,{dateStyle:`medium`}).format(new Date(e)):`—`}export{r as n,n as t};
