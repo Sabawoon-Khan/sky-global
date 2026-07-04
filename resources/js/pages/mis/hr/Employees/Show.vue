@@ -9,13 +9,11 @@ import PersonnelFormsCard, {
     type PersonnelFormRecord,
 } from '@/components/PersonnelFormsCard.vue';
 import type { AttachmentTypeOption } from '@/components/PersonnelFormsField.vue';
-import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -143,11 +141,7 @@ const monthName = (month: number): string =>
     <div class="flex w-full flex-1 flex-col gap-6 p-4 sm:p-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <Heading
-                    :title="`${employee.first_name} ${employee.last_name}`"
-                    :description="employee.job_detail?.designation ?? undefined"
-                />
-                <Badge class="mt-2">{{ employee.status }}</Badge>
+<Badge class="mt-2">{{ employee.status }}</Badge>
             </div>
             <div class="flex shrink-0 flex-wrap gap-2">
                 <Button variant="outline" as-child>

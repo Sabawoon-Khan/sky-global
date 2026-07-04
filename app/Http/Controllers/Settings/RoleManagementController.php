@@ -34,6 +34,15 @@ class RoleManagementController extends Controller
         ]);
     }
 
+    public function create(Request $request): Response
+    {
+        $this->authorizePermission($request, 'settings.manage_users');
+
+        return Inertia::render('settings/Roles/Create', [
+            'permissions' => Permission::query()->orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
     public function store(StoreRoleRequest $request): RedirectResponse
     {
         $this->authorizePermission($request, 'settings.manage_users');
@@ -44,7 +53,9 @@ class RoleManagementController extends Controller
         $role = Role::findOrCreate($validated['name']);
         $role->syncPermissions($permissions);
 
-        return back()->with('success', 'Role created.');
+        return redirect()
+            ->route('settings.roles.index')
+            ->with('success', 'Role created.');
     }
 
     public function update(UpdateRoleRequest $request, Role $role): RedirectResponse

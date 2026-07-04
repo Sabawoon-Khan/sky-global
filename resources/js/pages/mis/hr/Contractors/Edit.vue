@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
@@ -53,11 +52,7 @@ defineOptions({
     />
 
     <MisPage narrow>
-        <div class="flex items-center justify-between gap-3">
-            <Heading
-                :title="t('Edit Contractor')"
-                :description="`${contractor.first_name} ${contractor.last_name}`"
-            />
+        <div class="flex justify-end">
             <Button variant="outline" as-child>
                 <Link :href="`/hr/contractors/${contractor.id}`">{{ t('Cancel') }}</Link>
             </Button>

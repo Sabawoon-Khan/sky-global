@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Plus, Search, Users } from '@lucide/vue';
-import Heading from '@/components/Heading.vue';
+import { Search, Users } from '@lucide/vue';
 import MisCreateButton from '@/components/MisCreateButton.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
     Card,
+    CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -76,32 +74,17 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
     <Head :title="t('Employees')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <Heading
-                :title="t('Employees')"
-                :description="t('Manage staff records and employment details')"
-            />
-            <MisCreateButton href="/hr/employees/create" permission="hr.create">
-                <Plus class="me-1 size-4" />
-                {{ t('Add Employee') }}
-            </MisCreateButton>
-        </div>
-
         <Card>
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <Users class="size-5" />
                     {{ t('All Employees') }}
                 </CardTitle>
-                <CardDescription>
-                    {{
-                        t(':count employees', {
-                            count: String(
-                                employees.meta?.total ?? employees.data.length,
-                            ),
-                        })
-                    }}
-                </CardDescription>
+                <CardAction>
+                    <MisCreateButton href="/hr/employees/create" permission="hr.create">
+                        {{ t('Add Employee') }}
+                    </MisCreateButton>
+                </CardAction>
             </CardHeader>
             <CardContent class="space-y-4">
                 <form method="get" action="/hr/employees" class="relative max-w-sm">
@@ -118,7 +101,7 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
 
                 <div
                     v-if="employees.data.length === 0"
-                    class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
+                    class="ui-empty-state"
                 >
                     {{ t('No employees found.') }}
                 </div>

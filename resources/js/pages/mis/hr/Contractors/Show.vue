@@ -9,13 +9,11 @@ import PersonnelFormsCard, {
     type PersonnelFormRecord,
 } from '@/components/PersonnelFormsCard.vue';
 import type { AttachmentTypeOption } from '@/components/PersonnelFormsField.vue';
-import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -135,11 +133,7 @@ const monthName = (month: number): string =>
     <div class="flex w-full flex-1 flex-col gap-6 p-4 sm:p-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <Heading
-                    :title="`${contractor.first_name} ${contractor.last_name}`"
-                    :description="t('Contractor profile')"
-                />
-                <Badge class="mt-2">{{ contractor.status }}</Badge>
+<Badge class="mt-2">{{ contractor.status }}</Badge>
             </div>
             <div class="flex shrink-0 flex-wrap gap-2">
                 <Button variant="outline" as-child>
@@ -170,8 +164,7 @@ const monthName = (month: number): string =>
         <Card v-else-if="activeTab === 'agreements'">
             <CardHeader>
                 <CardTitle>{{ t('Agreements') }}</CardTitle>
-                <CardDescription>{{ t('Contractor service agreements') }}</CardDescription>
-            </CardHeader>
+                </CardHeader>
             <CardContent>
                 <div v-if="!contractor.agreements?.length" class="text-sm text-muted-foreground">{{ t('No agreements on file.') }}</div>
                 <div v-else class="space-y-2">
@@ -187,8 +180,7 @@ const monthName = (month: number): string =>
         <Card v-else-if="activeTab === 'rates'">
             <CardHeader>
                 <CardTitle>{{ t('Rates') }}</CardTitle>
-                <CardDescription>{{ t('Project-specific billing rates') }}</CardDescription>
-            </CardHeader>
+                </CardHeader>
             <CardContent>
                 <div v-if="!contractor.rates?.length" class="text-sm text-muted-foreground">{{ t('No rates configured.') }}</div>
                 <table v-else class="w-full text-sm">

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
@@ -14,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -80,11 +78,7 @@ defineOptions({
     />
 
     <MisPage narrow>
-        <div class="flex items-center justify-between gap-3">
-            <Heading
-                :title="t('Edit Employee')"
-                :description="`${employee.first_name} ${employee.last_name}`"
-            />
+        <div class="flex justify-end">
             <Button variant="outline" as-child>
                 <Link :href="`/hr/employees/${employee.id}`">{{ t('Cancel') }}</Link>
             </Button>
@@ -238,7 +232,6 @@ defineOptions({
             <Card>
                 <CardHeader>
                     <CardTitle>Job details</CardTitle>
-                    <CardDescription>Employment information</CardDescription>
                 </CardHeader>
                 <CardContent class="grid gap-4 md:grid-cols-2">
                     <div class="grid gap-2">
@@ -294,9 +287,6 @@ defineOptions({
             <Card>
                 <CardHeader>
                     <CardTitle>Employee forms</CardTitle>
-                    <CardDescription>
-                        Add new guarantee forms, certificates, or other documents
-                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <PersonnelFormsField

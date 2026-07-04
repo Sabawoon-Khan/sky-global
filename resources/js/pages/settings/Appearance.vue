@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import AppearanceTabs from '@/components/AppearanceTabs.vue';
-import Heading from '@/components/Heading.vue';
+import ThemeColorSettings from '@/components/ThemeColorSettings.vue';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { useTranslations } from '@/composables/useTranslations';
 import { edit } from '@/routes/appearance';
 
@@ -25,11 +32,22 @@ const { t } = useTranslations();
     <h1 class="sr-only">{{ t('Appearance settings') }}</h1>
 
     <div class="space-y-6">
-        <Heading
-            variant="small"
-            :title="t('Appearance settings')"
-            :description="t('Update the appearance settings for your account')"
-        />
-        <AppearanceTabs />
+        <Card>
+            <CardHeader>
+                <CardTitle>{{ t('Color mode') }}</CardTitle>
+                <CardDescription>
+                    {{
+                        t(
+                            'Select light, dark, or system appearance for the interface.',
+                        )
+                    }}
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <AppearanceTabs />
+            </CardContent>
+        </Card>
+
+        <ThemeColorSettings />
     </div>
 </template>

@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { FileText, Plus, Search } from '@lucide/vue';
-import Heading from '@/components/Heading.vue';
+import { FileText, Search } from '@lucide/vue';
 import MisCreateButton from '@/components/MisCreateButton.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
+    CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -84,37 +83,20 @@ const statusLabel = (status: string) => {
     <Head :title="t('Opportunities')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <Heading
-                :title="t('Opportunities')"
-                :description="t('Procurement requests and tenders from clients')"
-            />
-            <MisCreateButton
-                href="/bidding/opportunities/create"
-                permission="bidding.create"
-            >
-                <Plus class="me-2 size-4" />
-                {{ t('New opportunity') }}
-            </MisCreateButton>
-        </div>
-
         <div class="grid gap-4 md:grid-cols-3">
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>{{ t('Total opportunities') }}</CardDescription>
-                    <CardTitle class="text-3xl">{{ stats.total }}</CardTitle>
+<CardTitle class="text-3xl">{{ stats.total }}</CardTitle>
                 </CardHeader>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>{{ t('Open for bidding') }}</CardDescription>
-                    <CardTitle class="text-3xl">{{ stats.open }}</CardTitle>
+<CardTitle class="text-3xl">{{ stats.open }}</CardTitle>
                 </CardHeader>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>{{ t('Closed / awarded') }}</CardDescription>
-                    <CardTitle class="text-3xl">{{ stats.closed }}</CardTitle>
+<CardTitle class="text-3xl">{{ stats.closed }}</CardTitle>
                 </CardHeader>
             </Card>
         </div>
@@ -125,15 +107,14 @@ const statusLabel = (status: string) => {
                     <FileText class="size-5" />
                     {{ t('All opportunities') }}
                 </CardTitle>
-                <CardDescription>
-                    {{
-                        t(':count opportunities', {
-                            count: String(
-                                opportunities.meta?.total ?? opportunities.data.length,
-                            ),
-                        })
-                    }}
-                </CardDescription>
+                <CardAction>
+                    <MisCreateButton
+                        href="/bidding/opportunities/create"
+                        permission="bidding.create"
+                    >
+                        {{ t('New opportunity') }}
+                    </MisCreateButton>
+                </CardAction>
             </CardHeader>
             <CardContent class="space-y-4">
                 <form method="get" action="/bidding/opportunities" class="flex flex-col gap-3 sm:flex-row">
@@ -171,7 +152,7 @@ const statusLabel = (status: string) => {
 
                 <div
                     v-if="opportunities.data.length === 0"
-                    class="rounded-lg border border-dashed p-10 text-center"
+                    class="ui-empty-state"
                 >
                     <FileText class="mx-auto mb-3 size-10 text-muted-foreground" />
                     <p class="font-medium">{{ t('No opportunities yet') }}</p>

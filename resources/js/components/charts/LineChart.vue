@@ -11,6 +11,7 @@ import {
 } from 'chart.js';
 import { computed } from 'vue';
 import { Line } from 'vue-chartjs';
+import { formatNumber } from '@/lib/format';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -45,11 +46,20 @@ const chartOptions = {
     maintainAspectRatio: false,
     plugins: {
         legend: { position: 'bottom' as const },
+        tooltip: {
+            callbacks: {
+                label: (context) =>
+                    `${context.dataset.label}: ${formatNumber(context.parsed.y ?? 0)}`,
+            },
+        },
     },
     scales: {
         y: {
             beginAtZero: true,
-            ticks: { precision: 0 },
+            ticks: {
+                precision: 0,
+                callback: (value) => formatNumber(Number(value)),
+            },
         },
     },
 };

@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import AuthLayout from '@/layouts/auth/AuthSimpleLayout.vue';
+import { useTranslations } from '@/composables/useTranslations';
 
-const { title = '', description = '' } = defineProps<{
+const { title = '' } = defineProps<{
     title?: string;
-    description?: string;
 }>();
+
+const { t } = useTranslations();
 </script>
 
 <template>
-    <AuthLayout :title="title" :description="description">
+    <AuthLayout :title="t(title)">
         <slot />
     </AuthLayout>
 </template>

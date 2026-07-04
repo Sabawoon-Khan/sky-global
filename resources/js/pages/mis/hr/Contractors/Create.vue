@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
@@ -32,17 +31,7 @@ defineOptions({
 <template>
     <Head :title="t('Add Contractor')" />
 
-    <MisPage narrow>
-        <div class="flex items-center justify-between gap-3">
-            <Heading
-                :title="t('Add Contractor')"
-                :description="t('Register a new contractor')"
-            />
-            <Button variant="outline" as-child>
-                <Link href="/hr/contractors">{{ t('Cancel') }}</Link>
-            </Button>
-        </div>
-
+    <MisPage>
         <Form
             v-bind="ContractorController.store.form()"
             class="space-y-6"
@@ -53,7 +42,7 @@ defineOptions({
                 <CardHeader>
                     <CardTitle>{{ t('Personal details') }}</CardTitle>
                 </CardHeader>
-                <CardContent class="grid gap-4 md:grid-cols-2">
+                <CardContent class="grid gap-4">
                     <div class="grid gap-2">
                         <Label for="first_name">{{ t('First name') }} *</Label>
                         <Input id="first_name" name="first_name" required />
@@ -72,7 +61,7 @@ defineOptions({
                         <Label for="email">{{ t('Email') }}</Label>
                         <Input id="email" name="email" type="email" />
                     </div>
-                    <div class="grid gap-2 md:col-span-2">
+                    <div class="grid gap-2">
                         <Label for="current_address">{{ t('Current address') }}</Label>
                         <textarea
                             id="current_address"

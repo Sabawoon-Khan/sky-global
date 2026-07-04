@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
-import Heading from '@/components/Heading.vue';
-import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
@@ -9,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -50,36 +47,19 @@ defineOptions({
 <template>
     <Head :title="t('New Project')" />
 
-    <MisPage narrow>
-        <div class="flex items-center justify-between gap-3">
-            <Heading
-                :title="t('New Project')"
-                :description="
-                    t(
-                        'One record from proposal to delivery — bidding, win/loss, and operations stay together',
-                    )
-                "
-            />
-            <Button variant="outline" size="sm" as-child>
-                <Link href="/projects">{{ t('Cancel') }}</Link>
-            </Button>
-        </div>
-
+    <MisPage>
         <Form
             v-bind="ProjectController.store.form()"
-            class="space-y-4"
+            class="space-y-6"
             :options="{ forceFormData: true }"
             v-slot="{ errors, processing }"
         >
             <Card>
-                <CardHeader class="pb-3">
-                    <CardTitle class="text-base">{{ t('Client & project') }}</CardTitle>
-                    <CardDescription>
-                        {{ t('Select the organization and name this opportunity') }}
-                    </CardDescription>
+                <CardHeader>
+                    <CardTitle>{{ t('Client & project') }}</CardTitle>
                 </CardHeader>
-                <CardContent class="grid gap-3 sm:grid-cols-2">
-                    <div class="grid gap-1.5 sm:col-span-2">
+                <CardContent class="grid gap-4">
+                    <div class="grid gap-2">
                         <Label for="organization_id">{{ t('Organization') }} *</Label>
                         <select
                             id="organization_id"
@@ -96,62 +76,46 @@ defineOptions({
                             </option>
                         </select>
                         <InputError :message="errors.organization_id" />
-                        <p class="text-xs text-muted-foreground">
-                            <Can permission="bidding.create">
-                                <Link href="/organizations/create" class="underline">{{
-                                    t('Add organization')
-                                }}</Link>
-                                {{ t('if not listed') }}
-                            </Can>
-                        </p>
                     </div>
 
-                    <div class="grid gap-1.5 sm:col-span-2">
+                    <div class="grid gap-2">
                         <Label for="name">{{ t('Project / opportunity title') }} *</Label>
-                        <Input id="name" name="name" required placeholder="Static guard services — Kabul HQ" />
+                        <Input id="name" name="name" required />
                         <InputError :message="errors.name" />
                     </div>
 
-                    <div class="grid gap-1.5">
+                    <div class="grid gap-2">
                         <Label for="reference_number">{{ t('Reference #') }}</Label>
-                        <Input id="reference_number" name="reference_number" placeholder="RFP-2026-001" />
+                        <Input id="reference_number" name="reference_number" />
                     </div>
 
-                    <div class="grid gap-1.5">
+                    <div class="grid gap-2">
                         <Label for="submission_deadline">{{ t('Submission deadline') }}</Label>
                         <Input id="submission_deadline" name="submission_deadline" type="date" />
                     </div>
 
-                    <div class="grid gap-1.5 sm:col-span-2">
+                    <div class="grid gap-2">
                         <Label for="scope_summary">{{ t('Scope summary') }}</Label>
                         <textarea
                             id="scope_summary"
                             name="scope_summary"
                             rows="3"
                             class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                            placeholder="What security services are being requested?"
                         />
                     </div>
                 </CardContent>
             </Card>
 
             <Card>
-                <CardHeader class="pb-3">
-                    <CardTitle class="text-base">{{ t('Initial bid (optional now)') }}</CardTitle>
-                    <CardDescription>
-                        {{
-                            t(
-                                'You can fill in competitors and full pricing on the project page',
-                            )
-                        }}
-                    </CardDescription>
+                <CardHeader>
+                    <CardTitle>{{ t('Initial bid (optional now)') }}</CardTitle>
                 </CardHeader>
-                <CardContent class="grid gap-3 sm:grid-cols-3">
-                    <div class="grid gap-1.5">
+                <CardContent class="grid gap-4">
+                    <div class="grid gap-2">
                         <Label for="our_bid_amount">{{ t('Our bid amount') }}</Label>
                         <Input id="our_bid_amount" name="our_bid_amount" type="number" min="0" step="0.01" />
                     </div>
-                    <div class="grid gap-1.5">
+                    <div class="grid gap-2">
                         <Label for="currency">{{ t('Currency') }}</Label>
                         <select
                             id="currency"
@@ -162,7 +126,7 @@ defineOptions({
                             <option value="AFN">AFN</option>
                         </select>
                     </div>
-                    <div class="grid gap-1.5">
+                    <div class="grid gap-2">
                         <Label for="security_scope">{{ t('Scope type') }}</Label>
                         <select
                             id="security_scope"
@@ -176,30 +140,27 @@ defineOptions({
                             <option value="event">{{ t('Event') }}</option>
                         </select>
                     </div>
-                    <div class="grid gap-1.5 sm:col-span-2">
+                    <div class="grid gap-2">
                         <Label for="location">{{ t('Location') }}</Label>
-                        <Input id="location" name="location" placeholder="Kabul, Herat..." />
+                        <Input id="location" name="location" />
                     </div>
-                    <div class="grid gap-1.5">
+                    <div class="grid gap-2">
                         <Label for="source">{{ t('Source') }}</Label>
-                        <Input id="source" name="source" placeholder="Direct invite, portal..." />
+                        <Input id="source" name="source" />
                     </div>
                 </CardContent>
             </Card>
 
             <Card>
-                <CardHeader class="pb-3">
-                    <CardTitle class="text-base">{{ t('Attachment') }}</CardTitle>
-                    <CardDescription>
-                        {{ t('RFP, scope document, or other supporting file') }}
-                    </CardDescription>
+                <CardHeader>
+                    <CardTitle>{{ t('Attachment') }}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <OptionalAttachmentField :error="errors.attachment" />
                 </CardContent>
             </Card>
 
-            <div class="flex justify-end gap-2">
+            <div class="flex justify-end gap-3">
                 <Button variant="outline" as-child>
                     <Link href="/projects">{{ t('Cancel') }}</Link>
                 </Button>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Building2, FolderKanban, Plus, Search, Users } from '@lucide/vue';
-import Heading from '@/components/Heading.vue';
+import { Building2, FolderKanban, Search, Users } from '@lucide/vue';
 import MisCreateButton from '@/components/MisCreateButton.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import MisPage from '@/components/MisPage.vue';
@@ -10,8 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
+    CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -101,34 +100,20 @@ const organizationActions = (org: Organization): RowActionItem[] => [
     <Head :title="t('Organizations')" />
 
     <MisPage>
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <Heading
-                :title="t('Organizations')"
-                :description="t('Register clients, partners, and procurement bodies')"
-            />
-            <MisCreateButton href="/organizations/create" permission="bidding.create">
-                <Plus class="me-2 size-4" />
-                {{ t('Add Organization') }}
-            </MisCreateButton>
-        </div>
-
         <div class="grid gap-4 md:grid-cols-3">
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>{{ t('Total registered') }}</CardDescription>
-                    <CardTitle class="text-3xl">{{ stats.total }}</CardTitle>
+<CardTitle class="text-3xl">{{ stats.total }}</CardTitle>
                 </CardHeader>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>{{ t('Active organizations') }}</CardDescription>
-                    <CardTitle class="text-3xl">{{ stats.active }}</CardTitle>
+<CardTitle class="text-3xl">{{ stats.active }}</CardTitle>
                 </CardHeader>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>{{ t('With active projects') }}</CardDescription>
-                    <CardTitle class="text-3xl">{{ stats.with_projects }}</CardTitle>
+<CardTitle class="text-3xl">{{ stats.with_projects }}</CardTitle>
                 </CardHeader>
             </Card>
         </div>
@@ -139,15 +124,11 @@ const organizationActions = (org: Organization): RowActionItem[] => [
                     <Building2 class="size-5" />
                     {{ t('All Organizations') }}
                 </CardTitle>
-                <CardDescription>
-                    {{
-                        t(':count organizations', {
-                            count: String(
-                                organizations.meta?.total ?? organizations.data.length,
-                            ),
-                        })
-                    }}
-                </CardDescription>
+                <CardAction>
+                    <MisCreateButton href="/organizations/create" permission="bidding.create">
+                        {{ t('Add Organization') }}
+                    </MisCreateButton>
+                </CardAction>
             </CardHeader>
             <CardContent class="space-y-4">
                 <form method="get" action="/organizations" class="grid gap-4 md:grid-cols-3">
@@ -189,7 +170,7 @@ const organizationActions = (org: Organization): RowActionItem[] => [
 
                 <div
                     v-if="organizations.data.length === 0"
-                    class="rounded-lg border border-dashed p-10 text-center"
+                    class="ui-empty-state"
                 >
                     <Building2 class="mx-auto mb-3 size-10 text-muted-foreground" />
                     <p class="font-medium">{{ t('No organizations yet') }}</p>

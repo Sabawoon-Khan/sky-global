@@ -44,6 +44,26 @@ class CurrencySettingsController extends Controller
         ]);
     }
 
+    public function createCurrency(Request $request): Response
+    {
+        $this->authorizePermission($request, 'settings.edit');
+
+        return Inertia::render('settings/Finance/CreateCurrency');
+    }
+
+    public function createExchangeRate(Request $request): Response
+    {
+        $this->authorizePermission($request, 'settings.edit');
+
+        return Inertia::render('settings/Finance/CreateExchangeRate', [
+            'currencies' => Currency::query()
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->pluck('code')
+                ->values(),
+        ]);
+    }
+
     public function storeCurrency(StoreCurrencyRequest $request): RedirectResponse
     {
         $this->authorizePermission($request, 'settings.edit');
@@ -64,7 +84,9 @@ class CurrencySettingsController extends Controller
 
         Currency::query()->create($payload);
 
-        return back()->with('success', 'Currency created.');
+        return redirect()
+            ->route('settings.currencies.index')
+            ->with('success', 'Currency created.');
     }
 
     public function updateCurrency(UpdateCurrencyRequest $request, Currency $currency): RedirectResponse
@@ -139,7 +161,9 @@ class CurrencySettingsController extends Controller
             'effective_date' => $validated['effective_date'],
         ]);
 
-        return back()->with('success', 'Exchange rate created.');
+        return redirect()
+            ->route('settings.currencies.index')
+            ->with('success', 'Exchange rate created.');
     }
 
     public function updateExchangeRate(UpdateExchangeRateRequest $request, ExchangeRate $exchangeRate): RedirectResponse

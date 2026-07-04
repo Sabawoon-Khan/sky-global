@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Form, Head, Link, router } from '@inertiajs/vue3';
 import { Archive, FileText } from '@lucide/vue';
-import Heading from '@/components/Heading.vue';
+import ArchiveDocumentFields from '@/components/archive/ArchiveDocumentFields.vue';
 import Can from '@/components/Can.vue';
-import InputError from '@/components/InputError.vue';
+import MisPage from '@/components/MisPage.vue';
+import RichTextContent from '@/components/RichTextContent.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,8 +14,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useMisPage } from '@/composables/useMisPage';
 
 interface DocumentCategory {
@@ -108,14 +107,19 @@ const moveToLongTermArchive = (): void => {
 <template>
     <Head :title="document.title" />
 
-    <div class="flex flex-1 flex-col gap-6 p-4">
+    <MisPage>
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-                <Heading
-                    :title="document.title"
-                    :description="document.reference_number ?? t('Archived document')"
-                />
-                <div class="mt-3 flex flex-wrap gap-2">
+            <div class="space-y-2">
+                <h1 class="text-2xl font-semibold tracking-tight">
+                    {{ document.title }}
+                </h1>
+                <p
+                    v-if="document.reference_number"
+                    class="font-mono text-sm text-muted-foreground"
+                >
+                    {{ document.reference_number }}
+                </p>
+                <div class="flex flex-wrap gap-2">
                     <Badge v-if="document.direction" variant="outline">
                         {{ document.direction }}
                     </Badge>
@@ -127,6 +131,7 @@ const moveToLongTermArchive = (): void => {
                     </Badge>
                 </div>
             </div>
+
             <div class="flex shrink-0 flex-wrap gap-2">
                 <Button variant="outline" as-child>
                     <Link href="/archive">{{ t('Back to list') }}</Link>
@@ -141,45 +146,60 @@ const moveToLongTermArchive = (): void => {
             </div>
         </div>
 
-        <div class="grid gap-6 lg:grid-cols-2">
+        <div class="grid gap-6 xl:grid-cols-2">
             <Card>
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
-                        <FileText class="size-5" />
+                        <FileText class="size-5 text-primary" />
                         {{ t('Document details') }}
                     </CardTitle>
-                    <CardDescription>{{ t('Metadata and linked records') }}</CardDescription>
                 </CardHeader>
-                <CardContent class="grid gap-4 text-sm">
-                    <div class="grid gap-1">
-                        <p class="text-muted-foreground">{{ t('Description') }}</p>
-                        <p>{{ document.description ?? '—' }}</p>
+                <CardContent class="grid gap-5 text-sm">
+                    <div class="grid gap-2">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            {{ t('Description') }}
+                        </p>
+                        <RichTextContent :content="document.description" />
                     </div>
-                    <div class="grid gap-3 sm:grid-cols-2">
+
+                    <div class="grid gap-4 sm:grid-cols-2">
                         <div class="grid gap-1">
-                            <p class="text-muted-foreground">{{ t('Document date') }}</p>
+                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                {{ t('Document date') }}
+                            </p>
                             <p>{{ formatDate(document.document_date) }}</p>
                         </div>
                         <div class="grid gap-1">
-                            <p class="text-muted-foreground">{{ t('Received') }}</p>
+                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                {{ t('Received') }}
+                            </p>
                             <p>{{ formatDate(document.received_at) }}</p>
                         </div>
                         <div class="grid gap-1">
-                            <p class="text-muted-foreground">{{ t('Sent') }}</p>
+                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                {{ t('Sent') }}
+                            </p>
                             <p>{{ formatDate(document.sent_at) }}</p>
                         </div>
                         <div class="grid gap-1">
-                            <p class="text-muted-foreground">{{ t('Uploaded by') }}</p>
+                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                {{ t('Uploaded by') }}
+                            </p>
                             <p>{{ document.uploaded_by?.name ?? '—' }}</p>
                         </div>
                     </div>
-                    <div class="grid gap-3 sm:grid-cols-2">
+
+                    <div class="grid gap-4 sm:grid-cols-2">
                         <div class="grid gap-1">
-                            <p class="text-muted-foreground">{{ t('Organization') }}</p>
+                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                {{ t('Organization') }}
+                            </p>
                             <p>{{ document.organization?.name ?? '—' }}</p>
                         </div>
                         <div class="grid gap-1">
-                            <p class="text-muted-foreground">{{ t('Project') }}</p>
+                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                {{ t('Project') }}
+                            </p>
                             <Link
                                 v-if="document.project"
                                 :href="`/projects/${document.project.id}`"
@@ -190,8 +210,11 @@ const moveToLongTermArchive = (): void => {
                             <p v-else>—</p>
                         </div>
                     </div>
+
                     <div class="grid gap-1">
-                        <p class="text-muted-foreground">{{ t('File') }}</p>
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            {{ t('File') }}
+                        </p>
                         <p>
                             {{ document.original_filename ?? '—' }}
                             <span
@@ -202,6 +225,7 @@ const moveToLongTermArchive = (): void => {
                             </span>
                         </p>
                     </div>
+
                     <div v-if="document.tags?.length" class="flex flex-wrap gap-2">
                         <Badge
                             v-for="tag in document.tags"
@@ -215,181 +239,40 @@ const moveToLongTermArchive = (): void => {
             </Card>
 
             <Can permission="archive.edit">
-            <Card>
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2">
-                        <Archive class="size-5" />
-                        {{ t('Edit document') }}
-                    </CardTitle>
-                    <CardDescription>{{
-                        t('Update metadata or replace the file')
-                    }}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Form
-                        :action="`/archive/${document.id}`"
-                        method="put"
-                        class="grid gap-4"
-                        :options="{ preserveScroll: true, forceFormData: true }"
-                        v-slot="{ errors, processing }"
-                    >
-                        <div class="grid gap-2">
-                            <Label for="title">{{ t('Title') }} *</Label>
-                            <Input
-                                id="title"
-                                name="title"
-                                required
-                                :default-value="document.title"
+                <Card>
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2">
+                            <Archive class="size-5 text-primary" />
+                            {{ t('Edit document') }}
+                        </CardTitle>
+                        <CardDescription>
+                            {{ t('Update metadata or replace the file') }}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Form
+                            :action="`/archive/${document.id}`"
+                            method="put"
+                            class="space-y-6"
+                            :options="{ preserveScroll: true, forceFormData: true }"
+                            v-slot="{ errors, processing }"
+                        >
+                            <ArchiveDocumentFields
+                                :errors="errors"
+                                :document="document"
+                                :categories="categories"
+                                :organizations="organizations"
+                                :projects="projects"
+                                :file-label="t('Replace file')"
                             />
-                            <InputError :message="errors.title" />
-                        </div>
 
-                        <div class="grid gap-2">
-                            <Label for="description">{{ t('Description') }}</Label>
-                            <textarea
-                                id="description"
-                                name="description"
-                                rows="3"
-                                class="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
-                            >{{ document.description ?? '' }}</textarea>
-                            <InputError :message="errors.description" />
-                        </div>
-
-                        <div class="grid gap-2">
-                            <Label for="direction">{{ t('Direction') }}</Label>
-                            <select
-                                id="direction"
-                                name="direction"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-                            >
-                                <option
-                                    value="incoming"
-                                    :selected="document.direction === 'incoming'"
-                                >
-                                    {{ t('Incoming') }}
-                                </option>
-                                <option
-                                    value="outgoing"
-                                    :selected="document.direction === 'outgoing'"
-                                >
-                                    {{ t('Outgoing') }}
-                                </option>
-                                <option
-                                    value="internal"
-                                    :selected="document.direction === 'internal'"
-                                >
-                                    {{ t('Internal') }}
-                                </option>
-                            </select>
-                            <InputError :message="errors.direction" />
-                        </div>
-
-                        <div class="grid gap-2">
-                            <Label for="document_category_id">{{ t('Category') }}</Label>
-                            <select
-                                id="document_category_id"
-                                name="document_category_id"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-                            >
-                                <option value="">{{ t('None') }}</option>
-                                <option
-                                    v-for="category in categories"
-                                    :key="category.id"
-                                    :value="category.id"
-                                    :selected="document.document_category_id === category.id"
-                                >
-                                    {{ category.name }}
-                                </option>
-                            </select>
-                            <InputError :message="errors.document_category_id" />
-                        </div>
-
-                        <div class="grid gap-2">
-                            <Label for="organization_id">{{ t('Organization') }}</Label>
-                            <select
-                                id="organization_id"
-                                name="organization_id"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-                            >
-                                <option value="">{{ t('None') }}</option>
-                                <option
-                                    v-for="organization in organizations"
-                                    :key="organization.id"
-                                    :value="organization.id"
-                                    :selected="document.organization_id === organization.id"
-                                >
-                                    {{ organization.name }}
-                                </option>
-                            </select>
-                            <InputError :message="errors.organization_id" />
-                        </div>
-
-                        <div class="grid gap-2">
-                            <Label for="project_id">{{ t('Project') }}</Label>
-                            <select
-                                id="project_id"
-                                name="project_id"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-                            >
-                                <option value="">{{ t('None') }}</option>
-                                <option
-                                    v-for="project in projects"
-                                    :key="project.id"
-                                    :value="project.id"
-                                    :selected="document.project_id === project.id"
-                                >
-                                    {{ project.code }} — {{ project.name }}
-                                </option>
-                            </select>
-                            <InputError :message="errors.project_id" />
-                        </div>
-
-                        <div class="grid gap-3 sm:grid-cols-3">
-                            <div class="grid gap-2">
-                                <Label for="document_date">{{ t('Document date') }}</Label>
-                                <Input
-                                    id="document_date"
-                                    name="document_date"
-                                    type="date"
-                                    :default-value="document.document_date?.slice(0, 10)"
-                                />
-                                <InputError :message="errors.document_date" />
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="received_at">{{ t('Received') }}</Label>
-                                <Input
-                                    id="received_at"
-                                    name="received_at"
-                                    type="date"
-                                    :default-value="document.received_at?.slice(0, 10)"
-                                />
-                                <InputError :message="errors.received_at" />
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="sent_at">{{ t('Sent') }}</Label>
-                                <Input
-                                    id="sent_at"
-                                    name="sent_at"
-                                    type="date"
-                                    :default-value="document.sent_at?.slice(0, 10)"
-                                />
-                                <InputError :message="errors.sent_at" />
-                            </div>
-                        </div>
-
-                        <div class="grid gap-2">
-                            <Label for="file">{{ t('Replace file') }}</Label>
-                            <Input id="file" name="file" type="file" />
-                            <InputError :message="errors.file" />
-                        </div>
-
-                        <Button type="submit" :disabled="processing">
-                            {{ t('Save changes') }}
-                        </Button>
-                    </Form>
-                </CardContent>
-            </Card>
+                            <Button type="submit" :disabled="processing" class="w-full sm:w-auto">
+                                {{ t('Save changes') }}
+                            </Button>
+                        </Form>
+                    </CardContent>
+                </Card>
             </Can>
         </div>
-    </div>
+    </MisPage>
 </template>

@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -120,11 +118,7 @@ const statusVariant = (
     <div class="flex flex-1 flex-col gap-6 p-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <Heading
-                    :title="bidTitle(bid)"
-                    :description="bid.procurement_opportunity?.title"
-                />
-                <Badge class="mt-2" :variant="statusVariant(bid.status)">
+<Badge class="mt-2" :variant="statusVariant(bid.status)">
                     {{ bid.status }}
                 </Badge>
             </div>
@@ -225,9 +219,6 @@ const statusVariant = (
             <Card v-if="competitors?.length">
                 <CardHeader>
                     <CardTitle>{{ t('Competitor Intelligence') }}</CardTitle>
-                    <CardDescription>
-                        {{ t('Known competitor bids for this opportunity') }}
-                    </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-2">
                     <div

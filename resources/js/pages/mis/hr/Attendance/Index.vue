@@ -1,37 +1,28 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
-import { CalendarDays, Plus, Users } from '@lucide/vue';
-import Heading from '@/components/Heading.vue';
-import Can from '@/components/Can.vue';
-import InputError from '@/components/InputError.vue';
-import MisPagination from '@/components/MisPagination.vue';
-import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
-import RowActionsMenu from '@/components/RowActionsMenu.vue';
+import { Head, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { CalendarDays, ChevronRight, Clock, FileCheck2 } from '@lucide/vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import type { Paginated } from '@/lib/format';
-import type { RowActionItem } from '@/lib/row-actions';
-import { attendanceStatusActions } from '@/lib/status-actions';
 import { useMisPage } from '@/composables/useMisPage';
 
-const EMPLOYEE_TYPE = 'App\\Models\\Hr\\Employee';
-const CONTRACTOR_TYPE = 'App\\Models\\Hr\\Contractor';
-
-interface PersonOption {
-    id: number;
-    first_name: string;
-    last_name: string;
+interface MonthRow {
+    month: number;
+    month_name: string;
+    total: number;
+    recorded: number;
+    approved: number;
+    draft: number;
+    missing: number;
+    has_records: boolean;
 }
 
 interface ProjectOption {
@@ -40,36 +31,26 @@ interface ProjectOption {
     name: string;
 }
 
-interface AttendanceRecord {
-    id: number;
-    personnel_type: string;
-    personnel_id: number;
-    personnel_name?: string | null;
-    project?: { id: number; code: string; name: string } | null;
+interface Summary {
     year: number;
-    month: number;
-    days_present: number;
-    days_absent: number;
-    days_leave: number;
-    overtime_hours?: number | null;
-    status: string;
+    months_with_records: number;
+    total_records: number;
+    missing_this_month: number;
 }
 
 interface Props {
-    attendances: Paginated<AttendanceRecord>;
+    months: MonthRow[];
     projects: ProjectOption[];
-    employees: PersonOption[];
-    contractors: PersonOption[];
+    summary: Summary;
     filters?: {
         year?: number;
-        month?: number;
         project_id?: number;
     };
 }
 
 const props = defineProps<Props>();
 
-const { t, gateActions } = useMisPage();
+const { t } = useMisPage();
 
 defineOptions({
     layout: {
@@ -80,491 +61,233 @@ defineOptions({
     },
 });
 
-const personnelType = ref(EMPLOYEE_TYPE);
-const bulkMode = ref(false);
-const selectedPersonnel = ref<number[]>([]);
-
-const personnelOptions = computed(() =>
-    personnelType.value === EMPLOYEE_TYPE ? props.employees : props.contractors,
+const filterYear = computed(
+    () => props.filters?.year ?? new Date().getFullYear(),
 );
 
-const personLabel = (person: PersonOption): string =>
-    `${person.first_name} ${person.last_name}`.trim();
+const monthHref = (month: number): string => {
+    const params = new URLSearchParams({
+        year: String(filterYear.value),
+        month: String(month),
+    });
 
-const monthName = (month: number): string => {
-    if (!month || month < 1 || month > 12) {
-        return '—';
+    if (props.filters?.project_id) {
+        params.set('project_id', String(props.filters.project_id));
     }
 
-    return new Intl.DateTimeFormat('en-US', { month: 'long' }).format(
-        new Date(2000, month - 1, 1),
-    );
+    return `/hr/attendance/create?${params.toString()}`;
 };
 
-const personnelTypeLabel = (type: string): string => {
-    const parts = type.split('\\');
-
-    return parts[parts.length - 1] ?? type;
-};
-
-const togglePerson = (id: number): void => {
-    const idx = selectedPersonnel.value.indexOf(id);
-    if (idx === -1) {
-        selectedPersonnel.value.push(id);
-    } else {
-        selectedPersonnel.value.splice(idx, 1);
+const monthStatus = (
+    row: MonthRow,
+): { label: string; variant: 'default' | 'secondary' | 'outline' } => {
+    if (!row.has_records) {
+        return { label: t('Not started'), variant: 'outline' };
     }
-};
 
-const selectAllPersonnel = (): void => {
-    selectedPersonnel.value = personnelOptions.value.map((p) => p.id);
-};
+    if (row.missing > 0) {
+        return { label: t('Incomplete'), variant: 'secondary' };
+    }
 
-const attendanceActions = (record: AttendanceRecord): RowActionItem[] =>
-    gateActions(attendanceStatusActions(record.id, record.status, t), 'hr.edit');
+    if (row.approved === row.total && row.total > 0) {
+        return { label: t('Approved'), variant: 'default' };
+    }
+
+    return { label: t('Recorded'), variant: 'secondary' };
+};
 </script>
 
 <template>
     <Head :title="t('Attendance')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
-        <Heading
-            :title="t('Attendance')"
-            :description="
-                t(
-                    'Record monthly attendance, approve records, then process payroll',
-                )
-            "
-        />
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight">
+                {{ t('Attendance') }}
+            </h1>
+            <p class="text-sm text-muted-foreground">
+                {{
+                    t(
+                        'Select a month to record or update attendance for all staff.',
+                    )
+                }}
+            </p>
+        </div>
 
-        <div class="grid gap-6 xl:grid-cols-3">
-            <Can permission="hr.create">
-            <Card class="xl:col-span-1">
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2">
-                        <Plus class="size-5" />
-                        {{ bulkMode ? t('Bulk attendance') : t('Record attendance') }}
+        <div class="grid gap-4 sm:grid-cols-3">
+            <Card>
+                <CardHeader class="pb-2">
+                    <CardTitle class="text-sm font-medium text-muted-foreground">
+                        {{ t('Year') }}
                     </CardTitle>
-                    <CardDescription>
-                        <button
-                            type="button"
-                            class="text-primary underline-offset-4 hover:underline"
-                            @click="bulkMode = !bulkMode"
-                        >
-                            {{ bulkMode ? t('Switch to single entry') : t('Record many staff at once') }}
-                        </button>
-                    </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Form
-                        v-if="bulkMode"
-                        action="/hr/attendance/bulk"
-                        method="post"
-                        class="grid gap-4"
-                        :options="{ preserveScroll: true, resetOnSuccess: true }"
-                        v-slot="{ errors, processing }"
-                    >
-                        <input type="hidden" name="personnel_type" :value="personnelType" />
-                        <template v-for="id in selectedPersonnel" :key="id">
-                            <input type="hidden" name="personnel_ids[]" :value="id" />
-                        </template>
-
-                        <div class="grid gap-2">
-                            <Label>{{ t('Personnel type') }}</Label>
-                            <select v-model="personnelType" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs">
-                                <option :value="EMPLOYEE_TYPE">{{ t('Employee') }}</option>
-                                <option :value="CONTRACTOR_TYPE">{{ t('Contractor') }}</option>
-                            </select>
-                        </div>
-
-                        <div class="grid gap-2">
-                            <div class="flex items-center justify-between">
-                                <Label>{{ t('Select staff') }} ({{ selectedPersonnel.length }})</Label>
-                                <Button type="button" variant="ghost" size="sm" @click="selectAllPersonnel">{{ t('Select all') }}</Button>
-                            </div>
-                            <div class="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2">
-                                <label
-                                    v-for="person in personnelOptions"
-                                    :key="person.id"
-                                    class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted/50"
-                                >
-                                    <input type="checkbox" :checked="selectedPersonnel.includes(person.id)" @change="togglePerson(person.id)" />
-                                    {{ personLabel(person) }}
-                                </label>
-                            </div>
-                            <InputError :message="errors.personnel_ids" />
-                        </div>
-
-                        <div class="grid gap-2">
-                            <Label for="bulk_project_id">{{ t('Project') }}</Label>
-                            <select id="bulk_project_id" name="project_id" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs">
-                                <option value="">{{ t('None') }}</option>
-                                <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.code }} — {{ project.name }}</option>
-                            </select>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="grid gap-2">
-                                <Label for="bulk_year">{{ t('Year') }} *</Label>
-                                <Input id="bulk_year" name="year" type="number" required :default-value="filters?.year ?? new Date().getFullYear()" />
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="bulk_month">{{ t('Month') }} *</Label>
-                                <Input id="bulk_month" name="month" type="number" min="1" max="12" required :default-value="filters?.month ?? new Date().getMonth() + 1" />
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-3 gap-3">
-                            <div class="grid gap-2"><Label for="bulk_present">{{ t('Present') }}</Label><Input id="bulk_present" name="days_present" type="number" min="0" max="31" default-value="22" /></div>
-                            <div class="grid gap-2"><Label for="bulk_absent">{{ t('Absent') }}</Label><Input id="bulk_absent" name="days_absent" type="number" min="0" max="31" default-value="0" /></div>
-                            <div class="grid gap-2"><Label for="bulk_leave">{{ t('Leave') }}</Label><Input id="bulk_leave" name="days_leave" type="number" min="0" max="31" default-value="0" /></div>
-                        </div>
-
-                        <Button type="submit" :disabled="processing || selectedPersonnel.length === 0">
-                            <Users class="size-4" />
-                            {{ t('Record for :count staff', { count: String(selectedPersonnel.length) }) }}
-                        </Button>
-                    </Form>
-
-                    <Form
-                        v-else
-                        action="/hr/attendance"
-                        method="post"
-                        class="grid gap-4"
-                        :options="{
-                            preserveScroll: true,
-                            forceFormData: true,
-                            resetOnSuccess: true,
-                        }"
-                        v-slot="{ errors, processing }"
-                    >
-                        <input
-                            type="hidden"
-                            name="personnel_type"
-                            :value="personnelType"
-                        />
-
-                        <div class="grid gap-2">
-                            <Label for="personnel_type">{{
-                                t('Personnel type')
-                            }}</Label>
-                            <select
-                                id="personnel_type"
-                                v-model="personnelType"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-                            >
-                                <option :value="EMPLOYEE_TYPE">
-                                    {{ t('Employee') }}
-                                </option>
-                                <option :value="CONTRACTOR_TYPE">
-                                    {{ t('Contractor') }}
-                                </option>
-                            </select>
-                        </div>
-
-                        <div class="grid gap-2">
-                            <Label for="personnel_id"
-                                >{{ t('Person') }} *</Label
-                            >
-                            <select
-                                id="personnel_id"
-                                name="personnel_id"
-                                required
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-                            >
-                                <option value="" disabled selected>
-                                    {{ t('Select person') }}
-                                </option>
-                                <option
-                                    v-for="person in personnelOptions"
-                                    :key="person.id"
-                                    :value="person.id"
-                                >
-                                    {{ personLabel(person) }}
-                                </option>
-                            </select>
-                            <InputError :message="errors.personnel_id" />
-                        </div>
-
-                        <div class="grid gap-2">
-                            <Label for="project_id">{{ t('Project') }}</Label>
-                            <select
-                                id="project_id"
-                                name="project_id"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-                            >
-                                <option value="">{{ t('None') }}</option>
-                                <option
-                                    v-for="project in projects"
-                                    :key="project.id"
-                                    :value="project.id"
-                                >
-                                    {{ project.code }} — {{ project.name }}
-                                </option>
-                            </select>
-                            <InputError :message="errors.project_id" />
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="grid gap-2">
-                                <Label for="create_year"
-                                    >{{ t('Year') }} *</Label
-                                >
-                                <Input
-                                    id="create_year"
-                                    name="year"
-                                    type="number"
-                                    required
-                                    :default-value="
-                                        filters?.year ??
-                                        new Date().getFullYear()
-                                    "
-                                />
-                                <InputError :message="errors.year" />
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="create_month"
-                                    >{{ t('Month') }} *</Label
-                                >
-                                <Input
-                                    id="create_month"
-                                    name="month"
-                                    type="number"
-                                    min="1"
-                                    max="12"
-                                    required
-                                    :default-value="
-                                        filters?.month ??
-                                        new Date().getMonth() + 1
-                                    "
-                                />
-                                <InputError :message="errors.month" />
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-3 gap-3">
-                            <div class="grid gap-2">
-                                <Label for="days_present">{{
-                                    t('Present')
-                                }}</Label>
-                                <Input
-                                    id="days_present"
-                                    name="days_present"
-                                    type="number"
-                                    min="0"
-                                    max="31"
-                                    default-value="0"
-                                />
-                                <InputError :message="errors.days_present" />
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="days_absent">{{
-                                    t('Absent')
-                                }}</Label>
-                                <Input
-                                    id="days_absent"
-                                    name="days_absent"
-                                    type="number"
-                                    min="0"
-                                    max="31"
-                                    default-value="0"
-                                />
-                                <InputError :message="errors.days_absent" />
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="days_leave">{{ t('Leave') }}</Label>
-                                <Input
-                                    id="days_leave"
-                                    name="days_leave"
-                                    type="number"
-                                    min="0"
-                                    max="31"
-                                    default-value="0"
-                                />
-                                <InputError :message="errors.days_leave" />
-                            </div>
-                        </div>
-
-                        <div class="grid gap-2">
-                            <Label for="overtime_hours">{{
-                                t('Overtime hours')
-                            }}</Label>
-                            <Input
-                                id="overtime_hours"
-                                name="overtime_hours"
-                                type="number"
-                                min="0"
-                                step="0.5"
-                                default-value="0"
-                            />
-                            <InputError :message="errors.overtime_hours" />
-                        </div>
-
-                        <OptionalAttachmentField :error="errors.attachment" />
-
-                        <Button type="submit" :disabled="processing">
-                            {{ t('Create record') }}
-                        </Button>
-                    </Form>
-                </CardContent>
-            </Card>
-            </Can>
-
-            <Card class="xl:col-span-2">
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2">
-                        <CalendarDays class="size-5" />
-                        {{ t('Attendance Records') }}
-                    </CardTitle>
-                    <CardDescription>
+                    <p class="text-2xl font-semibold">{{ summary.year }}</p>
+                    <p class="text-xs text-muted-foreground">
                         {{
-                            t(':count records · filter by period', {
-                                count: String(
-                                    attendances.meta?.total ??
-                                        attendances.data.length,
-                                ),
+                            t(':count months with records', {
+                                count: String(summary.months_with_records),
                             })
                         }}
-                    </CardDescription>
+                    </p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader class="pb-2">
+                    <CardTitle
+                        class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+                    >
+                        <FileCheck2 class="size-4" />
+                        {{ t('Total records') }}
+                    </CardTitle>
                 </CardHeader>
-                <CardContent class="space-y-4">
-                    <form
-                        method="get"
-                        action="/hr/attendance"
-                        class="flex flex-wrap items-end gap-4"
+                <CardContent>
+                    <p class="text-2xl font-semibold">
+                        {{ summary.total_records }}
+                    </p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader class="pb-2">
+                    <CardTitle
+                        class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
                     >
-                        <div class="grid gap-2">
-                            <Label for="year">{{ t('Year') }}</Label>
-                            <Input
-                                id="year"
-                                name="year"
-                                type="number"
-                                :default-value="
-                                    filters?.year ?? new Date().getFullYear()
-                                "
-                                class="w-28"
-                            />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label for="month">{{ t('Month') }}</Label>
-                            <Input
-                                id="month"
-                                name="month"
-                                type="number"
-                                min="1"
-                                max="12"
-                                :default-value="
-                                    filters?.month ?? new Date().getMonth() + 1
-                                "
-                                class="w-20"
-                            />
-                        </div>
-                        <Button type="submit" variant="outline">{{
-                            t('Filter')
-                        }}</Button>
-                    </form>
-
-                    <div
-                        v-if="attendances.data.length === 0"
-                        class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
-                    >
-                        {{ t('No attendance records for this period.') }}
-                    </div>
-
-                    <div v-else class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr
-                                    class="border-b text-start text-muted-foreground"
-                                >
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('Personnel') }}
-                                    </th>
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('Type') }}
-                                    </th>
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('Project') }}
-                                    </th>
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('Period') }}
-                                    </th>
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('Present') }}
-                                    </th>
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('Absent') }}
-                                    </th>
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('Leave') }}
-                                    </th>
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('OT Hours') }}
-                                    </th>
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('Status') }}
-                                    </th>
-                                    <th class="pb-3 text-end font-medium">
-                                        {{ t('Actions') }}
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr
-                                    v-for="record in attendances.data"
-                                    :key="record.id"
-                                    class="border-b last:border-0"
-                                >
-                                    <td class="py-3 pr-4 font-medium">
-                                        {{
-                                            record.personnel_name ??
-                                            `#${record.personnel_id}`
-                                        }}
-                                    </td>
-                                    <td class="py-3 pr-4 text-muted-foreground">
-                                        {{
-                                            personnelTypeLabel(
-                                                record.personnel_type,
-                                            )
-                                        }}
-                                    </td>
-                                    <td class="py-3 pr-4 text-muted-foreground">
-                                        {{ record.project?.code ?? '—' }}
-                                    </td>
-                                    <td class="py-3 pr-4 text-muted-foreground">
-                                        {{ monthName(record.month) }}
-                                        {{ record.year }}
-                                    </td>
-                                    <td class="py-3 pr-4">
-                                        {{ record.days_present }}
-                                    </td>
-                                    <td class="py-3 pr-4">
-                                        {{ record.days_absent }}
-                                    </td>
-                                    <td class="py-3 pr-4">
-                                        {{ record.days_leave }}
-                                    </td>
-                                    <td class="py-3 pr-4">
-                                        {{ record.overtime_hours ?? 0 }}
-                                    </td>
-                                    <td class="py-3 pr-4">
-                                        <Badge variant="outline">{{
-                                            record.status
-                                        }}</Badge>
-                                    </td>
-                                    <td class="py-3 text-right">
-                                        <RowActionsMenu
-                                            :actions="attendanceActions(record)"
-                                        />
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <MisPagination :pagination="attendances" />
+                        <Clock class="size-4" />
+                        {{ t('Missing this month') }}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p class="text-2xl font-semibold">
+                        {{ summary.missing_this_month }}
+                    </p>
                 </CardContent>
             </Card>
         </div>
+
+        <Card>
+            <CardHeader>
+                <CardTitle class="flex items-center gap-2">
+                    <CalendarDays class="size-5" />
+                    {{ t('Monthly attendance') }}
+                </CardTitle>
+            </CardHeader>
+            <CardContent class="space-y-4">
+                <form
+                    method="get"
+                    action="/hr/attendance"
+                    class="flex flex-wrap items-end gap-4 rounded-lg border bg-muted/20 p-4"
+                >
+                    <div class="grid gap-2">
+                        <Label for="filter_year">{{ t('Year') }}</Label>
+                        <Input
+                            id="filter_year"
+                            name="year"
+                            type="number"
+                            min="2000"
+                            max="2100"
+                            :default-value="filterYear"
+                            class="w-28"
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="filter_project">{{ t('Project') }}</Label>
+                        <select
+                            id="filter_project"
+                            name="project_id"
+                            class="flex h-9 min-w-48 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs"
+                        >
+                            <option value="">{{ t('All projects') }}</option>
+                            <option
+                                v-for="project in projects"
+                                :key="project.id"
+                                :value="project.id"
+                                :selected="
+                                    filters?.project_id === project.id
+                                "
+                            >
+                                {{ project.code }} — {{ project.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <Button type="submit" variant="outline">
+                        {{ t('Filter') }}
+                    </Button>
+                </form>
+
+                <div class="overflow-x-auto rounded-md border">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr
+                                class="border-b bg-muted/30 text-start text-muted-foreground"
+                            >
+                                <th class="px-4 py-3 font-medium">
+                                    {{ t('Month') }}
+                                </th>
+                                <th class="px-4 py-3 font-medium">
+                                    {{ t('Status') }}
+                                </th>
+                                <th class="px-4 py-3 text-center font-medium">
+                                    {{ t('Recorded') }}
+                                </th>
+                                <th class="px-4 py-3 text-center font-medium">
+                                    {{ t('Approved') }}
+                                </th>
+                                <th class="px-4 py-3 text-center font-medium">
+                                    {{ t('Missing') }}
+                                </th>
+                                <th class="px-4 py-3 text-end font-medium">
+                                    {{ t('Actions') }}
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="row in months"
+                                :key="row.month"
+                                class="border-b last:border-0 transition-colors hover:bg-muted/20"
+                            >
+                                <td class="px-4 py-3 font-medium">
+                                    {{ row.month_name }}
+                                </td>
+                                <td class="px-4 py-3">
+                                    <Badge :variant="monthStatus(row).variant">
+                                        {{ monthStatus(row).label }}
+                                    </Badge>
+                                </td>
+                                <td class="px-4 py-3 text-center tabular-nums">
+                                    {{ row.recorded }}
+                                </td>
+                                <td class="px-4 py-3 text-center tabular-nums">
+                                    {{ row.approved }}
+                                </td>
+                                <td class="px-4 py-3 text-center tabular-nums">
+                                    <span
+                                        :class="
+                                            row.missing > 0
+                                                ? 'font-medium text-amber-600 dark:text-amber-400'
+                                                : ''
+                                        "
+                                    >
+                                        {{ row.missing }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-end">
+                                    <Button variant="ghost" size="sm" as-child>
+                                        <Link :href="monthHref(row.month)">
+                                            {{
+                                                row.has_records
+                                                    ? t('Update')
+                                                    : t('Record')
+                                            }}
+                                            <ChevronRight class="size-4" />
+                                        </Link>
+                                    </Button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </CardContent>
+        </Card>
     </div>
 </template>

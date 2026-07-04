@@ -28,6 +28,13 @@ class AttachmentTypeController extends Controller
         ]);
     }
 
+    public function create(Request $request): Response
+    {
+        $this->authorizePermission($request, 'settings.edit');
+
+        return Inertia::render('settings/AttachmentTypes/Create');
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $this->authorizePermission($request, 'settings.edit');
@@ -45,7 +52,9 @@ class AttachmentTypeController extends Controller
             'slug' => $validated['slug'] ?? Str::slug($validated['name']),
         ]);
 
-        return back()->with('success', 'Form type created.');
+        return redirect()
+            ->route('settings.form-types.index')
+            ->with('success', 'Form type created.');
     }
 
     public function update(Request $request, AttachmentType $attachmentType): RedirectResponse

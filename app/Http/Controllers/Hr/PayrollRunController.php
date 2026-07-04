@@ -26,15 +26,23 @@ class PayrollRunController extends Controller
     {
         $this->authorizePermission($request, 'hr.view');
 
+        $year = $request->integer('year') ?: null;
+
         $payrollRuns = PayrollRun::query()
             ->with('processedBy')
             ->withCount('items')
+            ->withSum('items as total_net', 'net_amount')
+            ->when($year, fn ($query) => $query->where('period_year', $year))
             ->latest('period_year')
             ->latest('period_month')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         return Inertia::render('mis/hr/Payroll/Index', [
             'payrollRuns' => $payrollRuns,
+            'filters' => [
+                'year' => $year,
+            ],
         ]);
     }
 
@@ -285,6 +293,35 @@ class PayrollRunController extends Controller
         ]);
 
         return back();
+    }
+
+    public function destroy(Request $request, PayrollRun $payrollRun): RedirectResponse
+    {
+        $this->authorizePermission($request, 'hr.delete');
+
+        DB::transaction(function () use ($payrollRun) {
+            if ($payrollRun->status === 'processed') {
+                $itemIds = $payrollRun->items()->pluck('id');
+
+                if ($itemIds->isNotEmpty()) {
+                    PersonnelPayrollAdjustment::query()
+                        ->whereIn('payroll_item_id', $itemIds)
+                        ->update([
+                            'payroll_item_id' => null,
+                            'applied_at' => null,
+                        ]);
+                }
+            }
+
+            $payrollRun->delete();
+        });
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Payroll run deleted.',
+        ]);
+
+        return redirect()->route('hr.payroll.index');
     }
 
     private function calculateBaseAmount(PersonnelAttendance $attendance): float

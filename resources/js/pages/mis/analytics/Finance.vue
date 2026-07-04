@@ -3,12 +3,10 @@ import { Head, Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { DollarSign, PieChart } from '@lucide/vue';
 import Can from '@/components/Can.vue';
-import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -133,12 +131,7 @@ const incomeSources = computed(() => {
     <Head :title="t('Finance Analytics')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <Heading
-                :title="t('Finance Analytics')"
-                :description="t('Revenue, expenses, and project profitability')"
-            />
-            <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap justify-end gap-2">
                 <Can permission="finance.view">
                     <Button variant="outline" as-child>
                         <Link href="/finance">{{ t('View Finance') }}</Link>
@@ -149,7 +142,6 @@ const incomeSources = computed(() => {
                         <Link href="/analytics/bidding">{{ t('Bidding Analytics') }}</Link>
                     </Button>
                 </Can>
-            </div>
         </div>
 
         <div v-if="stats" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -192,7 +184,6 @@ const incomeSources = computed(() => {
             <Card class="xl:col-span-2">
                 <CardHeader>
                     <CardTitle>{{ t('Monthly Trends') }}</CardTitle>
-                    <CardDescription>{{ t('Income vs expenses over 6 months') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <BarChart
@@ -218,7 +209,6 @@ const incomeSources = computed(() => {
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Net Cash Flow') }}</CardTitle>
-                    <CardDescription>{{ t('Monthly income minus expenses') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <LineChart
@@ -295,7 +285,6 @@ const incomeSources = computed(() => {
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Income Sources') }}</CardTitle>
-                    <CardDescription>{{ t('Project vs other income over 6 months') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <BarChart
@@ -356,7 +345,6 @@ const incomeSources = computed(() => {
             <Card class="xl:col-span-2">
                 <CardHeader>
                     <CardTitle>{{ t('Project Income vs Expense') }}</CardTitle>
-                    <CardDescription>{{ t('Top projects comparison') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <BarChart
@@ -376,10 +364,7 @@ const incomeSources = computed(() => {
                     <PieChart class="size-5" />
                     {{ t('Project Profitability') }}
                 </CardTitle>
-                <CardDescription>
-                    {{ t('Income vs expense by project') }}
-                </CardDescription>
-            </CardHeader>
+                </CardHeader>
             <CardContent>
                 <div
                     v-if="projectProfitability.length === 0"

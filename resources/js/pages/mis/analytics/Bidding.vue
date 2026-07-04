@@ -2,14 +2,12 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { BarChart3, TrendingUp } from '@lucide/vue';
 import Can from '@/components/Can.vue';
-import Heading from '@/components/Heading.vue';
 import MisCreateButton from '@/components/MisCreateButton.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -110,12 +108,7 @@ const outcomeLabel = (key: string): string => {
     <Head :title="t('Bidding Analytics')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <Heading
-                :title="t('Bidding Analytics')"
-                :description="t('Win rates, bid outcomes, and competitor trends')"
-            />
-            <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap justify-end gap-2">
                 <Can permission="projects.view">
                     <Button variant="outline" as-child>
                         <Link href="/projects">{{ t('View Projects') }}</Link>
@@ -132,7 +125,6 @@ const outcomeLabel = (key: string): string => {
                         <Link href="/analytics/finance">{{ t('Finance Analytics') }}</Link>
                     </Button>
                 </Can>
-            </div>
         </div>
 
         <div v-if="stats" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -197,7 +189,6 @@ const outcomeLabel = (key: string): string => {
             <Card class="lg:col-span-2 xl:col-span-1">
                 <CardHeader>
                     <CardTitle>{{ t('Monthly Bid Activity') }}</CardTitle>
-                    <CardDescription>{{ t('Submissions, wins, and losses') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <LineChart
@@ -263,7 +254,6 @@ const outcomeLabel = (key: string): string => {
             <Card class="xl:col-span-2">
                 <CardHeader>
                     <CardTitle>{{ t('Win Rate Trend') }}</CardTitle>
-                    <CardDescription>{{ t('Monthly win rate percentage') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <LineChart
@@ -287,9 +277,6 @@ const outcomeLabel = (key: string): string => {
             <Card v-if="organizationTypes?.length">
                 <CardHeader>
                     <CardTitle>{{ t('By Organization Type') }}</CardTitle>
-                    <CardDescription>{{
-                        t('Projects and contract value by client type')
-                    }}</CardDescription>
                 </CardHeader>
                 <CardContent class="divide-y">
                     <div
@@ -314,9 +301,6 @@ const outcomeLabel = (key: string): string => {
             <Card v-if="competitorIntel !== undefined">
                 <CardHeader>
                     <CardTitle>{{ t('Competitor Intel') }}</CardTitle>
-                    <CardDescription>{{
-                        t('Recorded competitor bids across projects')
-                    }}</CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-3">
                     <p class="text-3xl font-bold">{{ competitorIntel ?? 0 }}</p>
@@ -335,10 +319,7 @@ const outcomeLabel = (key: string): string => {
                     <BarChart3 class="size-5" />
                     {{ t('Recent Bids') }}
                 </CardTitle>
-                <CardDescription>{{
-                    t('Latest bid submissions and outcomes')
-                }}</CardDescription>
-            </CardHeader>
+                </CardHeader>
             <CardContent>
                 <div
                     v-if="bids.length === 0"

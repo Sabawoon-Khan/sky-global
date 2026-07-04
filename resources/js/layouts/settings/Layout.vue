@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
@@ -68,6 +67,12 @@ const adminNavItems = computed<NavItem[]>(() =>
                   href: '/settings/currencies',
               }
             : null,
+        can('settings.edit')
+            ? {
+                  title: t('Backups'),
+                  href: '/settings/backups',
+              }
+            : null,
     ].filter((item): item is NavItem => item !== null),
 );
 
@@ -76,11 +81,6 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
 
 <template>
     <div class="px-4 py-6">
-        <Heading
-            :title="t('Settings')"
-            :description="t('Manage your profile and account settings')"
-        />
-
         <div class="flex flex-col gap-6 lg:flex-row lg:gap-12">
             <aside class="w-full max-w-xl lg:w-48">
                 <nav class="flex flex-col space-y-6 space-x-0" aria-label="Settings">
@@ -137,8 +137,8 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
 
             <Separator class="my-6 lg:hidden" />
 
-            <div class="flex-1 md:max-w-2xl">
-                <section class="max-w-3xl space-y-12">
+            <div class="min-w-0 flex-1">
+                <section class="w-full space-y-12">
                     <slot />
                 </section>
             </div>

@@ -26,18 +26,47 @@
             })();
         </script>
 
+        {{-- Apply saved theme colors before paint --}}
+        <script>
+            (function() {
+                try {
+                    var raw = localStorage.getItem('theme-colors');
+                    if (!raw) return;
+                    var c = JSON.parse(raw);
+                    var root = document.documentElement;
+                    var dark = root.classList.contains('dark');
+                    var accent = dark ? (c.accentDark || c.accent) : c.accent;
+                    var bg = dark ? (c.backgroundDark || c.brand) : (c.backgroundLight || '#f5f5f5');
+                    if (c.brand) {
+                        root.style.setProperty('--school-navy', c.brand);
+                        root.style.setProperty('--sidebar-background', c.brand);
+                        root.style.setProperty('--sidebar', c.brand);
+                    }
+                    if (accent) {
+                        root.style.setProperty('--primary', accent);
+                        root.style.setProperty('--school-gold', accent);
+                        root.style.setProperty('--school-accent', accent);
+                    }
+                    if (bg) {
+                        root.style.setProperty('--background', bg);
+                        root.style.setProperty('--school-panel', bg);
+                    }
+                } catch (e) {}
+            })();
+        </script>
+
         {{-- Inline style to set the HTML background color based on our theme in app.css --}}
         <style>
             html {
-                background-color: oklch(1 0 0);
+                background-color: var(--background, #f5f5f5);
             }
 
             html.dark {
-                background-color: oklch(0.145 0 0);
+                background-color: var(--background, #0a0a0a);
             }
         </style>
 
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+        <link rel="icon" href="/logo.png" type="image/png">
 
         @fonts
 

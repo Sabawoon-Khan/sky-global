@@ -62,7 +62,7 @@ const fieldError = (index: number, field: string): string | undefined =>
         <template v-else>
             <div
                 v-if="rows.length === 0"
-                class="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground"
+                class="ui-empty-state"
             >
                 {{ t('No forms added yet. Click below to attach employee forms.') }}
             </div>
@@ -70,7 +70,7 @@ const fieldError = (index: number, field: string): string | undefined =>
             <div
                 v-for="(row, index) in rows"
                 :key="row.key"
-                class="space-y-4 rounded-lg border p-4"
+                class="space-y-4 ui-inset-panel"
             >
                 <div class="flex items-center justify-between gap-3">
                     <p class="text-sm font-medium">

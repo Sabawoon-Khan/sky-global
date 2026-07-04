@@ -29,13 +29,22 @@ class OrganizationTypeController extends Controller
         ]);
     }
 
+    public function create(Request $request): Response
+    {
+        $this->authorizePermission($request, 'settings.edit');
+
+        return Inertia::render('settings/OrganizationTypes/Create');
+    }
+
     public function store(StoreOrganizationTypeRequest $request): RedirectResponse
     {
         $this->authorizePermission($request, 'settings.edit');
 
         OrganizationType::query()->create($request->validated());
 
-        return back()->with('success', 'Organization type created.');
+        return redirect()
+            ->route('settings.organization-types.index')
+            ->with('success', 'Organization type created.');
     }
 
     public function update(UpdateOrganizationTypeRequest $request, OrganizationType $organizationType): RedirectResponse

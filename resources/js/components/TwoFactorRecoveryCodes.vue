@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -44,11 +43,7 @@ onMounted(async () => {
             <CardTitle class="flex gap-3">
                 <LockKeyhole class="size-4" />2FA recovery codes
             </CardTitle>
-            <CardDescription>
-                Recovery codes let you regain access if you lose your 2FA
-                device. Store them in a secure password manager.
-            </CardDescription>
-        </CardHeader>
+                </CardHeader>
         <CardContent>
             <div
                 class="flex flex-col gap-3 select-none sm:flex-row sm:items-center sm:justify-between"

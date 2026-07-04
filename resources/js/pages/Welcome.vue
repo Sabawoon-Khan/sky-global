@@ -12,14 +12,12 @@ import {
     Users,
 } from '@lucide/vue';
 import { computed } from 'vue';
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import AppLogoImage from '@/components/AppLogoImage.vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
-    CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -33,58 +31,34 @@ const { t } = useTranslations();
 const modules = computed(() => [
     {
         title: t('Organizations'),
-        description: t(
-            'Manage clients, partners, and organization profiles in one place.',
-        ),
         icon: Building2,
     },
     {
         title: t('Bidding'),
-        description: t(
-            'Track opportunities, prepare bids, and monitor win rates.',
-        ),
         icon: FileText,
     },
     {
         title: t('Projects'),
-        description: t(
-            'Oversee active contracts, sites, issues, and delivery milestones.',
-        ),
         icon: Briefcase,
     },
     {
         title: t('Finance'),
-        description: t(
-            'Monitor income, expenses, overhead, and project profitability.',
-        ),
         icon: DollarSign,
     },
     {
         title: t('Human Resources'),
-        description: t(
-            'Handle employees, contractors, payroll, and attendance records.',
-        ),
         icon: Users,
     },
     {
         title: t('Analytics'),
-        description: t(
-            'Visualize bidding performance and financial trends at a glance.',
-        ),
         icon: BarChart3,
     },
     {
         title: t('Archive'),
-        description: t(
-            'Store and retrieve historical documents and project records.',
-        ),
         icon: Archive,
     },
     {
         title: t('Security Operations'),
-        description: t(
-            'Built for teams that need reliable, centralized operational control.',
-        ),
         icon: Shield,
     },
 ]);
@@ -95,7 +69,7 @@ const modules = computed(() => [
 
     <div class="relative min-h-screen overflow-hidden bg-background">
         <div
-            class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,119,198,0.12),transparent)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,119,198,0.08),transparent)]"
+            class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(32,48,112,0.14),transparent)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(32,48,112,0.2),transparent)]"
         />
         <div
             class="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:4rem_4rem] dark:bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)]"
@@ -107,11 +81,7 @@ const modules = computed(() => [
                     href="/"
                     class="flex items-center gap-3 transition-opacity hover:opacity-80"
                 >
-                    <div
-                        class="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm"
-                    >
-                        <AppLogoIcon class="size-5 fill-current" />
-                    </div>
+                    <AppLogoImage class="size-10" />
                     <span class="text-sm font-semibold tracking-tight">{{
                         appName
                     }}</span>
@@ -148,16 +118,6 @@ const modules = computed(() => [
                         }}
                     </h1>
 
-                    <p
-                        class="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg"
-                    >
-                        {{
-                            t(
-                                'Streamline bidding, projects, finance, and HR with one integrated workspace built for security and service organizations.',
-                            )
-                        }}
-                    </p>
-
                     <div class="mt-10 flex justify-center">
                         <Button as-child size="lg" class="min-w-44">
                             <Link
@@ -183,13 +143,6 @@ const modules = computed(() => [
                         <h2 class="text-2xl font-semibold tracking-tight">
                             {{ t('Everything your team needs') }}
                         </h2>
-                        <p class="mt-2 text-sm text-muted-foreground sm:text-base">
-                            {{
-                                t(
-                                    'Modular tools that work together across your entire workflow.',
-                                )
-                            }}
-                        </p>
                     </div>
 
                     <div
@@ -213,11 +166,7 @@ const modules = computed(() => [
                                     module.title
                                 }}</CardTitle>
                             </CardHeader>
-                            <CardContent>
-                                <CardDescription class="leading-relaxed">
-                                    {{ module.description }}
-                                </CardDescription>
-                            </CardContent>
+
                         </Card>
                     </div>
                 </section>

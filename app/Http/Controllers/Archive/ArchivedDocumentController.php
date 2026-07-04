@@ -40,13 +40,21 @@ class ArchivedDocumentController extends Controller
 
         return Inertia::render('mis/archive/Index', [
             'documents' => $documents,
-            'categories' => DocumentCategory::query()->orderBy('name')->get(['id', 'name']),
-            'organizations' => Organization::query()->orderBy('name')->get(['id', 'name']),
-            'projects' => Project::query()->orderBy('name')->get(['id', 'code', 'name']),
             'filters' => [
                 'search' => $search ?: null,
                 'direction' => $direction ?: null,
             ],
+        ]);
+    }
+
+    public function create(Request $request): Response
+    {
+        $this->authorizePermission($request, 'archive.create');
+
+        return Inertia::render('mis/archive/Create', [
+            'categories' => DocumentCategory::query()->orderBy('name')->get(['id', 'name']),
+            'organizations' => Organization::query()->orderBy('name')->get(['id', 'name']),
+            'projects' => Project::query()->orderBy('name')->get(['id', 'code', 'name']),
         ]);
     }
 
@@ -81,7 +89,9 @@ class ArchivedDocumentController extends Controller
             'uploaded_by' => $request->user()->id,
         ]);
 
-        return back()->with('success', 'Document archived.');
+        return redirect()
+            ->route('archive.index')
+            ->with('success', 'Document archived.');
     }
 
     public function show(Request $request, ArchivedDocument $archivedDocument): Response

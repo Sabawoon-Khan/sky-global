@@ -10,6 +10,7 @@ import {
 } from 'chart.js';
 import { computed } from 'vue';
 import { Bar } from 'vue-chartjs';
+import { formatNumber } from '@/lib/format';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -42,13 +43,26 @@ const chartData = computed(() => ({
 const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+        duration: 1100,
+        easing: 'easeOutQuart' as const,
+    },
     plugins: {
         legend: { position: 'bottom' as const },
+        tooltip: {
+            callbacks: {
+                label: (context) =>
+                    `${context.dataset.label}: ${formatNumber(context.parsed.y ?? 0)}`,
+            },
+        },
     },
     scales: {
         y: {
             beginAtZero: true,
-            ticks: { precision: 0 },
+            ticks: {
+                precision: 0,
+                callback: (value) => formatNumber(Number(value)),
+            },
         },
     },
 };

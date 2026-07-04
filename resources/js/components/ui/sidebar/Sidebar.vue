@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { SidebarProps } from "."
+import { computed } from "vue"
 import { cn } from "@/lib/utils"
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import SheetDescription from '@/components/ui/sheet/SheetDescription.vue'
 import SheetHeader from '@/components/ui/sheet/SheetHeader.vue'
 import SheetTitle from '@/components/ui/sheet/SheetTitle.vue'
-import { SIDEBAR_WIDTH_MOBILE, useSidebar } from "./utils"
+import { SIDEBAR_MARGIN, SIDEBAR_WIDTH, SIDEBAR_WIDTH_ICON, SIDEBAR_WIDTH_MOBILE, useSidebar } from "./utils"
 
 defineOptions({
   inheritAttrs: false,
@@ -18,6 +19,21 @@ const props = withDefaults(defineProps<SidebarProps>(), {
 })
 
 const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+
+const isFloating = computed(() => props.variant === 'floating' || props.variant === 'inset')
+
+const spacerWidth = computed(() => {
+  if (props.collapsible === 'offcanvas' && state.value === 'collapsed') {
+    return '0px'
+  }
+
+  const sidebarWidth =
+    state.value === 'collapsed' && props.collapsible === 'icon'
+      ? SIDEBAR_WIDTH_ICON
+      : SIDEBAR_WIDTH
+
+  return `calc(${sidebarWidth} + ${SIDEBAR_MARGIN} * 2)`
+})
 </script>
 
 <template>
@@ -36,7 +52,7 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
       data-slot="sidebar"
       data-mobile="true"
       :side="side"
-      class="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+      class="sidebar-mobile-drawer bg-sidebar text-sidebar-foreground w-(--sidebar-width) border-0 p-0 [&>button]:hidden"
       :style="{
         '--sidebar-width': SIDEBAR_WIDTH_MOBILE,
       }"
@@ -53,41 +69,47 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
   <div
     v-else
-    class="group peer text-sidebar-foreground hidden md:block"
+    :class="cn(
+      'group peer hidden shrink-0 md:block',
+      props.class,
+    )"
     data-slot="sidebar"
     :data-state="state"
     :data-collapsible="state === 'collapsed' ? collapsible : ''"
     :data-variant="variant"
     :data-side="side"
+    :style="isFloating ? { width: spacerWidth, flexShrink: 0 } : undefined"
   >
-    <!-- This is what handles the sidebar gap on desktop  -->
+    <!-- Spacer: reserves horizontal space in the flex layout -->
     <div
       :class="cn(
-        'relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear',
+        'relative shrink-0 bg-transparent transition-[width] duration-300 ease-in-out',
+        !isFloating && 'w-(--sidebar-width) group-data-[collapsible=icon]:w-(--sidebar-width-icon)',
         'group-data-[collapsible=offcanvas]:w-0',
-        'group-data-[side=right]:rotate-180',
-        variant === 'floating' || variant === 'inset'
-          ? 'group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]'
-          : 'group-data-[collapsible=icon]:w-(--sidebar-width-icon)',
       )"
+      :style="isFloating ? { width: spacerWidth } : undefined"
     />
+    <!-- Floating island panel -->
     <div
       :class="cn(
-        'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex',
+        'fixed z-10 hidden h-[calc(100svh-(var(--sidebar-margin)*2))] transition-[width,left,right] duration-300 ease-in-out md:flex',
+        'top-[var(--sidebar-margin)]',
         side === 'left'
-          ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
-          : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
-        // Adjust the padding for floating and inset variants.
-        variant === 'floating' || variant === 'inset'
-          ? 'p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]'
-          : 'group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l',
-        props.class,
+          ? 'left-[var(--sidebar-margin)] group-data-[collapsible=offcanvas]:-left-[calc(var(--sidebar-width)+var(--sidebar-margin))]'
+          : 'right-[var(--sidebar-margin)] group-data-[collapsible=offcanvas]:-right-[calc(var(--sidebar-width)+var(--sidebar-margin))]',
+        isFloating
+          ? 'group-data-[collapsible=icon]:group-data-[state=collapsed]:w-(--sidebar-width-icon) w-(--sidebar-width)'
+          : 'inset-y-0 h-svh w-(--sidebar-width) group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l',
       )"
+      :style="{ '--sidebar-margin': SIDEBAR_MARGIN }"
       v-bind="$attrs"
     >
       <div
         data-sidebar="sidebar"
-        class="bg-sidebar group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
+        :class="cn(
+          'bg-sidebar flex h-full w-full flex-col overflow-hidden transition-[width] duration-300 ease-in-out',
+          isFloating && 'rounded-3xl shadow-[var(--shadow-soft-lg)]',
+        )"
       >
         <slot />
       </div>
