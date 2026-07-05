@@ -1,0 +1,1 @@
+import{B as e,S as t,T as n,U as r,bt as i}from"./dist-CUgy1w3k.js";var a=n({__name:`MisPage`,props:{title:{},description:{},narrow:{type:Boolean}},setup(n){return(a,o)=>(e(),t(`div`,{class:i([`flex flex-1 flex-col gap-4 px-2 py-3 sm:px-4 sm:py-4`,n.narrow?`mx-auto w-full max-w-3xl`:`mx-auto w-full max-w-6xl`])},[r(a.$slots,`default`)],2))}});export{a as t};
