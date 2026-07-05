@@ -12,7 +12,6 @@ import { update } from '@/routes/password';
 defineOptions({
     layout: {
         title: 'Reset password',
-        description: 'Please enter your new password below',
     },
 });
 

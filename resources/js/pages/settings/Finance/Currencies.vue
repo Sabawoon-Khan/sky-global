@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { ArrowRightLeft, Coins, Pencil, Plus, Trash2 } from '@lucide/vue';
+import { ArrowRightLeft, Coins, Pencil, Trash2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
+import SettingsAddButton from '@/components/SettingsAddButton.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
+    CardAction,
     CardContent,
     CardDescription,
     CardHeader,
@@ -93,7 +94,7 @@ const currencyActions = (currency: CurrencyRecord): RowActionItem[] => {
             url: `/settings/currencies/${currency.id}`,
             name: currency.code,
             isActive: currency.is_active,
-            entityLabel: 'currency',
+            entityLabel: t('currency'),
             t,
         }),
     ];
@@ -151,12 +152,6 @@ const rateActions = (rate: ExchangeRateRecord): RowActionItem[] => [
     <Head :title="t('Currencies')" />
 
     <div class="space-y-6">
-        <Heading
-            variant="small"
-            :title="t('Currencies & Exchange Rates')"
-            :description="t('Configure available currencies and conversion rates used in finance')"
-        />
-
         <Card>
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
@@ -164,88 +159,18 @@ const rateActions = (rate: ExchangeRateRecord): RowActionItem[] => [
                     {{ t('Currencies') }}
                 </CardTitle>
                 <CardDescription>
-                    {{ props.currencies.length }} {{ t('currencies configured') }}
+                    {{ t('Manage currency codes, symbols, and default settings') }}
                 </CardDescription>
+                <CardAction>
+                    <SettingsAddButton href="/settings/currencies/create">
+                        {{ t('Add currency') }}
+                    </SettingsAddButton>
+                </CardAction>
             </CardHeader>
-            <CardContent class="space-y-6">
-                <Form
-                    action="/settings/currencies"
-                    method="post"
-                    class="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"
-                    v-slot="{ errors, processing }"
-                >
-                    <div class="grid gap-2">
-                        <Label for="currency-code">{{ t('Code') }}</Label>
-                        <Input
-                            id="currency-code"
-                            name="code"
-                            maxlength="3"
-                            :placeholder="t('e.g. USD')"
-                            required
-                        />
-                        <InputError :message="errors.code" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="currency-name">{{ t('Name') }}</Label>
-                        <Input
-                            id="currency-name"
-                            name="name"
-                            :placeholder="t('e.g. US Dollar')"
-                            required
-                        />
-                        <InputError :message="errors.name" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="currency-symbol">{{ t('Symbol') }}</Label>
-                        <Input
-                            id="currency-symbol"
-                            name="symbol"
-                            :placeholder="t('e.g. $')"
-                        />
-                        <InputError :message="errors.symbol" />
-                    </div>
-                    <div class="flex items-center gap-4 pt-6">
-                        <label class="inline-flex items-center gap-2 text-sm">
-                            <input
-                                type="hidden"
-                                name="is_active"
-                                value="0"
-                            />
-                            <input
-                                type="checkbox"
-                                name="is_active"
-                                value="1"
-                                checked
-                                class="size-4 rounded border-input"
-                            />
-                            {{ t('Active') }}
-                        </label>
-                        <label class="inline-flex items-center gap-2 text-sm">
-                            <input
-                                type="hidden"
-                                name="is_default"
-                                value="0"
-                            />
-                            <input
-                                type="checkbox"
-                                name="is_default"
-                                value="1"
-                                class="size-4 rounded border-input"
-                            />
-                            {{ t('Default currency') }}
-                        </label>
-                    </div>
-                    <div class="sm:col-span-2">
-                        <Button type="submit" :disabled="processing">
-                            <Plus class="size-4" />
-                            {{ t('Add currency') }}
-                        </Button>
-                    </div>
-                </Form>
-
+            <CardContent>
                 <div
                     v-if="props.currencies.length === 0"
-                    class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
+                    class="ui-empty-state"
                 >
                     {{ t('No currencies configured.') }}
                 </div>
@@ -254,7 +179,7 @@ const rateActions = (rate: ExchangeRateRecord): RowActionItem[] => [
                     <div
                         v-for="currency in props.currencies"
                         :key="currency.id"
-                        class="flex items-center justify-between rounded-lg border px-4 py-3"
+                        class="ui-list-row flex items-center justify-between px-4 py-3"
                     >
                         <div>
                             <div class="flex items-center gap-2">
@@ -285,89 +210,18 @@ const rateActions = (rate: ExchangeRateRecord): RowActionItem[] => [
                     {{ t('Exchange Rates') }}
                 </CardTitle>
                 <CardDescription>
-                    {{ props.exchangeRates.length }} {{ t('exchange rates configured') }}
+                    {{ t('Set conversion rates between currencies by effective date') }}
                 </CardDescription>
+                <CardAction>
+                    <SettingsAddButton href="/settings/exchange-rates/create">
+                        {{ t('Add exchange rate') }}
+                    </SettingsAddButton>
+                </CardAction>
             </CardHeader>
-            <CardContent class="space-y-6">
-                <Form
-                    action="/settings/exchange-rates"
-                    method="post"
-                    class="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"
-                    v-slot="{ errors, processing }"
-                >
-                    <div class="grid gap-2">
-                        <Label for="from-currency">{{ t('From currency') }}</Label>
-                        <select
-                            id="from-currency"
-                            name="from_currency"
-                            class="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                            required
-                        >
-                            <option value="" disabled selected>{{ t('Select currency') }}</option>
-                            <option
-                                v-for="code in currencyOptions"
-                                :key="`from-${code}`"
-                                :value="code"
-                            >
-                                {{ code }}
-                            </option>
-                        </select>
-                        <InputError :message="errors.from_currency" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="to-currency">{{ t('To currency') }}</Label>
-                        <select
-                            id="to-currency"
-                            name="to_currency"
-                            class="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                            required
-                        >
-                            <option value="" disabled selected>
-                                {{ t('Select currency') }}
-                            </option>
-                            <option
-                                v-for="code in currencyOptions"
-                                :key="`to-${code}`"
-                                :value="code"
-                            >
-                                {{ code }}
-                            </option>
-                        </select>
-                        <InputError :message="errors.to_currency" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="rate">{{ t('Rate') }}</Label>
-                        <Input
-                            id="rate"
-                            name="rate"
-                            type="number"
-                            step="0.000001"
-                            min="0.000001"
-                            required
-                        />
-                        <InputError :message="errors.rate" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="effective-date">{{ t('Effective date') }}</Label>
-                        <Input
-                            id="effective-date"
-                            name="effective_date"
-                            type="date"
-                            required
-                        />
-                        <InputError :message="errors.effective_date" />
-                    </div>
-                    <div class="sm:col-span-2">
-                        <Button type="submit" :disabled="processing">
-                            <Plus class="size-4" />
-                            {{ t('Add exchange rate') }}
-                        </Button>
-                    </div>
-                </Form>
-
+            <CardContent>
                 <div
                     v-if="props.exchangeRates.length === 0"
-                    class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
+                    class="ui-empty-state"
                 >
                     {{ t('No exchange rates configured.') }}
                 </div>
@@ -376,7 +230,7 @@ const rateActions = (rate: ExchangeRateRecord): RowActionItem[] => [
                     <div
                         v-for="rate in props.exchangeRates"
                         :key="rate.id"
-                        class="flex items-center justify-between rounded-lg border px-4 py-3"
+                        class="ui-list-row flex items-center justify-between px-4 py-3"
                     >
                         <div>
                             <div class="font-medium">

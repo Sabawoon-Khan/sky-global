@@ -17,19 +17,29 @@ withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],
 });
 
-const { dir } = useLocale();
+const { dir, sidebarSide } = useLocale();
 
 const toasterPosition = computed(() =>
     dir.value === 'rtl' ? 'top-left' : 'top-right',
 );
+
+const isSidebarRight = computed(() => sidebarSide.value === 'right');
 </script>
 
 <template>
     <AppShell variant="sidebar">
-        <AppSidebar />
-        <AppContent variant="sidebar" class="overflow-x-hidden">
+        <AppSidebar :class="isSidebarRight ? 'order-2' : 'order-1'" />
+        <AppContent
+            variant="sidebar"
+            :class="[
+                'min-w-0 flex-1 overflow-x-hidden',
+                isSidebarRight ? 'order-1' : 'order-2',
+            ]"
+        >
             <AppSidebarHeader :breadcrumbs="breadcrumbs" />
-            <slot />
+            <div class="flex flex-1 flex-col space-y-6 px-6 pt-6 pb-12 md:px-8">
+                <slot />
+            </div>
         </AppContent>
         <Toaster :position="toasterPosition" :duration="5000" rich-colors />
         <FlashToasts />

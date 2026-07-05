@@ -1,0 +1,1 @@
+import{C as e,Ct as t,E as n,V as r,W as i}from"./dist-DlR-ATWd.js";var a=n({__name:`MisPage`,props:{title:{},narrow:{type:Boolean}},setup(n){return(a,o)=>(r(),e(`div`,{class:t([`flex w-full flex-1 flex-col gap-6`,n.narrow?`max-w-5xl`:``])},[i(a.$slots,`default`)],2))}});export{a as t};

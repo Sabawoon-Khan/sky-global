@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import AppLogoImage from '@/components/AppLogoImage.vue';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -12,7 +11,6 @@ import { home } from '@/routes';
 
 defineProps<{
     title?: string;
-    description?: string;
 }>();
 </script>
 
@@ -25,10 +23,8 @@ defineProps<{
                 :href="home()"
                 class="flex items-center gap-2 self-center font-medium"
             >
-                <div class="flex h-9 w-9 items-center justify-center">
-                    <AppLogoIcon
-                        class="size-9 fill-current text-black dark:text-white"
-                    />
+                <div class="flex size-16 items-center justify-center">
+                    <AppLogoImage class="size-16" />
                 </div>
             </Link>
 
@@ -36,10 +32,7 @@ defineProps<{
                 <Card class="rounded-xl">
                     <CardHeader class="px-10 pt-8 pb-0 text-center">
                         <CardTitle class="text-xl">{{ title }}</CardTitle>
-                        <CardDescription>
-                            {{ description }}
-                        </CardDescription>
-                    </CardHeader>
+                </CardHeader>
                     <CardContent class="px-10 py-8">
                         <slot />
                     </CardContent>

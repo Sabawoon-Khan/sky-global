@@ -7,7 +7,6 @@ import ErrorPage from '@/components/ErrorPage.vue';
     <ErrorPage
         :code="404"
         title="Page not found"
-        description="Sorry, the page you are looking for does not exist or may have been moved."
         :icon="FileQuestion"
     />
 </template>

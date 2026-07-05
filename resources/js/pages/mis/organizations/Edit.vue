@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
@@ -8,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -57,17 +55,7 @@ defineOptions({
 <template>
     <Head :title="t('Edit :name', { name: organization.name })" />
 
-    <MisPage narrow>
-        <div class="flex items-center justify-between gap-3">
-            <Heading
-                :title="t('Edit Organization')"
-                :description="organization.name"
-            />
-            <Button variant="outline" as-child>
-                <Link :href="`/organizations/${organization.id}`">{{ t('Cancel') }}</Link>
-            </Button>
-        </div>
-
+    <MisPage>
         <Form
             v-bind="OrganizationController.update.form(organization.id)"
             class="space-y-6"
@@ -77,10 +65,9 @@ defineOptions({
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Basic information') }}</CardTitle>
-                    <CardDescription>{{ t('Name, type, and registration details') }}</CardDescription>
                 </CardHeader>
-                <CardContent class="grid gap-4 md:grid-cols-2">
-                    <div class="grid gap-2 md:col-span-2">
+                <CardContent class="grid gap-4">
+                    <div class="grid gap-2">
                         <Label for="name">{{ t('Organization name') }} *</Label>
                         <Input
                             id="name"
@@ -121,7 +108,7 @@ defineOptions({
                         <InputError :message="errors.tax_id" />
                     </div>
 
-                    <div class="grid gap-2 md:col-span-2">
+                    <div class="grid gap-2">
                         <Label for="is_active">{{ t('Status') }}</Label>
                         <select
                             id="is_active"
@@ -144,7 +131,7 @@ defineOptions({
                 <CardHeader>
                     <CardTitle>{{ t('Location & contact') }}</CardTitle>
                 </CardHeader>
-                <CardContent class="grid gap-4 md:grid-cols-2">
+                <CardContent class="grid gap-4">
                     <div class="grid gap-2">
                         <Label for="province">{{ t('Province') }}</Label>
                         <select
@@ -176,7 +163,7 @@ defineOptions({
                         <InputError :message="errors.phone" />
                     </div>
 
-                    <div class="grid gap-2 md:col-span-2">
+                    <div class="grid gap-2">
                         <Label for="email">{{ t('Email') }}</Label>
                         <Input
                             id="email"
@@ -187,7 +174,7 @@ defineOptions({
                         <InputError :message="errors.email" />
                     </div>
 
-                    <div class="grid gap-2 md:col-span-2">
+                    <div class="grid gap-2">
                         <Label for="address">{{ t('Full address') }}</Label>
                         <textarea
                             id="address"
@@ -218,7 +205,6 @@ defineOptions({
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Attachment') }}</CardTitle>
-                    <CardDescription>{{ t('Upload a new related document if needed') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <OptionalAttachmentField :error="errors.attachment" />

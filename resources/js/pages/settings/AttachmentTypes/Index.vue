@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { FileText, Pencil, Plus, Trash2 } from '@lucide/vue';
+import { FileText, Pencil, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
+import SettingsAddButton from '@/components/SettingsAddButton.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
+    CardAction,
     CardContent,
     CardDescription,
     CardHeader,
@@ -99,16 +100,6 @@ const formTypeActions = (type: AttachmentTypeRecord): RowActionItem[] => [
     <Head :title="t('Form Types')" />
 
     <div class="space-y-6">
-        <Heading
-            variant="small"
-            :title="t('Form Types')"
-            :description="
-                t(
-                    'Configure HR document types such as guarantee forms, certificates, and clearances',
-                )
-            "
-        />
-
         <Card>
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
@@ -116,57 +107,18 @@ const formTypeActions = (type: AttachmentTypeRecord): RowActionItem[] => [
                     {{ t('Form Types') }}
                 </CardTitle>
                 <CardDescription>
-                    {{ attachmentTypes.length }} {{ t('form types configured') }}
+                    {{ t('Configure HR document types such as guarantee forms, certificates, and clearances') }}
                 </CardDescription>
+                <CardAction>
+                    <SettingsAddButton href="/settings/form-types/create">
+                        {{ t('Add form type') }}
+                    </SettingsAddButton>
+                </CardAction>
             </CardHeader>
-            <CardContent class="space-y-6">
-                <Form
-                    action="/settings/form-types"
-                    method="post"
-                    class="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"
-                    v-slot="{ processing, errors }"
-                >
-                    <div class="grid gap-2 sm:col-span-2">
-                        <Label for="name">{{ t('Name') }}</Label>
-                        <Input
-                            id="name"
-                            name="name"
-                            :placeholder="t('e.g. Guarantee Form')"
-                            required
-                        />
-                        <InputError :message="errors.name" />
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <input
-                            id="requires_expiry"
-                            name="requires_expiry"
-                            type="checkbox"
-                            value="1"
-                            class="size-4 rounded border-input"
-                        />
-                        <Label for="requires_expiry">{{ t('Requires expiry date') }}</Label>
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="sort_order">{{ t('Sort order') }}</Label>
-                        <Input
-                            id="sort_order"
-                            name="sort_order"
-                            type="number"
-                            min="0"
-                            default-value="0"
-                        />
-                    </div>
-                    <div class="sm:col-span-2">
-                        <Button type="submit" :disabled="processing">
-                            <Plus class="size-4" />
-                            {{ t('Add form type') }}
-                        </Button>
-                    </div>
-                </Form>
-
+            <CardContent>
                 <div
                     v-if="attachmentTypes.length === 0"
-                    class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
+                    class="ui-empty-state"
                 >
                     {{ t('No form types configured.') }}
                 </div>
@@ -175,7 +127,7 @@ const formTypeActions = (type: AttachmentTypeRecord): RowActionItem[] => [
                     <div
                         v-for="type in attachmentTypes"
                         :key="type.id"
-                        class="flex items-center justify-between rounded-lg border px-4 py-3"
+                        class="ui-list-row flex items-center justify-between px-4 py-3"
                     >
                         <div>
                             <div class="flex items-center gap-2">
@@ -242,7 +194,7 @@ const formTypeActions = (type: AttachmentTypeRecord): RowActionItem[] => [
                             class="size-4 rounded border-input"
                             :checked="editingType.requires_expiry"
                         />
-                        <Label for="edit-requires-expiry">
+                        <Label for="edit-requires-expiry" class="font-normal">
                             {{ t('Requires expiry date') }}
                         </Label>
                     </div>

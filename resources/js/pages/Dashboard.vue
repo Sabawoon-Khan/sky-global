@@ -1,8 +1,23 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import { AlertTriangle, Briefcase, DollarSign, TrendingUp, Users } from '@lucide/vue';
-import Heading from '@/components/Heading.vue';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import {
+    AlertTriangle,
+    ArrowRight,
+    BarChart3,
+    Briefcase,
+    Building2,
+    DollarSign,
+    FileText,
+    Target,
+    TrendingUp,
+    Users,
+} from '@lucide/vue';
+import { computed } from 'vue';
+import BarChart from '@/components/charts/BarChart.vue';
+import DonutChart from '@/components/charts/DonutChart.vue';
+import Can from '@/components/Can.vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
@@ -10,14 +25,18 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useLocale } from '@/composables/useLocale';
 import { useMisNavigation } from '@/composables/useMisNavigation';
 import { useTranslations } from '@/composables/useTranslations';
-import { dashboard } from '@/routes';
-import BarChart from '@/components/charts/BarChart.vue';
-import DonutChart from '@/components/charts/DonutChart.vue';
-import LineChart from '@/components/charts/LineChart.vue';
-import { computed } from 'vue';
 import { translateProjectStatus } from '@/lib/status-labels';
+import {
+    formatCurrency as formatCurrencyValue,
+    formatLocalizedDate,
+    formatNumber,
+    getIntlLocale,
+    LATIN_NUMERALS,
+} from '@/lib/format';
+import { dashboard } from '@/routes';
 
 interface DashboardStats {
     bidding: {
@@ -26,10 +45,6 @@ interface DashboardStats {
         win_rate: number;
         won: number;
         lost: number;
-        our_bid_by_currency: Array<{
-            currency: string;
-            total: number;
-        }>;
     };
     projects: {
         active: number;
@@ -38,42 +53,15 @@ interface DashboardStats {
     };
     finance: {
         total_income_usd: number;
-        general_income_usd: number;
         total_expense_usd: number;
-        overhead_usd: number;
+        overhead_usd?: number;
         net_usd: number;
-        net_by_currency: Array<{
-            currency: string;
-            income: number;
-            expense: number;
-            net: number;
-        }>;
-        currencies: Array<{
-            code: string;
-            name: string;
-            symbol: string | null;
-            is_default: boolean;
-        }>;
-        exchange_rates: Array<{
-            from_currency: string;
-            to_currency: string;
-            rate: number;
-            effective_date: string | null;
-        }>;
     };
     hr: {
         employees: number;
         contractors: number;
         expiring_documents: number;
     };
-    organization_types: Array<{
-        id: number;
-        name: string;
-        color: string | null;
-        organizations_count: number;
-        projects_count: number;
-        total_contract_value: number;
-    }>;
     competitor_intel: number;
 }
 
@@ -100,20 +88,10 @@ interface ChartData {
         label: string;
         income: number;
         expense: number;
-        net: number;
-        overhead: number;
-        general_income: number;
-        project_income: number;
-        project_expense: number;
     }>;
-    monthly_bids: Array<{ label: string; submitted: number; won: number; lost: number; win_rate: number }>;
-    project_statuses: Array<{ status: string; count: number }>;
     workforce: { employees: number; contractors: number };
     bidding_outcomes: Array<{ key: string; value: number }>;
-    finance_breakdown: Array<{ key: string; value: number }>;
-    expense_by_category: Array<{ category: string; value: number }>;
-    top_projects_income: Array<{ code: string; income: number }>;
-    organization_types: Array<{ name: string; projects_count: number; total_contract_value: number }>;
+    project_statuses: Array<{ status: string; count: number }>;
 }
 
 const props = defineProps<{
@@ -123,41 +101,10 @@ const props = defineProps<{
     charts: ChartData | null;
 }>();
 
+const page = usePage();
 const { t } = useTranslations();
+const { locale } = useLocale();
 const { misQuickLinks } = useMisNavigation();
-
-const outcomeLabel = (key: string): string => {
-    if (key === 'won') return t('won');
-    if (key === 'lost') return t('lost');
-    if (key === 'pending') return t('Pending');
-    return key;
-};
-
-const financeLabel = (key: string): string => {
-    const labels: Record<string, string> = {
-        project_income: t('Project Income'),
-        general_income: t('Other Income'),
-        project_expense: t('Project Expenses'),
-        overhead: t('Overhead & Salaries'),
-    };
-    return labels[key] ?? key;
-};
-
-const categoryLabel = (category: string): string => {
-    const labels: Record<string, string> = {
-        rent: t('Office Rent'),
-        salary: t('Salary'),
-        utilities: t('Utilities'),
-        equipment: t('Equipment'),
-        other: t('Other'),
-    };
-    return labels[category] ?? category;
-};
-
-const projectStatusLabel = (status: string): string =>
-    translateProjectStatus(t, status);
-
-const topMarginProjects = computed(() => props.projectProfitability.slice(0, 6));
 
 defineOptions({
     layout: {
@@ -165,619 +112,945 @@ defineOptions({
     },
 });
 
-const formatCurrency = (value: number, currency = 'USD'): string => {
-    try {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency,
-            maximumFractionDigits: 2,
-        }).format(value);
-    } catch {
-        return `${currency} ${new Intl.NumberFormat('en-US', {
-            maximumFractionDigits: 2,
-        }).format(value)}`;
+const userName = computed(() => page.props.auth.user?.name ?? t('User'));
+
+const todayLabel = computed(() =>
+    formatLocalizedDate(new Date(), locale.value, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    }),
+);
+
+const monthLabel = computed(() =>
+    formatLocalizedDate(new Date(), locale.value, {
+        month: 'long',
+        year: 'numeric',
+    }),
+);
+
+const weekdayLabels = computed(() => {
+    const formatter = new Intl.DateTimeFormat(getIntlLocale(locale.value), {
+        weekday: 'short',
+        ...LATIN_NUMERALS,
+    });
+    const sunday = new Date(2024, 0, 7);
+
+    return Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(sunday);
+        date.setDate(sunday.getDate() + index);
+
+        return formatter.format(date);
+    });
+});
+
+const statCards = computed(() => {
+    if (!props.stats) return [];
+
+    const cards = [
+        {
+            label: t('Open Opportunities'),
+            value: formatNumber(props.stats.bidding.open_opportunities),
+            sub: `${formatNumber(props.stats.bidding.pending_bids)} ${t('pending bids')}`,
+            icon: FileText,
+            href: '/bidding/opportunities',
+            status:
+                props.stats.bidding.pending_bids > 0
+                    ? ('warning' as const)
+                    : ('normal' as const),
+        },
+        {
+            label: t('Win Rate'),
+            value: `${formatNumber(props.stats.bidding.win_rate)}%`,
+            sub: `${formatNumber(props.stats.bidding.won)} ${t('won')} / ${formatNumber(props.stats.bidding.lost)} ${t('lost')}`,
+            icon: TrendingUp,
+            href: '/analytics/bidding',
+            status: 'normal' as const,
+        },
+        {
+            label: t('Active Projects'),
+            value: formatNumber(props.stats.projects.active),
+            sub: `${formatNumber(props.stats.projects.planning)} ${t('planning')}`,
+            icon: Briefcase,
+            href: '/projects',
+            status: 'normal' as const,
+        },
+        {
+            label: t('Total Projects'),
+            value: formatNumber(props.stats.projects.total),
+            sub: `${formatNumber(props.stats.projects.active)} ${t('active projects')}`,
+            icon: Target,
+            href: '/projects',
+            status: 'normal' as const,
+        },
+        {
+            label: t('Net Finance'),
+            value: formatCurrencyValue(props.stats.finance.net_usd),
+            sub: t('Base (USD)'),
+            icon: DollarSign,
+            href: '/finance',
+            status:
+                props.stats.finance.net_usd < 0
+                    ? ('warning' as const)
+                    : ('normal' as const),
+        },
+        {
+            label: t('Workforce'),
+            value: formatNumber(
+                props.stats.hr.employees + props.stats.hr.contractors,
+            ),
+            sub: `${formatNumber(props.stats.hr.employees)} ${t('employees')} · ${formatNumber(props.stats.hr.contractors)} ${t('contractors')}`,
+            icon: Users,
+            href: '/hr/employees',
+            status: 'normal' as const,
+        },
+        {
+            label: t('Expiring Documents'),
+            value: formatNumber(props.stats.hr.expiring_documents),
+            sub: t('Within 30 days'),
+            icon: AlertTriangle,
+            href: '/hr/employees',
+            status:
+                props.stats.hr.expiring_documents > 0
+                    ? ('critical' as const)
+                    : ('normal' as const),
+        },
+        {
+            label: t('Competitor Intel'),
+            value: formatNumber(props.stats.competitor_intel),
+            sub: t('Recorded competitor bids'),
+            icon: BarChart3,
+            href: '/analytics/bidding',
+            status: 'normal' as const,
+        },
+    ];
+
+    return cards;
+});
+
+const systemStatus = computed(() => {
+    if (!props.stats) return 'offline';
+
+    if (props.stats.hr.expiring_documents > 0) return 'alert';
+    if (props.stats.bidding.pending_bids > 0) return 'monitoring';
+
+    return 'operational';
+});
+
+const activeAlerts = computed(() => {
+    if (!props.stats) return 0;
+
+    return (
+        props.stats.hr.expiring_documents +
+        (props.stats.bidding.pending_bids > 0 ? 1 : 0)
+    );
+});
+
+function sectorCode(index: number): string {
+    return `SEC-${String(index + 1).padStart(2, '0')}`;
+}
+
+const financeSummary = computed(() => {
+    if (!props.stats) return [];
+
+    return [
+        {
+            label: t('Total Income'),
+            value: formatCurrencyValue(props.stats.finance.total_income_usd),
+            tone: 'income' as const,
+            code: 'FIN-01',
+        },
+        {
+            label: t('Total Expenses'),
+            value: formatCurrencyValue(
+                props.stats.finance.total_expense_usd +
+                    (props.stats.finance.overhead_usd ?? 0),
+            ),
+            tone: 'expense' as const,
+            code: 'FIN-02',
+        },
+        {
+            label: t('Net Finance'),
+            value: formatCurrencyValue(props.stats.finance.net_usd),
+            tone: 'net' as const,
+            code: 'FIN-03',
+        },
+    ];
+});
+
+const topProjects = computed(() => props.projectProfitability.slice(0, 6));
+
+const maxMargin = computed(() =>
+    Math.max(...topProjects.value.map((p) => Math.abs(p.margin)), 1),
+);
+
+const calendarDays = computed(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells: Array<{ day: number | null; today: boolean }> = [];
+
+    for (let i = 0; i < firstDay; i++) cells.push({ day: null, today: false });
+    for (let d = 1; d <= daysInMonth; d++) {
+        cells.push({ day: d, today: d === now.getDate() });
     }
+
+    return cells;
+});
+
+const outcomeLabel = (key: string): string => {
+    if (key === 'won') return t('won');
+    if (key === 'lost') return t('lost');
+    if (key === 'pending') return t('Pending');
+
+    return key;
 };
+
+function formatDate(value: string | null): string {
+    if (!value) return '—';
+
+    return formatLocalizedDate(value, locale.value, { dateStyle: 'medium' });
+}
+
+function initials(name: string): string {
+    return name
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join('');
+}
 </script>
 
 <template>
     <Head :title="t('Dashboard')" />
 
-    <div class="flex flex-1 flex-col gap-6 p-4">
-        <Heading
-            :title="t('Dashboard')"
-            :description="t('Overview of bidding, projects, finance, and HR')"
-        />
-
-        <div
-            v-if="misQuickLinks.length > 0"
-            class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-        >
-            <Link
-                v-for="link in misQuickLinks"
-                :key="link.href"
-                :href="link.href"
-                class="group rounded-lg border p-4 transition-colors hover:bg-muted/50"
-            >
-                <div class="flex items-start gap-3">
-                    <div
-                        class="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted group-hover:bg-background"
-                    >
-                        <component :is="link.icon" class="size-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                        <p class="font-medium">{{ link.title }}</p>
-                        <p class="text-sm text-muted-foreground">
-                            {{ link.description }}
-                        </p>
-                    </div>
-                </div>
-            </Link>
-        </div>
-
+    <div class="soc-dashboard flex flex-1 flex-col gap-6 p-4">
         <div
             v-if="stats"
-            class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+            class="dashboard-reveal flex flex-wrap justify-end gap-2"
         >
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">{{
-                        t('Open Opportunities')
-                    }}</CardTitle>
-                    <Briefcase class="size-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div class="text-2xl font-bold">
-                        {{ stats.bidding.open_opportunities }}
-                    </div>
-                    <p class="text-xs text-muted-foreground">
-                        {{ stats.bidding.pending_bids }}
-                        {{ t('pending bids') }}
-                    </p>
-                    <div
-                        v-if="stats.bidding.our_bid_by_currency.length"
-                        class="mt-3 space-y-1 border-t pt-3"
-                    >
-                        <p class="text-xs text-muted-foreground">
-                            {{ t('Our bid totals') }}
-                        </p>
-                        <div
-                            v-for="bid in stats.bidding.our_bid_by_currency"
-                            :key="bid.currency"
-                            class="flex items-center justify-between text-xs"
-                        >
-                            <span class="text-muted-foreground">{{ bid.currency }}</span>
-                            <span class="font-medium">
-                                {{ formatCurrency(bid.total, bid.currency) }}
-                            </span>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">{{
-                        t('Win Rate')
-                    }}</CardTitle>
-                    <TrendingUp class="size-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div class="text-2xl font-bold">{{ stats.bidding.win_rate }}%</div>
-                    <p class="text-xs text-muted-foreground">
-                        {{ stats.bidding.won }} {{ t('won') }} /
-                        {{ stats.bidding.lost }} {{ t('lost') }}
-                    </p>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">{{
-                        t('Active Projects')
-                    }}</CardTitle>
-                    <Briefcase class="size-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div class="text-2xl font-bold">{{ stats.projects.active }}</div>
-                    <p class="text-xs text-muted-foreground">
-                        {{ stats.projects.planning }} {{ t('planning') }} ·
-                        {{ stats.projects.total }} {{ t('total') }}
-                    </p>
-                </CardContent>
-            </Card>
-
-            <Card class="transition-colors hover:bg-muted/30">
-                <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">{{
-                        t('Net Finance')
-                    }}</CardTitle>
-                    <DollarSign class="size-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <Link href="/finance" class="block space-y-1">
-                        <div class="text-2xl font-bold">
-                            {{ formatCurrency(stats.finance.net_usd, 'USD') }}
-                        </div>
-                        <p class="text-xs text-muted-foreground">
-                            {{ t('Base (USD)') }} · {{ t('Income') }}
-                            {{ formatCurrency(stats.finance.total_income_usd) }} ·
-                            {{ t('View finance') }}
-                        </p>
-                    </Link>
-                    <div
-                        v-if="stats.finance.net_by_currency.length"
-                        class="mt-3 space-y-1 border-t pt-3"
-                    >
-                        <div
-                            v-for="item in stats.finance.net_by_currency"
-                            :key="item.currency"
-                            class="flex items-center justify-between text-xs"
-                        >
-                            <span class="text-muted-foreground">{{ item.currency }}</span>
-                            <span class="font-medium">
-                                {{ formatCurrency(item.net, item.currency) }}
-                            </span>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card class="transition-colors hover:bg-muted/30">
-                <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">{{
-                        t('Workforce')
-                    }}</CardTitle>
-                    <Users class="size-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <Link href="/hr/employees" class="block space-y-1">
-                        <div class="text-2xl font-bold">
-                            {{ stats.hr.employees + stats.hr.contractors }}
-                        </div>
-                        <p class="text-xs text-muted-foreground">
-                            {{ stats.hr.employees }} {{ t('employees') }} ·
-                            {{ stats.hr.contractors }} {{ t('contractors') }} ·
-                            {{ t('View HR') }}
-                        </p>
-                    </Link>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">{{
-                        t('Expiring Documents')
-                    }}</CardTitle>
-                    <AlertTriangle class="size-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div class="text-2xl font-bold">{{ stats.hr.expiring_documents }}</div>
-                    <p class="text-xs text-muted-foreground">
-                        {{ t('Within 30 days') }}
-                    </p>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">{{
-                        t('Competitor Intel')
-                    }}</CardTitle>
-                    <TrendingUp class="size-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div class="text-2xl font-bold">{{ stats.competitor_intel }}</div>
-                    <p class="text-xs text-muted-foreground">
-                        {{ t('Recorded competitor bids') }}
-                    </p>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-medium">{{
-                        t('Currencies & Exchange Rates')
-                    }}</CardTitle>
-                    <DollarSign class="size-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent class="space-y-3">
-                    <div>
-                        <p class="mb-1 text-xs text-muted-foreground">
-                            {{ t('Active Currencies') }}
-                        </p>
-                        <div class="flex flex-wrap gap-1">
-                            <Badge
-                                v-for="currency in stats.finance.currencies"
-                                :key="currency.code"
-                                variant="secondary"
-                                class="text-xs"
-                            >
-                                {{ currency.code }}
-                                <span v-if="currency.is_default"> · {{ t('default') }}</span>
-                            </Badge>
-                        </div>
-                    </div>
-                    <div v-if="stats.finance.exchange_rates.length">
-                        <p class="mb-1 text-xs text-muted-foreground">
-                            {{ t('Latest to USD') }}
-                        </p>
-                        <div class="space-y-1">
-                            <div
-                                v-for="rate in stats.finance.exchange_rates"
-                                :key="`${rate.from_currency}-${rate.to_currency}`"
-                                class="flex items-center justify-between text-xs"
-                            >
-                                <span class="text-muted-foreground">
-                                    {{ rate.from_currency }} → {{ rate.to_currency }}
-                                </span>
-                                <span class="font-medium">{{ rate.rate }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-
-        <div
-            v-if="charts"
-            class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3"
-        >
-            <Card class="xl:col-span-2">
-                <CardHeader>
-                    <CardTitle>{{ t('Monthly Finance') }}</CardTitle>
-                    <CardDescription>{{ t('Project income vs expenses') }}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <BarChart
-                        :labels="charts.monthly_finance.map((m) => m.label)"
-                        :datasets="[
-                            {
-                                label: t('Income'),
-                                data: charts.monthly_finance.map((m) => m.income),
-                                backgroundColor: 'rgba(34, 197, 94, 0.7)',
-                            },
-                            {
-                                label: t('Expenses'),
-                                data: charts.monthly_finance.map((m) => m.expense),
-                                backgroundColor: 'rgba(239, 68, 68, 0.7)',
-                            },
-                        ]"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Project Status') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <DonutChart
-                        :labels="charts.project_statuses.map((s) => projectStatusLabel(s.status))"
-                        :data="charts.project_statuses.map((s) => s.count)"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Workforce Split') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <DonutChart
-                        :labels="[t('Employees'), t('Contractors')]"
-                        :data="[
-                            charts.workforce.employees,
-                            charts.workforce.contractors,
-                        ]"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Bidding Outcomes') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <DonutChart
-                        :labels="charts.bidding_outcomes.map((b) => outcomeLabel(b.key))"
-                        :data="charts.bidding_outcomes.map((b) => b.value)"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Net Cash Flow') }}</CardTitle>
-                    <CardDescription>{{ t('Monthly income minus expenses') }}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <LineChart
-                        :labels="charts.monthly_finance.map((m) => m.label)"
-                        :datasets="[
-                            {
-                                label: t('Net'),
-                                data: charts.monthly_finance.map((m) => m.net),
-                                borderColor: 'rgba(59, 130, 246, 1)',
-                            },
-                        ]"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Finance Breakdown') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <DonutChart
-                        :labels="charts.finance_breakdown.map((f) => financeLabel(f.key))"
-                        :data="charts.finance_breakdown.map((f) => f.value)"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card v-if="charts.organization_types.length">
-                <CardHeader>
-                    <CardTitle>{{ t('Contract Value by Org Type') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <BarChart
-                        :labels="charts.organization_types.map((o) => o.name)"
-                        :datasets="[
-                            {
-                                label: t('Contract Value'),
-                                data: charts.organization_types.map((o) => o.total_contract_value),
-                            },
-                        ]"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card v-if="topMarginProjects.length">
-                <CardHeader>
-                    <CardTitle>{{ t('Top Projects by Margin') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <BarChart
-                        :labels="topMarginProjects.map((p) => p.code)"
-                        :datasets="[
-                            {
-                                label: t('Margin'),
-                                data: topMarginProjects.map((p) => p.margin),
-                                backgroundColor: 'rgba(168, 85, 247, 0.7)',
-                            },
-                        ]"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card v-if="charts.expense_by_category.length">
-                <CardHeader>
-                    <CardTitle>{{ t('Overhead by Category') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <DonutChart
-                        :labels="charts.expense_by_category.map((c) => categoryLabel(c.category))"
-                        :data="charts.expense_by_category.map((c) => c.value)"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card v-if="charts.top_projects_income.length">
-                <CardHeader>
-                    <CardTitle>{{ t('Top Projects by Income') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <BarChart
-                        :labels="charts.top_projects_income.map((p) => p.code)"
-                        :datasets="[
-                            {
-                                label: t('Income'),
-                                data: charts.top_projects_income.map((p) => p.income),
-                                backgroundColor: 'rgba(34, 197, 94, 0.7)',
-                            },
-                        ]"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card v-if="charts.organization_types.length">
-                <CardHeader>
-                    <CardTitle>{{ t('Projects by Org Type') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <DonutChart
-                        :labels="charts.organization_types.map((o) => o.name)"
-                        :data="charts.organization_types.map((o) => o.projects_count)"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card v-if="topMarginProjects.length" class="xl:col-span-2">
-                <CardHeader>
-                    <CardTitle>{{ t('Project Income vs Expense') }}</CardTitle>
-                    <CardDescription>{{ t('Top projects comparison') }}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <BarChart
-                        :labels="topMarginProjects.map((p) => p.code)"
-                        :datasets="[
-                            {
-                                label: t('Income'),
-                                data: topMarginProjects.map((p) => p.income),
-                                backgroundColor: 'rgba(34, 197, 94, 0.7)',
-                            },
-                            {
-                                label: t('Expense'),
-                                data: topMarginProjects.map((p) => p.expense),
-                                backgroundColor: 'rgba(239, 68, 68, 0.7)',
-                            },
-                        ]"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Income Sources') }}</CardTitle>
-                    <CardDescription>{{ t('Project vs other income over 6 months') }}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <BarChart
-                        :labels="charts.monthly_finance.map((m) => m.label)"
-                        :datasets="[
-                            {
-                                label: t('Project Income'),
-                                data: charts.monthly_finance.map((m) => m.project_income),
-                                backgroundColor: 'rgba(34, 197, 94, 0.7)',
-                            },
-                            {
-                                label: t('Other Income'),
-                                data: charts.monthly_finance.map((m) => m.general_income),
-                                backgroundColor: 'rgba(59, 130, 246, 0.7)',
-                            },
-                        ]"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Overhead Trend') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <LineChart
-                        :labels="charts.monthly_finance.map((m) => m.label)"
-                        :datasets="[
-                            {
-                                label: t('Overhead & Salaries'),
-                                data: charts.monthly_finance.map((m) => m.overhead),
-                            },
-                        ]"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Other Income Trend') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <LineChart
-                        :labels="charts.monthly_finance.map((m) => m.label)"
-                        :datasets="[
-                            {
-                                label: t('Other Income'),
-                                data: charts.monthly_finance.map((m) => m.general_income),
-                            },
-                        ]"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Monthly Bid Activity') }}</CardTitle>
-                    <CardDescription>{{ t('Submissions, wins, and losses') }}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <LineChart
-                        :labels="charts.monthly_bids.map((m) => m.label)"
-                        :datasets="[
-                            {
-                                label: t('Submitted'),
-                                data: charts.monthly_bids.map((m) => m.submitted),
-                            },
-                            {
-                                label: t('won'),
-                                data: charts.monthly_bids.map((m) => m.won),
-                            },
-                            {
-                                label: t('lost'),
-                                data: charts.monthly_bids.map((m) => m.lost),
-                            },
-                        ]"
-                    />
-                </CardContent>
-            </Card>
-        </div>
-
-        <div
-            v-if="stats"
-            class="grid gap-4 lg:grid-cols-2"
-        >
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Project Profitability') }}</CardTitle>
-                    <CardDescription>{{
-                        t('Income vs expense by project')
-                    }}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div
-                        v-if="projectProfitability.length === 0"
-                        class="py-8 text-center text-sm text-muted-foreground"
-                    >
-                        {{ t('No project data available.') }}
-                    </div>
-                    <div v-else class="divide-y">
-                        <Link
-                            v-for="project in projectProfitability.slice(0, 8)"
-                            :key="project.id"
-                            :href="`/projects/${project.id}`"
-                            class="flex items-center justify-between py-3 transition-colors hover:bg-muted/50"
-                        >
-                            <div>
-                                <p class="font-medium">{{ project.name }}</p>
-                                <p class="text-xs text-muted-foreground">
-                                    {{ project.code }}
-                                    <span v-if="project.organization">
-                                        · {{ project.organization }}
-                                    </span>
-                                </p>
-                            </div>
-                            <Badge
-                                :variant="project.margin >= 0 ? 'default' : 'destructive'"
-                            >
-                                {{ formatCurrency(project.margin) }}
-                            </Badge>
+                <Can permission="projects.view">
+                    <Button variant="outline" size="sm" as-child>
+                        <Link href="/analytics/bidding">
+                            {{ t('Bidding Analytics') }}
                         </Link>
-                    </div>
-                </CardContent>
-            </Card>
+                    </Button>
+                </Can>
+                <Can permission="finance.view">
+                    <Button variant="outline" size="sm" as-child>
+                        <Link href="/analytics/finance">
+                            {{ t('Finance Analytics') }}
+                        </Link>
+                    </Button>
+                </Can>
+        </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Expiring Documents') }}</CardTitle>
-                    <CardDescription>{{
-                        t('Personnel attachments expiring soon')
-                    }}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div
-                        v-if="expiringDocuments.length === 0"
-                        class="py-8 text-center text-sm text-muted-foreground"
-                    >
-                        {{ t('No documents expiring within 30 days.') }}
+        <!-- Command center status bar -->
+        <section
+            v-if="stats"
+            class="soc-command-bar dashboard-reveal p-5 md:p-6"
+            style="animation-delay: 60ms"
+        >
+            <div class="soc-command-scan" />
+            <div
+                class="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between"
+            >
+                <div class="space-y-2">
+                    <div class="soc-live">
+                        <span class="soc-live-dot" />
+                        {{ t('Live Monitoring') }}
                     </div>
-                    <div v-else class="divide-y">
-                        <div
-                            v-for="doc in expiringDocuments.slice(0, 8)"
-                            :key="doc.id"
-                            class="flex items-center justify-between py-3"
-                        >
-                            <div>
-                                <p class="font-medium">{{ doc.type ?? t('Document') }}</p>
-                                <p class="text-xs text-muted-foreground">
-                                    {{ doc.personnel_type }} #{{ doc.personnel_id }}
+                    <h1
+                        class="text-lg font-bold uppercase tracking-[0.12em] text-white md:text-xl"
+                    >
+                        {{ t('Operations Command Center') }}
+                    </h1>
+                    <p class="font-mono text-xs text-white/55">
+                        {{ t('Operator') }}:
+                        <span class="text-white/90">{{ userName }}</span>
+                        <span class="mx-2 text-white/25">|</span>
+                        {{ todayLabel }}
+                        <span class="soc-cursor text-red-400">_</span>
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span
+                        class="soc-status-pill"
+                        :class="
+                            systemStatus === 'operational'
+                                ? 'soc-status-pill--ok'
+                                : 'soc-status-pill--alert'
+                        "
+                    >
+                        <span
+                            class="soc-led"
+                            :data-status="
+                                systemStatus === 'operational'
+                                    ? 'normal'
+                                    : systemStatus === 'monitoring'
+                                      ? 'warning'
+                                      : 'critical'
+                            "
+                        />
+                        {{
+                            systemStatus === 'operational'
+                                ? t('All sectors operational')
+                                : systemStatus === 'monitoring'
+                                  ? t('Monitoring active')
+                                  : t('Attention required')
+                        }}
+                    </span>
+                    <span
+                        v-if="activeAlerts > 0"
+                        class="soc-status-pill soc-status-pill--alert"
+                    >
+                        {{ formatNumber(activeAlerts) }}
+                        {{ t('Active alerts') }}
+                    </span>
+                    <span class="soc-status-pill">
+                        {{ formatNumber(stats.projects.active) }}
+                        {{ t('active projects') }}
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Limited access notice -->
+        <Card v-if="!stats" class="border-dashed">
+            <CardHeader>
+                <CardTitle>{{ t('Limited dashboard access') }}</CardTitle>
+                <CardDescription>
+                    {{
+                        t(
+                            'Contact your administrator for full access to projects, finance, and analytics.',
+                        )
+                    }}
+                </CardDescription>
+            </CardHeader>
+        </Card>
+
+        <!-- Key metrics -->
+        <section v-if="stats" class="dashboard-reveal" style="animation-delay: 120ms">
+            <div class="soc-section-head">
+                <h2 class="soc-section-title">
+                    {{ t('Operational Metrics') }}
+                </h2>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <template
+                    v-for="(card, index) in statCards"
+                    :key="card.label"
+                >
+                    <Link
+                        :href="card.href"
+                        class="dashboard-reveal soc-tile"
+                        :class="{
+                            'soc-tile--warning': card.status === 'warning',
+                            'soc-tile--critical': card.status === 'critical',
+                        }"
+                        :style="{ animationDelay: `${160 + index * 50}ms` }"
+                    >
+                        <div class="soc-tile-top">
+                            <span class="soc-sector">{{
+                                sectorCode(index)
+                            }}</span>
+                            <span
+                                class="soc-led"
+                                :data-status="card.status"
+                            />
+                        </div>
+                        <div class="flex items-end justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                                <p class="soc-metric-label">
+                                    {{ card.label }}
+                                </p>
+                                <p class="soc-metric-value mt-1">
+                                    {{ card.value }}
+                                </p>
+                                <p class="soc-metric-sub mt-1 truncate">
+                                    {{ card.sub }}
                                 </p>
                             </div>
-                            <Badge variant="outline">{{ doc.expires_at }}</Badge>
+                            <div class="soc-tile-icon shrink-0">
+                                <component
+                                    :is="card.icon"
+                                    class="size-4"
+                                    stroke-width="1.75"
+                                />
+                            </div>
                         </div>
+                    </Link>
+                </template>
+            </div>
+        </section>
+
+        <!-- Finance summary -->
+        <section v-if="stats" class="dashboard-reveal" style="animation-delay: 200ms">
+            <div class="soc-section-head">
+                <h2 class="soc-section-title">
+                    {{ t('Financial Intelligence') }}
+                </h2>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-3">
+                <div
+                    v-for="(item, index) in financeSummary"
+                    :key="item.label"
+                    class="dashboard-reveal soc-finance-block"
+                    :class="`soc-finance-block--${item.tone}`"
+                    :style="{ animationDelay: `${240 + index * 60}ms` }"
+                >
+                    <div class="mb-2 flex items-center justify-between">
+                        <span class="soc-sector">{{ item.code }}</span>
+                        <span class="soc-led" data-status="normal" />
                     </div>
-                </CardContent>
-            </Card>
-        </div>
+                    <p class="soc-metric-label">{{ item.label }}</p>
+                    <p class="soc-metric-value mt-2">{{ item.value }}</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick actions -->
+        <section
+            v-if="misQuickLinks.length > 0"
+            class="dashboard-reveal"
+            style="animation-delay: 280ms"
+        >
+            <div class="soc-section-head">
+                <h2 class="soc-section-title">
+                    {{ t('Rapid Deployment') }}
+                </h2>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                <Link
+                    v-for="(link, index) in misQuickLinks"
+                    :key="link.href"
+                    :href="link.href"
+                    class="dashboard-reveal soc-quick-tile group"
+                    :style="{ animationDelay: `${320 + index * 40}ms` }"
+                >
+                    <div class="mb-3 flex items-center justify-between">
+                        <div
+                            class="soc-tile-icon group-hover:bg-red-500/12"
+                        >
+                            <component
+                                :is="link.icon"
+                                class="size-4"
+                                stroke-width="1.75"
+                            />
+                        </div>
+                        <ArrowRight
+                            class="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:text-primary group-hover:opacity-100"
+                        />
+                    </div>
+                    <p class="text-sm font-semibold">{{ link.title }}</p>
+                    <p
+                        v-if="link.description"
+                        class="mt-1 line-clamp-2 text-xs text-muted-foreground"
+                    >
+                        {{ link.description }}
+                    </p>
+                </Link>
+            </div>
+        </section>
+
+        <!-- Analytics & insights -->
+        <section v-if="charts" class="dashboard-reveal" style="animation-delay: 360ms">
+            <div class="soc-section-head">
+                <h2 class="soc-section-title">
+                    {{ t('Intel & Analytics') }}
+                </h2>
+            </div>
+            <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                <Card
+                    class="soc-panel dashboard-reveal xl:col-span-2"
+                    style="animation-delay: 400ms"
+                >
+                    <CardHeader class="soc-panel-header flex-row items-start pb-4">
+                        <div>
+                            <p class="soc-panel-tag">ANL-01</p>
+                            <CardTitle class="mt-1 text-base font-bold uppercase tracking-wide">
+                                {{ t('Monthly Finance') }}
+                            </CardTitle>
+                            <CardDescription>
+                                {{ t('Income vs expenses over 6 months') }}
+                            </CardDescription>
+                        </div>
+                        <Can permission="finance.view">
+                            <Button variant="ghost" size="sm" as-child>
+                                <Link href="/analytics/finance">
+                                    {{ t('View Analytics') }}
+                                </Link>
+                            </Button>
+                        </Can>
+                    </CardHeader>
+                    <CardContent>
+                        <div
+                            class="mb-4 flex items-center gap-4 text-xs font-medium"
+                        >
+                            <span
+                                class="flex items-center gap-1.5 text-muted-foreground"
+                            >
+                                <span
+                                    class="size-2.5 rounded-full bg-school-navy"
+                                />
+                                {{ t('Income') }}
+                            </span>
+                            <span
+                                class="flex items-center gap-1.5 text-muted-foreground"
+                            >
+                                <span
+                                    class="size-2.5 rounded-full bg-school-gold"
+                                />
+                                {{ t('Expenses') }}
+                            </span>
+                        </div>
+                        <BarChart
+                            :labels="
+                                charts.monthly_finance.map((m) => m.label)
+                            "
+                            :datasets="[
+                                {
+                                    label: t('Income'),
+                                    data: charts.monthly_finance.map(
+                                        (m) => m.income,
+                                    ),
+                                    backgroundColor: '#0a0a0a',
+                                },
+                                {
+                                    label: t('Expenses'),
+                                    data: charts.monthly_finance.map(
+                                        (m) => m.expense,
+                                    ),
+                                    backgroundColor: '#dc2626',
+                                },
+                            ]"
+                            :height="240"
+                        />
+                    </CardContent>
+                </Card>
+
+                <Card
+                    class="soc-panel dashboard-reveal"
+                    style="animation-delay: 440ms"
+                >
+                    <CardHeader class="soc-panel-header pb-4">
+                        <p class="soc-panel-tag">ANL-02</p>
+                        <CardTitle class="mt-1 text-base font-bold uppercase tracking-wide">
+                            {{ t('Bidding Outcomes') }}
+                        </CardTitle>
+                        <CardDescription>
+                            {{ t('Win Rate Overview') }}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <DonutChart
+                            v-if="charts.bidding_outcomes.length > 0"
+                            :labels="
+                                charts.bidding_outcomes.map((b) =>
+                                    outcomeLabel(b.key),
+                                )
+                            "
+                            :data="
+                                charts.bidding_outcomes.map((b) => b.value)
+                            "
+                            :colors="['#22c55e', '#ef4444', '#dc2626']"
+                            :height="220"
+                        />
+                        <p
+                            v-else
+                            class="py-10 text-center text-sm text-muted-foreground"
+                        >
+                            {{ t('No bids submitted yet.') }}
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card
+                    class="soc-panel dashboard-reveal lg:col-span-2 xl:col-span-3"
+                    style="animation-delay: 480ms"
+                >
+                    <CardHeader class="soc-panel-header pb-4">
+                        <p class="soc-panel-tag">ANL-03</p>
+                        <CardTitle class="mt-1 text-base font-bold uppercase tracking-wide">
+                            {{ t('Project Status Breakdown') }}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <BarChart
+                            v-if="charts.project_statuses.length > 0"
+                            :labels="
+                                charts.project_statuses.map((s) =>
+                                    translateProjectStatus(t, s.status),
+                                )
+                            "
+                            :datasets="[
+                                {
+                                    label: t('Projects'),
+                                    data: charts.project_statuses.map(
+                                        (s) => s.count,
+                                    ),
+                                    backgroundColor: '#0a0a0a',
+                                },
+                            ]"
+                            :height="220"
+                        />
+                        <p
+                            v-else
+                            class="py-10 text-center text-sm text-muted-foreground"
+                        >
+                            {{ t('No projects yet') }}
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+        </section>
+
+        <!-- Operations -->
+        <section v-if="stats" class="dashboard-reveal" style="animation-delay: 420ms">
+            <div class="soc-section-head">
+                <h2 class="soc-section-title">
+                    {{ t('Field Operations') }}
+                </h2>
+            </div>
+            <div class="grid gap-4 lg:grid-cols-3">
+                <Card
+                    class="soc-panel dashboard-reveal lg:col-span-2"
+                    style="animation-delay: 460ms"
+                >
+                    <CardHeader class="soc-panel-header pb-4">
+                        <div>
+                            <p class="soc-panel-tag">OPS-01</p>
+                            <CardTitle class="mt-1 text-base font-bold uppercase tracking-wide">
+                                {{ t('Compliance Alerts') }}
+                            </CardTitle>
+                            <CardDescription>
+                                {{ t('Personnel attachments expiring soon') }}
+                            </CardDescription>
+                        </div>
+                        <span
+                            v-if="expiringDocuments.length > 0"
+                            class="soc-status-pill soc-status-pill--alert"
+                        >
+                            {{ formatNumber(expiringDocuments.length) }}
+                            {{ t('Active alerts') }}
+                        </span>
+                    </CardHeader>
+                    <CardContent class="max-h-64 space-y-2 overflow-y-auto pe-1">
+                        <div
+                            v-if="expiringDocuments.length === 0"
+                            class="flex items-center gap-3 rounded-lg bg-emerald-500/8 px-4 py-6"
+                        >
+                            <span class="soc-led" data-status="normal" />
+                            <p class="text-sm text-muted-foreground">
+                                {{ t('No documents expiring within 30 days.') }}
+                            </p>
+                        </div>
+                        <div
+                            v-for="(doc, index) in expiringDocuments.slice(0, 8)"
+                            :key="doc.id"
+                            class="dashboard-reveal soc-alert-row"
+                            :style="{ animationDelay: `${500 + index * 40}ms` }"
+                        >
+                            <div class="min-w-0">
+                                <p class="soc-alert-id">
+                                    ALT-{{ String(doc.id).padStart(4, '0') }}
+                                </p>
+                                <p class="truncate font-medium">
+                                    {{ doc.type ?? t('Document') }}
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ doc.personnel_type }} #{{
+                                        doc.personnel_id
+                                    }}
+                                </p>
+                            </div>
+                            <Badge
+                                variant="destructive"
+                                class="shrink-0 font-mono text-[10px] uppercase tracking-wide"
+                            >
+                                {{ formatDate(doc.expires_at) }}
+                            </Badge>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card
+                    class="soc-panel dashboard-reveal"
+                    style="animation-delay: 480ms"
+                >
+                    <CardHeader class="soc-panel-header pb-4">
+                        <p class="soc-panel-tag">OPS-02</p>
+                        <CardTitle class="mt-1 text-base font-bold uppercase tracking-wide">
+                            {{ monthLabel }}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div
+                            class="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                        >
+                            <span
+                                v-for="(day, index) in weekdayLabels"
+                                :key="index"
+                            >
+                                {{ day }}
+                            </span>
+                        </div>
+                        <div
+                            class="grid grid-cols-7 gap-1 text-center text-xs"
+                        >
+                            <span
+                                v-for="(cell, i) in calendarDays"
+                                :key="i"
+                                class="py-1"
+                            >
+                                <span
+                                    v-if="cell.day"
+                                    class="inline-flex size-7 items-center justify-center rounded-full"
+                                    :class="
+                                        cell.today
+                                            ? 'dashboard-today-pulse bg-primary font-semibold text-white'
+                                            : 'text-foreground'
+                                    "
+                                >
+                                    {{ formatNumber(cell.day) }}
+                                </span>
+                            </span>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </section>
+
+        <!-- Projects & workforce -->
+        <section
+            v-if="stats && charts"
+            class="dashboard-reveal"
+            style="animation-delay: 500ms"
+        >
+            <div class="soc-section-head">
+                <h2 class="soc-section-title">
+                    {{ t('Project Profitability') }}
+                </h2>
+            </div>
+            <div class="grid gap-4 xl:grid-cols-12">
+                <Card
+                    class="soc-panel dashboard-reveal xl:col-span-7"
+                    style="animation-delay: 540ms"
+                >
+                    <CardHeader
+                        class="soc-panel-header flex-row items-start pb-4"
+                    >
+                        <div>
+                            <p class="soc-panel-tag">PRJ-01</p>
+                            <CardTitle class="mt-1 text-base font-bold uppercase tracking-wide">
+                                {{ t('Top Projects by Margin') }}
+                            </CardTitle>
+                            <CardDescription>
+                                {{ t('Income vs expense by project') }}
+                            </CardDescription>
+                        </div>
+                        <Button variant="ghost" size="sm" as-child>
+                            <Link href="/projects">
+                                {{ t('View Projects') }}
+                            </Link>
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        <div
+                            v-if="topProjects.length === 0"
+                            class="py-10 text-center text-sm text-muted-foreground"
+                        >
+                            {{ t('No project data available.') }}
+                        </div>
+                        <div v-else class="overflow-x-auto">
+                            <table class="w-full min-w-[480px] text-sm">
+                                <thead>
+                                    <tr
+                                        class="border-b border-border/60 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400"
+                                    >
+                                        <th
+                                            class="pb-3 text-start font-semibold"
+                                        >
+                                            {{ t('Project') }}
+                                        </th>
+                                        <th
+                                            class="pb-3 text-start font-semibold"
+                                        >
+                                            {{ t('Organization') }}
+                                        </th>
+                                        <th
+                                            class="pb-3 text-end font-semibold"
+                                        >
+                                            {{ t('Margin') }}
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-border/40">
+                                    <tr
+                                        v-for="(project, index) in topProjects"
+                                        :key="project.id"
+                                        class="group dashboard-reveal"
+                                        :style="{
+                                            animationDelay: `${680 + index * 60}ms`,
+                                        }"
+                                    >
+                                        <td class="py-3 pe-4">
+                                            <Link
+                                                :href="`/projects/${project.id}`"
+                                                class="flex items-center gap-3 hover:text-school-navy"
+                                            >
+                                                <span
+                                                    class="flex size-8 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--school-navy)_10%,transparent)] text-xs font-semibold text-school-navy"
+                                                >
+                                                    {{
+                                                        initials(project.name)
+                                                    }}
+                                                </span>
+                                                <span>
+                                                    <span
+                                                        class="block font-medium"
+                                                        >{{
+                                                            project.name
+                                                        }}</span
+                                                    >
+                                                    <span
+                                                        class="text-xs text-muted-foreground"
+                                                        >{{
+                                                            project.code
+                                                        }}</span
+                                                    >
+                                                </span>
+                                            </Link>
+                                        </td>
+                                        <td
+                                            class="py-3 text-muted-foreground"
+                                        >
+                                            {{ project.organization ?? '—' }}
+                                        </td>
+                                        <td class="py-3">
+                                            <div
+                                                class="flex items-center justify-end gap-3"
+                                            >
+                                                <div
+                                                    class="hidden h-1.5 w-20 overflow-hidden rounded-full bg-slate-100 sm:block dark:bg-muted"
+                                                >
+                                                    <div
+                                                        class="dashboard-margin-bar h-full rounded-full bg-emerald-500"
+                                                        :style="{
+                                                            width: `${Math.min(100, (Math.max(project.margin, 0) / maxMargin) * 100)}%`,
+                                                            animationDelay: `${720 + index * 60}ms`,
+                                                        }"
+                                                    />
+                                                </div>
+                                                <span
+                                                    class="font-semibold tabular-nums"
+                                                    :class="
+                                                        project.margin >= 0
+                                                            ? 'text-emerald-700 dark:text-emerald-400'
+                                                            : 'text-rose-600'
+                                                    "
+                                                >
+                                                    {{
+                                                        formatCurrencyValue(
+                                                            project.margin,
+                                                        )
+                                                    }}
+                                                </span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card
+                    class="soc-panel dashboard-reveal xl:col-span-5"
+                    style="animation-delay: 560ms"
+                >
+                    <CardHeader class="soc-panel-header pb-4">
+                        <p class="soc-panel-tag">PRJ-02</p>
+                        <CardTitle class="mt-1 text-base font-bold uppercase tracking-wide">
+                            {{ t('Workforce Split') }}
+                        </CardTitle>
+                        <CardDescription>
+                            {{ t('Employees') }} & {{ t('Contractors') }}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <DonutChart
+                            :labels="[t('Employees'), t('Contractors')]"
+                            :data="[
+                                charts.workforce.employees,
+                                charts.workforce.contractors,
+                            ]"
+                            :colors="['#0a0a0a', '#dc2626']"
+                        />
+                        <div
+                            class="mt-4 flex justify-center gap-6 text-sm"
+                        >
+                            <span class="flex items-center gap-2">
+                                <span
+                                    class="size-2.5 rounded-full bg-school-navy"
+                                />
+                                {{ t('Employees') }}
+                                <strong class="tabular-nums">{{
+                                    charts.workforce.employees
+                                }}</strong>
+                            </span>
+                            <span class="flex items-center gap-2">
+                                <span
+                                    class="size-2.5 rounded-full bg-school-gold"
+                                />
+                                {{ t('Contractors') }}
+                                <strong class="tabular-nums">{{
+                                    charts.workforce.contractors
+                                }}</strong>
+                            </span>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </section>
+
+        <!-- CTA banner -->
+        <section
+            class="soc-footer-bar dashboard-reveal px-6 py-8 md:px-8"
+            style="animation-delay: 580ms"
+        >
+            <div
+                class="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+                <div>
+                    <div class="soc-live mb-2">
+                        <span class="soc-live-dot" />
+                        {{ t('System Ready') }}
+                    </div>
+                    <h2 class="text-lg font-bold uppercase tracking-[0.1em]">
+                        {{ t('Manage your security operations') }}
+                    </h2>
+                    <p class="mt-2 max-w-lg font-mono text-xs text-white/60">
+                        {{
+                            t(
+                                'Track bidding, projects, finance, and HR from one centralized dashboard.',
+                            )
+                        }}
+                    </p>
+                </div>
+                <Button
+                    as-child
+                    class="rounded-md bg-primary font-semibold uppercase tracking-wide text-white hover:bg-primary/90"
+                >
+                    <Link href="/organizations" class="gap-2">
+                        <Building2 class="size-4" />
+                        {{ t('View Organizations') }}
+                    </Link>
+                </Button>
+            </div>
+        </section>
     </div>
 </template>

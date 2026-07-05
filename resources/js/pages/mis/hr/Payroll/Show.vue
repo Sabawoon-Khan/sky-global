@@ -9,23 +9,24 @@ import {
     Users,
     Wallet,
 } from '@lucide/vue';
+import Can from '@/components/Can.vue';
 import EntityAttachments, {
     type EntityAttachment,
 } from '@/components/EntityAttachments.vue';
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
 import { useMisPage } from '@/composables/useMisPage';
+import type { RowActionItem } from '@/lib/row-actions';
 
 interface Personnel {
     first_name?: string;
@@ -76,7 +77,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const { t } = useMisPage();
+const { t, deleteAction } = useMisPage();
 
 defineOptions({
     layout: {
@@ -201,6 +202,19 @@ const pendingPersonnelLabel = (adjustment: PendingAdjustment): string => {
 
     return `#${adjustment.personnel_id}`;
 };
+
+const runActions = computed((): RowActionItem[] => [
+    deleteAction(
+        {
+            href: `/hr/payroll/${props.payrollRun.id}`,
+            title: t('Delete payroll run?'),
+            description: t(
+                'This payroll run and all its line items will be removed. Applied adjustments for this period will become pending again.',
+            ),
+        },
+        'hr.delete',
+    ),
+]);
 </script>
 
 <template>
@@ -209,18 +223,19 @@ const pendingPersonnelLabel = (adjustment: PendingAdjustment): string => {
     <div class="flex flex-1 flex-col gap-6 p-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <Heading
-                    :title="periodLabel"
-                    :description="
-                        t('Review payroll line items generated from approved attendance')
-                    "
-                />
+                <h1 class="text-2xl font-semibold tracking-tight">
+                    {{ periodLabel }}
+                </h1>
                 <div class="mt-3 flex flex-wrap items-center gap-2">
                     <Badge :variant="isProcessed ? 'default' : 'secondary'">
                         {{ payrollRun.status }}
                     </Badge>
-                    <span v-if="isProcessed" class="text-sm text-muted-foreground">
-                        {{ t('Processed by') }} {{ payrollRun.processed_by?.name ?? '—' }}
+                    <span
+                        v-if="isProcessed"
+                        class="text-sm text-muted-foreground"
+                    >
+                        {{ t('Processed by') }}
+                        {{ payrollRun.processed_by?.name ?? '—' }}
                     </span>
                 </div>
             </div>
@@ -229,10 +244,14 @@ const pendingPersonnelLabel = (adjustment: PendingAdjustment): string => {
                     <Link href="/hr/payroll">{{ t('Back to list') }}</Link>
                 </Button>
                 <Button variant="outline" as-child>
-                    <Link :href="attendanceFilterUrl">{{ t('View attendance') }}</Link>
+                    <Link :href="attendanceFilterUrl">{{
+                        t('View attendance')
+                    }}</Link>
                 </Button>
                 <Button v-if="isDraft" variant="outline" as-child>
-                    <Link :href="adjustmentsUrl">{{ t('Manage adjustments') }}</Link>
+                    <Link :href="adjustmentsUrl">{{
+                        t('Manage adjustments')
+                    }}</Link>
                 </Button>
                 <Form
                     v-if="isDraft"
@@ -245,18 +264,20 @@ const pendingPersonnelLabel = (adjustment: PendingAdjustment): string => {
                         {{ t('Process payroll') }}
                     </Button>
                 </Form>
+                <Can permission="hr.delete">
+                    <RowActionsMenu :actions="runActions" />
+                </Can>
             </div>
         </div>
 
         <div class="grid gap-4 sm:grid-cols-3">
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>{{ t('Approved attendance') }}</CardDescription>
                     <CardTitle class="flex items-center gap-2 text-2xl">
                         <CalendarDays class="size-5 text-muted-foreground" />
                         {{ approvedAttendanceCount }}
                     </CardTitle>
-                </CardHeader>
+            </CardHeader>
                 <CardContent class="text-xs text-muted-foreground">
                     {{
                         t('Records for :period ready for payroll', {
@@ -267,24 +288,22 @@ const pendingPersonnelLabel = (adjustment: PendingAdjustment): string => {
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>{{ t('Line items') }}</CardDescription>
                     <CardTitle class="flex items-center gap-2 text-2xl">
                         <Users class="size-5 text-muted-foreground" />
                         {{ itemCount }}
                     </CardTitle>
-                </CardHeader>
+            </CardHeader>
                 <CardContent class="text-xs text-muted-foreground">
                     {{ t('Personnel entries in this payroll run') }}
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
-                    <CardDescription>{{ t('Total net pay') }}</CardDescription>
                     <CardTitle class="flex items-center gap-2 text-2xl">
                         <Wallet class="size-5 text-muted-foreground" />
                         {{ formatCurrency(totalNet) }}
                     </CardTitle>
-                </CardHeader>
+            </CardHeader>
                 <CardContent class="text-xs text-muted-foreground">
                     {{ t('Combined net amount for this run') }}
                 </CardContent>
@@ -300,14 +319,6 @@ const pendingPersonnelLabel = (adjustment: PendingAdjustment): string => {
                     <Receipt class="size-5" />
                     {{ t('Pending adjustments') }} ({{ pendingAdjustmentCount }})
                 </CardTitle>
-                <CardDescription>
-                    {{
-                        t(
-                            'Bonus, deductions, and advances recorded for :period are applied automatically when you process this run.',
-                            { period: periodLabel },
-                        )
-                    }}
-                </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
                 <div
@@ -376,14 +387,6 @@ const pendingPersonnelLabel = (adjustment: PendingAdjustment): string => {
                     <AlertCircle class="size-5" />
                     {{ t('Next step') }}
                 </CardTitle>
-                <CardDescription>
-                    {{
-                        t(
-                            'Approve attendance, record any bonus/deduction/advance for :period, then process this run.',
-                            { period: periodLabel },
-                        )
-                    }}
-                </CardDescription>
             </CardHeader>
             <CardContent class="text-sm text-muted-foreground">
                 <p>
@@ -417,14 +420,6 @@ const pendingPersonnelLabel = (adjustment: PendingAdjustment): string => {
                     <AlertCircle class="size-5" />
                     {{ t('No line items generated') }}
                 </CardTitle>
-                <CardDescription>
-                    {{
-                        t(
-                            'This run was processed, but no approved attendance existed for :period.',
-                            { period: periodLabel },
-                        )
-                    }}
-                </CardDescription>
             </CardHeader>
             <CardContent class="flex flex-col gap-3 text-sm text-muted-foreground">
                 <p>
@@ -446,14 +441,6 @@ const pendingPersonnelLabel = (adjustment: PendingAdjustment): string => {
                     <CheckCircle2 class="size-5" />
                     {{ t('Payroll processed') }}
                 </CardTitle>
-                <CardDescription>
-                    {{
-                        t(':count line items · Total net :amount', {
-                            count: String(itemCount),
-                            amount: formatCurrency(totalNet),
-                        })
-                    }}
-                </CardDescription>
             </CardHeader>
         </Card>
 
@@ -463,22 +450,11 @@ const pendingPersonnelLabel = (adjustment: PendingAdjustment): string => {
                     <Wallet class="size-5" />
                     {{ t('Line items') }}
                 </CardTitle>
-                <CardDescription>
-                    {{
-                        isDraft
-                            ? t(
-                                  'Line items appear after processing; amounts include pending adjustments for this month',
-                              )
-                            : t(
-                                  'Amounts from attendance; net = base + bonus − deductions − advance',
-                              )
-                    }}
-                </CardDescription>
             </CardHeader>
             <CardContent>
                 <div
                     v-if="itemCount === 0"
-                    class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
+                    class="ui-empty-state"
                 >
                     {{
                         isDraft

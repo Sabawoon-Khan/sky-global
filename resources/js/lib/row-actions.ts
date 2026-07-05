@@ -17,4 +17,6 @@ export interface RowActionItem {
     };
     confirmVariant?: 'destructive' | 'default';
     separator?: boolean;
+    /** Use a native browser navigation for file downloads instead of Inertia. */
+    download?: boolean;
 }

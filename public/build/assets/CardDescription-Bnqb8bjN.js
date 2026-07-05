@@ -1,0 +1,1 @@
+import{C as e,Ct as t,E as n,V as r,W as i,xt as a}from"./dist-DlR-ATWd.js";import{a as o}from"./button-lJb03_Ix.js";var s=n({__name:`CardDescription`,props:{class:{type:[Boolean,null,String,Object,Array]}},setup(n){let s=n;return(n,c)=>(r(),e(`p`,{"data-slot":`card-description`,class:t(a(o)(`text-muted-foreground text-sm`,s.class))},[i(n.$slots,`default`)],2))}});export{s as t};

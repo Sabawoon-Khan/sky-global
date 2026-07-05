@@ -2,7 +2,6 @@
 import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { Plus, Receipt, Users } from '@lucide/vue';
-import Heading from '@/components/Heading.vue';
 import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
 import MisPagination from '@/components/MisPagination.vue';
@@ -12,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -174,16 +172,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
     <Head :title="t('Payroll Adjustments')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
-        <Heading
-            :title="t('Payroll Adjustments')"
-            :description="
-                t(
-                    'Record bonus, deductions, and advances by month — applied automatically when you process payroll for that period',
-                )
-            "
-        />
-
-        <div class="grid gap-6 xl:grid-cols-3">
+<div class="grid gap-6 xl:grid-cols-3">
             <Can permission="hr.create">
             <Card class="xl:col-span-1">
                 <CardHeader>
@@ -191,11 +180,6 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                         <Plus class="size-5" />
                         {{ bulkMode ? t('Bulk adjustments') : t('New adjustment') }}
                     </CardTitle>
-                    <CardDescription>
-                        <button type="button" class="text-primary underline-offset-4 hover:underline" @click="bulkMode = !bulkMode">
-                            {{ bulkMode ? t('Switch to single entry') : t('Add many people at once') }}
-                        </button>
-                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form
@@ -409,13 +393,6 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                             year: String(filters?.year ?? new Date().getFullYear()),
                         }) }}
                     </CardTitle>
-                    <CardDescription>
-                        {{
-                            t(
-                                'Pending entries are included when payroll is processed for the same month',
-                            )
-                        }}
-                    </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
                     <form
@@ -450,7 +427,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
 
                     <div
                         v-if="adjustments.data.length === 0"
-                        class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
+                        class="ui-empty-state"
                     >
                         {{ t('No adjustments for this period.') }}
                     </div>

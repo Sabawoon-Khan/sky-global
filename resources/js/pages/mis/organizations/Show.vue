@@ -14,14 +14,12 @@ import {
 import EntityAttachments, {
     type EntityAttachment,
 } from '@/components/EntityAttachments.vue';
-import Heading from '@/components/Heading.vue';
 import MisTabs from '@/components/MisTabs.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -139,11 +137,7 @@ const completedProjects = computed(() =>
     <div class="flex w-full flex-1 flex-col gap-6 p-4 sm:p-6">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-                <Heading
-                    :title="organization.name"
-                    :description="organization.organization_type.name"
-                />
-                <div class="mt-3 flex flex-wrap gap-2">
+<div class="mt-3 flex flex-wrap gap-2">
                     <Badge :variant="organization.is_active ? 'default' : 'outline'">
                         {{ organization.is_active ? t('Active') : t('Inactive') }}
                     </Badge>
@@ -263,11 +257,7 @@ const completedProjects = computed(() =>
                     <FolderKanban class="size-5" />
                     {{ t('Projects') }}
                 </CardTitle>
-                <CardDescription>
-                    {{ completedProjects.length }} {{ t('completed') }} ·
-                    {{ organization.projects.length }} {{ t('total') }}
-                </CardDescription>
-            </CardHeader>
+                </CardHeader>
             <CardContent>
                 <ul v-if="organization.projects.length" class="divide-y">
                     <li
@@ -381,7 +371,7 @@ const completedProjects = computed(() =>
                     <div
                         v-for="contact in organization.contacts"
                         :key="contact.id"
-                        class="rounded-lg border p-4"
+                        class="ui-inset-panel"
                     >
                         <div class="flex items-center justify-between">
                             <p class="font-medium">{{ contact.name }}</p>

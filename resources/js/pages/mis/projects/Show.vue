@@ -2,7 +2,6 @@
 import { Form, Head, Link, router } from '@inertiajs/vue3';
 import { Pencil, Trash2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
-import Heading from '@/components/Heading.vue';
 import Can from '@/components/Can.vue';
 import EntityAttachments, {
     type EntityAttachment,
@@ -16,7 +15,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -345,7 +343,6 @@ const closeIssueEdit = (): void => {
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div class="min-w-0">
                 <p class="font-mono text-xs text-muted-foreground">{{ project.code }}</p>
-                <Heading :title="project.name" :description="project.reference_number ?? undefined" />
                 <div class="mt-2 flex flex-wrap gap-2">
                     <Badge :variant="statusVariant(project.status)">{{ project.status }}</Badge>
                     <Badge v-if="project.organization" variant="secondary">
@@ -480,8 +477,7 @@ const closeIssueEdit = (): void => {
         <Card v-else-if="activeTab === 'bid'">
             <CardHeader class="pb-2">
                 <CardTitle class="text-base">{{ t('Our bid details') }}</CardTitle>
-                <CardDescription>{{ t('Update pricing and scope — saved on this project only') }}</CardDescription>
-            </CardHeader>
+                </CardHeader>
             <CardContent>
                 <Form
                     v-bind="ProjectController.update.form(project.id)"
@@ -619,7 +615,6 @@ const closeIssueEdit = (): void => {
             <Card class="lg:col-span-2">
                 <CardHeader class="pb-2">
                     <CardTitle class="text-base">{{ t('Assigned Personnel') }}</CardTitle>
-                    <CardDescription>{{ t('Employees and contractors working on this project') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div v-if="!project.deployments?.length" class="py-6 text-center text-sm text-muted-foreground">
@@ -895,7 +890,6 @@ const closeIssueEdit = (): void => {
             <Card class="lg:col-span-2">
                 <CardHeader class="pb-2">
                     <CardTitle class="text-base">{{ t('Incident Reports') }}</CardTitle>
-                    <CardDescription>{{ t('What happened, how it was resolved') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div v-if="!project.issues.length" class="py-6 text-center text-sm text-muted-foreground">
@@ -964,7 +958,6 @@ const closeIssueEdit = (): void => {
             <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="text-base">{{ t('New report') }}</CardTitle>
-                    <CardDescription>{{ t('Describe the incident or problem') }}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form
@@ -1067,9 +1060,6 @@ const closeIssueEdit = (): void => {
                                     : t('Edit expense')
                             }}
                         </DialogTitle>
-                        <DialogDescription>
-                            Update amount, date, or description.
-                        </DialogDescription>
                     </DialogHeader>
 
                     <div class="grid gap-3 py-4">
@@ -1147,9 +1137,6 @@ const closeIssueEdit = (): void => {
                 >
                     <DialogHeader>
                         <DialogTitle>{{ t('Edit issue') }}</DialogTitle>
-                        <DialogDescription>
-                            Update issue details and status.
-                        </DialogDescription>
                     </DialogHeader>
 
                     <div class="grid gap-3 py-4">

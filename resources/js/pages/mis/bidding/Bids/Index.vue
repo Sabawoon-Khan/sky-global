@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { FileText, Plus, Search } from '@lucide/vue';
-import Heading from '@/components/Heading.vue';
+import { FileText, Search } from '@lucide/vue';
 import MisCreateButton from '@/components/MisCreateButton.vue';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
     Card,
+    CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -103,30 +101,17 @@ const statusLabel = (status: string) => {
     <Head :title="t('Bids')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <Heading
-                :title="t('Bids')"
-                :description="t('Manage submitted bids and outcomes')"
-            />
-            <MisCreateButton href="/bidding/bids/create" permission="bidding.create">
-                <Plus class="me-1 size-4" />
-                {{ t('New Bid') }}
-            </MisCreateButton>
-        </div>
-
         <Card>
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <FileText class="size-5" />
                     {{ t('All Bids') }}
                 </CardTitle>
-                <CardDescription>
-                    {{
-                        t(':count bids', {
-                            count: String(bids.meta?.total ?? bids.data.length),
-                        })
-                    }}
-                </CardDescription>
+                <CardAction>
+                    <MisCreateButton href="/bidding/bids/create" permission="bidding.create">
+                        {{ t('New Bid') }}
+                    </MisCreateButton>
+                </CardAction>
             </CardHeader>
             <CardContent class="space-y-4">
                 <form method="get" action="/bidding/bids" class="relative max-w-sm">
@@ -143,7 +128,7 @@ const statusLabel = (status: string) => {
 
                 <div
                     v-if="bids.data.length === 0"
-                    class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
+                    class="ui-empty-state"
                 >
                     {{ t('No bids found.') }}
                 </div>

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
@@ -8,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -43,21 +41,7 @@ defineOptions({
 <template>
     <Head :title="t('Add Organization')" />
 
-    <MisPage narrow>
-        <div class="flex items-center justify-between gap-3">
-            <Heading
-                :title="t('Add Organization')"
-                :description="
-                    t(
-                        'Register a client, partner, or procurement body with full details',
-                    )
-                "
-            />
-            <Button variant="outline" as-child>
-                <Link href="/organizations">{{ t('Cancel') }}</Link>
-            </Button>
-        </div>
-
+    <MisPage>
         <Form
             v-bind="OrganizationController.store.form()"
             class="space-y-6"
@@ -67,19 +51,11 @@ defineOptions({
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Basic information') }}</CardTitle>
-                    <CardDescription>
-                        {{ t('Name, type, and registration details') }}
-                    </CardDescription>
                 </CardHeader>
-                <CardContent class="grid gap-4 md:grid-cols-2">
-                    <div class="grid gap-2 md:col-span-2">
+                <CardContent class="grid gap-4">
+                    <div class="grid gap-2">
                         <Label for="name">{{ t('Organization name') }} *</Label>
-                        <Input
-                            id="name"
-                            name="name"
-                            required
-                            placeholder="e.g. Ministry of Interior"
-                        />
+                        <Input id="name" name="name" required />
                         <InputError :message="errors.name" />
                     </div>
 
@@ -105,11 +81,7 @@ defineOptions({
 
                     <div class="grid gap-2">
                         <Label for="tax_id">{{ t('Tax / registration ID') }}</Label>
-                        <Input
-                            id="tax_id"
-                            name="tax_id"
-                            :placeholder="t('Optional')"
-                        />
+                        <Input id="tax_id" name="tax_id" />
                         <InputError :message="errors.tax_id" />
                     </div>
                 </CardContent>
@@ -119,7 +91,7 @@ defineOptions({
                 <CardHeader>
                     <CardTitle>{{ t('Location & contact') }}</CardTitle>
                 </CardHeader>
-                <CardContent class="grid gap-4 md:grid-cols-2">
+                <CardContent class="grid gap-4">
                     <div class="grid gap-2">
                         <Label for="province">{{ t('Province') }}</Label>
                         <select
@@ -137,29 +109,23 @@ defineOptions({
 
                     <div class="grid gap-2">
                         <Label for="phone">{{ t('Phone') }}</Label>
-                        <Input id="phone" name="phone" type="tel" placeholder="+93 ..." />
+                        <Input id="phone" name="phone" type="tel" />
                         <InputError :message="errors.phone" />
                     </div>
 
-                    <div class="grid gap-2 md:col-span-2">
+                    <div class="grid gap-2">
                         <Label for="email">{{ t('Email') }}</Label>
-                        <Input
-                            id="email"
-                            name="email"
-                            type="email"
-                            placeholder="contact@organization.af"
-                        />
+                        <Input id="email" name="email" type="email" />
                         <InputError :message="errors.email" />
                     </div>
 
-                    <div class="grid gap-2 md:col-span-2">
+                    <div class="grid gap-2">
                         <Label for="address">{{ t('Full address') }}</Label>
                         <textarea
                             id="address"
                             name="address"
                             rows="3"
                             class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
-                            placeholder="Street, district, city..."
                         />
                         <InputError :message="errors.address" />
                     </div>
@@ -169,9 +135,6 @@ defineOptions({
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Notes') }}</CardTitle>
-                    <CardDescription>
-                        {{ t('Internal notes about this organization') }}
-                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <textarea
@@ -179,7 +142,6 @@ defineOptions({
                         name="notes"
                         rows="4"
                         class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
-                        placeholder="Relationship history, key contacts, preferences..."
                     />
                     <InputError :message="errors.notes" />
                 </CardContent>
@@ -188,9 +150,6 @@ defineOptions({
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Attachment') }}</CardTitle>
-                    <CardDescription>
-                        {{ t('Upload a related document if available') }}
-                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <OptionalAttachmentField :error="errors.attachment" />

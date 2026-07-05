@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { FolderKanban, Plus, Search } from '@lucide/vue';
-import Heading from '@/components/Heading.vue';
+import { FolderKanban, Search } from '@lucide/vue';
 import MisCreateButton from '@/components/MisCreateButton.vue';
 import MisPage from '@/components/MisPage.vue';
 import MisPagination from '@/components/MisPagination.vue';
@@ -10,8 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
+    CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -81,32 +80,17 @@ const projectActions = (project: Project): RowActionItem[] => [
     <Head :title="t('Projects')" />
 
     <MisPage>
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Heading
-                :title="t('Projects')"
-                :description="t('Every proposal and contract in one place — from first bid to final delivery')"
-            />
-            <MisCreateButton href="/projects/create" permission="projects.create" size="sm">
-                <Plus class="me-1 size-4" />
-                {{ t('New Project') }}
-            </MisCreateButton>
-        </div>
-
         <Card>
-            <CardHeader class="pb-3">
-                <CardTitle class="flex items-center gap-2 text-base">
-                    <FolderKanban class="size-4" />
+            <CardHeader>
+                <CardTitle class="flex items-center gap-2">
+                    <FolderKanban class="size-5" />
                     {{ t('All Projects') }}
                 </CardTitle>
-                <CardDescription>
-                    {{
-                        t(':count projects', {
-                            count: String(
-                                projects.meta?.total ?? projects.data.length,
-                            ),
-                        })
-                    }}
-                </CardDescription>
+                <CardAction>
+                    <MisCreateButton href="/projects/create" permission="projects.create">
+                        {{ t('New Project') }}
+                    </MisCreateButton>
+                </CardAction>
             </CardHeader>
             <CardContent class="space-y-3">
                 <form method="get" action="/projects" class="flex flex-col gap-2 sm:flex-row">
@@ -140,7 +124,7 @@ const projectActions = (project: Project): RowActionItem[] => [
 
                 <div
                     v-if="projects.data.length === 0"
-                    class="rounded-lg border border-dashed p-8 text-center"
+                    class="ui-empty-state"
                 >
                     <p class="font-medium">{{ t('No projects yet') }}</p>
                     <p class="mt-1 text-sm text-muted-foreground">

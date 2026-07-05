@@ -3,9 +3,10 @@ import { createContext } from "reka-ui"
 
 export const SIDEBAR_COOKIE_NAME = "sidebar_state"
 export const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-export const SIDEBAR_WIDTH = "16rem"
-export const SIDEBAR_WIDTH_MOBILE = "18rem"
-export const SIDEBAR_WIDTH_ICON = "3rem"
+export const SIDEBAR_WIDTH = "260px"
+export const SIDEBAR_WIDTH_MOBILE = "280px"
+export const SIDEBAR_WIDTH_ICON = "72px"
+export const SIDEBAR_MARGIN = "16px"
 export const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
 export const [useSidebar, provideSidebarContext] = createContext<{

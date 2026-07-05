@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { useTranslations } from '@/composables/useTranslations';
-import type { Paginated } from '@/lib/format';
+import { formatNumber, type Paginated } from '@/lib/format';
 
 defineProps<{
     pagination: Pick<Paginated<unknown>, 'links' | 'meta'>;
@@ -18,9 +18,9 @@ const { t } = useTranslations();
         <p class="text-sm text-muted-foreground">
             {{
                 t('Showing :from–:to of :total', {
-                    from: String(pagination.meta.from ?? 0),
-                    to: String(pagination.meta.to ?? 0),
-                    total: String(pagination.meta.total),
+                    from: formatNumber(pagination.meta.from ?? 0),
+                    to: formatNumber(pagination.meta.to ?? 0),
+                    total: formatNumber(pagination.meta.total),
                 })
             }}
         </p>

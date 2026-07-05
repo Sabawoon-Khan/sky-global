@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Plus, Search, UserRound } from '@lucide/vue';
-import Heading from '@/components/Heading.vue';
+import { Search, UserRound } from '@lucide/vue';
 import MisCreateButton from '@/components/MisCreateButton.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
     Card,
+    CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -72,32 +70,17 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
     <Head :title="t('Contractors')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <Heading
-                :title="t('Contractors')"
-                :description="t('Manage contractor personnel and agreements')"
-            />
-            <MisCreateButton href="/hr/contractors/create" permission="hr.create">
-                <Plus class="me-1 size-4" />
-                {{ t('Add Contractor') }}
-            </MisCreateButton>
-        </div>
-
         <Card>
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                     <UserRound class="size-5" />
                     {{ t('All Contractors') }}
                 </CardTitle>
-                <CardDescription>
-                    {{
-                        t(':count contractors', {
-                            count: String(
-                                contractors.meta?.total ?? contractors.data.length,
-                            ),
-                        })
-                    }}
-                </CardDescription>
+                <CardAction>
+                    <MisCreateButton href="/hr/contractors/create" permission="hr.create">
+                        {{ t('Add Contractor') }}
+                    </MisCreateButton>
+                </CardAction>
             </CardHeader>
             <CardContent class="space-y-4">
                 <form
@@ -118,7 +101,7 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
 
                 <div
                     v-if="contractors.data.length === 0"
-                    class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
+                    class="ui-empty-state"
                 >
                     {{ t('No contractors found.') }}
                 </div>

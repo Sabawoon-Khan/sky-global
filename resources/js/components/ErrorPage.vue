@@ -2,16 +2,15 @@
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import type { Component } from 'vue';
 import { computed } from 'vue';
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import AppLogoImage from '@/components/AppLogoImage.vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import { Button } from '@/components/ui/button';
 import { useTranslations } from '@/composables/useTranslations';
 import { dashboard, home } from '@/routes';
 
-const { code, title, description, icon } = defineProps<{
+const { code, title, icon } = defineProps<{
     code: number;
     title: string;
-    description: string;
     icon: Component;
 }>();
 
@@ -20,7 +19,6 @@ const { t } = useTranslations();
 
 const appName = computed(() => page.props.name as string);
 const displayTitle = computed(() => t(title));
-const displayDescription = computed(() => t(description));
 
 const primaryHref = computed(() =>
     page.props.auth.user ? dashboard() : home(),
@@ -36,7 +34,7 @@ const primaryLabel = computed(() =>
 
     <div class="relative min-h-screen overflow-hidden bg-background">
         <div
-            class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,119,198,0.12),transparent)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,119,198,0.08),transparent)]"
+            class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(32,48,112,0.14),transparent)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(32,48,112,0.2),transparent)]"
         />
 
         <div
@@ -47,11 +45,7 @@ const primaryLabel = computed(() =>
                     :href="home()"
                     class="flex items-center gap-3 transition-opacity hover:opacity-80"
                 >
-                    <div
-                        class="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm"
-                    >
-                        <AppLogoIcon class="size-5 fill-current" />
-                    </div>
+                    <AppLogoImage class="size-10" />
                     <span class="text-sm font-semibold tracking-tight">{{
                         appName
                     }}</span>
@@ -76,10 +70,6 @@ const primaryLabel = computed(() =>
                 <h1 class="mt-4 text-2xl font-semibold tracking-tight">
                     {{ displayTitle }}
                 </h1>
-
-                <p class="mt-3 max-w-md text-base leading-relaxed text-muted-foreground">
-                    {{ displayDescription }}
-                </p>
 
                 <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
                     <Button as-child>

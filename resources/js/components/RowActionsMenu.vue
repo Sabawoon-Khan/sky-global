@@ -37,7 +37,16 @@ const pendingAction = ref<RowActionItem | null>(null);
 const processing = ref(false);
 
 const isLinkAction = (action: RowActionItem): boolean =>
-    Boolean(action.href && !action.method && !action.onClick && !action.confirm);
+    Boolean(
+        action.href &&
+            !action.method &&
+            !action.onClick &&
+            !action.confirm &&
+            !action.download,
+    );
+
+const isDownloadAction = (action: RowActionItem): boolean =>
+    Boolean(action.href && action.download);
 
 function handleClick(action: RowActionItem): void {
     if (action.confirm) {
@@ -113,7 +122,18 @@ function confirmPendingAction(): void {
                     v-if="action.separator && index > 0"
                 />
                 <DropdownMenuItem
-                    v-if="isLinkAction(action)"
+                    v-if="isDownloadAction(action)"
+                    :variant="action.variant"
+                    :disabled="action.disabled"
+                    as-child
+                >
+                    <a v-if="action.href" :href="action.href">
+                        <component :is="action.icon" v-if="action.icon" />
+                        {{ action.label }}
+                    </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    v-else-if="isLinkAction(action)"
                     :variant="action.variant"
                     :disabled="action.disabled"
                     as-child

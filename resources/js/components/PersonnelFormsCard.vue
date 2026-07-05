@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -72,10 +71,7 @@ const selectedType = () =>
                 <FileText class="size-4" />
                 {{ t('Employee forms') }}
             </CardTitle>
-            <CardDescription>
-                {{ t('Guarantee letters, certificates, and other HR documents') }}
-            </CardDescription>
-        </CardHeader>
+                </CardHeader>
         <CardContent class="space-y-4">
             <div
                 v-if="forms.length === 0"
@@ -143,7 +139,7 @@ const selectedType = () =>
                     v-else
                     action="/forms/personnel-attachments"
                     method="post"
-                    class="space-y-4 rounded-lg border p-4"
+                    class="space-y-4 ui-inset-panel"
                     :options="{ forceFormData: true }"
                     @success="showAddForm = false"
                     v-slot="{ errors, processing }"

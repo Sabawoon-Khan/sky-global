@@ -7,6 +7,7 @@ import {
 } from 'chart.js';
 import { computed } from 'vue';
 import { Doughnut } from 'vue-chartjs';
+import { formatNumber } from '@/lib/format';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -38,8 +39,20 @@ const chartData = computed(() => ({
 const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+        animateRotate: true,
+        animateScale: true,
+        duration: 1200,
+        easing: 'easeOutQuart' as const,
+    },
     plugins: {
         legend: { position: 'bottom' as const },
+        tooltip: {
+            callbacks: {
+                label: (context) =>
+                    `${context.label}: ${formatNumber(context.parsed ?? 0)}`,
+            },
+        },
     },
 };
 </script>

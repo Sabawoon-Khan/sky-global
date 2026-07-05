@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { Pencil, Plus, Shield, Trash2 } from '@lucide/vue';
+import { Pencil, Shield, Trash2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import RoleManagementController from '@/actions/App/Http/Controllers/Settings/RoleManagementController';
-import Heading from '@/components/Heading.vue';
 import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
+import SettingsAddButton from '@/components/SettingsAddButton.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
+    CardAction,
     CardContent,
     CardDescription,
     CardHeader,
@@ -185,92 +186,6 @@ const formatModuleLabel = (module: string): string =>
     <Head :title="t('Role Management')" />
 
     <div class="space-y-6">
-        <Heading
-            variant="small"
-            :title="t('Roles')"
-            :description="
-                t('Define roles and assign permissions to control access')
-            "
-        />
-
-        <Can permission="settings.manage_users">
-        <Card>
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2">
-                    <Plus class="size-5" />
-                    {{ t('Add Role') }}
-                </CardTitle>
-                <CardDescription>
-                    {{ t('Create a new role with specific permissions') }}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Form
-                    action="/settings/roles"
-                    method="post"
-                    class="space-y-4 rounded-lg border p-4"
-                    v-slot="{ errors, processing }"
-                >
-                    <div class="grid max-w-md gap-2">
-                        <Label for="role-name">{{ t('Name') }} *</Label>
-                        <Input
-                            id="role-name"
-                            name="name"
-                            :placeholder="t('e.g. Project Lead')"
-                            required
-                        />
-                        <InputError :message="errors.name" />
-                    </div>
-
-                    <div class="space-y-4">
-                        <Label>{{ t('Permissions') }}</Label>
-                        <div
-                            v-for="[
-                                module,
-                                modulePermissions,
-                            ] in permissionGroups"
-                            :key="module"
-                            class="rounded-lg border p-4"
-                        >
-                            <p class="mb-3 text-sm font-medium">
-                                {{ formatModuleLabel(module) }}
-                            </p>
-                            <div
-                                class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-                            >
-                                <div
-                                    v-for="permission in modulePermissions"
-                                    :key="permission.id"
-                                    class="flex items-center gap-2 text-sm"
-                                >
-                                    <input
-                                        :id="`create-perm-${permission.id}`"
-                                        type="checkbox"
-                                        name="permissions[]"
-                                        :value="permission.name"
-                                        class="size-4 rounded border border-input accent-primary"
-                                    />
-                                    <Label
-                                        :for="`create-perm-${permission.id}`"
-                                        class="cursor-pointer font-normal"
-                                    >
-                                        {{ formatPermissionLabel(permission.name) }}
-                                    </Label>
-                                </div>
-                            </div>
-                        </div>
-                        <InputError :message="errors.permissions" />
-                    </div>
-
-                    <Button type="submit" :disabled="processing">
-                        <Plus class="size-4" />
-                        {{ t('Create Role') }}
-                    </Button>
-                </Form>
-            </CardContent>
-        </Card>
-        </Can>
-
         <Card>
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
@@ -278,13 +193,20 @@ const formatModuleLabel = (module: string): string =>
                     {{ t('System Roles') }}
                 </CardTitle>
                 <CardDescription>
-                    {{ roles.length }} {{ t('roles configured') }}
+                    {{ t('Define roles and assign permissions to control access') }}
                 </CardDescription>
+                <CardAction>
+                    <Can permission="settings.manage_users">
+                        <SettingsAddButton href="/settings/roles/create">
+                            {{ t('Add Role') }}
+                        </SettingsAddButton>
+                    </Can>
+                </CardAction>
             </CardHeader>
             <CardContent class="space-y-3">
                 <div
                     v-if="roles.length === 0"
-                    class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
+                    class="ui-empty-state"
                 >
                     {{ t('No roles configured.') }}
                 </div>
@@ -292,7 +214,7 @@ const formatModuleLabel = (module: string): string =>
                 <div
                     v-for="role in roles"
                     :key="role.id"
-                    class="flex items-center justify-between rounded-lg border px-4 py-3"
+                    class="ui-list-row flex items-center justify-between px-4 py-3"
                 >
                     <div>
                         <div class="flex items-center gap-2">
@@ -366,7 +288,7 @@ const formatModuleLabel = (module: string): string =>
                                 modulePermissions,
                             ] in permissionGroups"
                             :key="`edit-${module}`"
-                            class="rounded-lg border p-4"
+                            class="ui-inset-panel"
                         >
                             <p class="mb-3 text-sm font-medium">
                                 {{ formatModuleLabel(module) }}

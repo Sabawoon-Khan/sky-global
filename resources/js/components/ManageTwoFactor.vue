@@ -32,7 +32,6 @@ onUnmounted(() => clearTwoFactorAuthData());
         <Heading
             variant="small"
             title="Two-factor authentication"
-            description="Manage your two-factor authentication settings"
         />
 
         <div

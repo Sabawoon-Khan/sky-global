@@ -27,10 +27,11 @@ use App\Http\Controllers\Project\ProjectController;
 use App\Http\Controllers\Project\ProjectDeploymentController;
 use App\Http\Controllers\Project\ProjectIssueController;
 use App\Http\Controllers\Project\ProjectSiteController;
+use App\Http\Controllers\Settings\CurrencySettingsController;
 use App\Http\Controllers\Settings\OrganizationTypeController;
 use App\Http\Controllers\Settings\RoleManagementController;
+use App\Http\Controllers\Settings\StorageBackupController;
 use App\Http\Controllers\Settings\UserManagementController;
-use App\Http\Controllers\Settings\CurrencySettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -84,6 +85,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('archive')->name('archive.')->group(function () {
         Route::get('/', [ArchivedDocumentController::class, 'index'])->name('index');
+        Route::get('create', [ArchivedDocumentController::class, 'create'])->name('create');
         Route::post('/', [ArchivedDocumentController::class, 'store'])->name('store');
         Route::get('{archivedDocument}', [ArchivedDocumentController::class, 'show'])->name('show');
         Route::put('{archivedDocument}', [ArchivedDocumentController::class, 'update'])->name('update');
@@ -129,6 +131,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('contractors/{contractor}', [ContractorController::class, 'update'])->name('contractors.update');
 
         Route::get('attendance', [PersonnelAttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('attendance/create', [PersonnelAttendanceController::class, 'create'])->name('attendance.create');
         Route::post('attendance', [PersonnelAttendanceController::class, 'store'])->name('attendance.store');
         Route::post('attendance/bulk', [PersonnelAttendanceController::class, 'storeBulk'])->name('attendance.bulk');
         Route::put('attendance/{attendance}', [PersonnelAttendanceController::class, 'update'])->name('attendance.update');
@@ -142,6 +145,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('payroll', [PayrollRunController::class, 'index'])->name('payroll.index');
         Route::post('payroll', [PayrollRunController::class, 'store'])->name('payroll.store');
         Route::get('payroll/{payrollRun}', [PayrollRunController::class, 'show'])->name('payroll.show');
+        Route::delete('payroll/{payrollRun}', [PayrollRunController::class, 'destroy'])->name('payroll.destroy');
         Route::post('payroll/{payrollRun}/process', [PayrollRunController::class, 'process'])->name('payroll.process');
         Route::put('payroll/{payrollRun}/items/{payrollItem}', [PayrollRunController::class, 'updateItem'])->name('payroll.items.update');
     });
@@ -179,31 +183,42 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('users', [UserManagementController::class, 'index'])->name('users.index');
+        Route::get('users/create', [UserManagementController::class, 'create'])->name('users.create');
         Route::post('users', [UserManagementController::class, 'store'])->name('users.store');
         Route::put('users/{user}', [UserManagementController::class, 'update'])->name('users.update');
 
         Route::get('roles', [RoleManagementController::class, 'index'])->name('roles.index');
+        Route::get('roles/create', [RoleManagementController::class, 'create'])->name('roles.create');
         Route::post('roles', [RoleManagementController::class, 'store'])->name('roles.store');
         Route::put('roles/{role}', [RoleManagementController::class, 'update'])->name('roles.update');
         Route::delete('roles/{role}', [RoleManagementController::class, 'destroy'])->name('roles.destroy');
 
         Route::get('organization-types', [OrganizationTypeController::class, 'index'])->name('organization-types.index');
+        Route::get('organization-types/create', [OrganizationTypeController::class, 'create'])->name('organization-types.create');
         Route::post('organization-types', [OrganizationTypeController::class, 'store'])->name('organization-types.store');
         Route::put('organization-types/{organizationType}', [OrganizationTypeController::class, 'update'])->name('organization-types.update');
         Route::delete('organization-types/{organizationType}', [OrganizationTypeController::class, 'destroy'])->name('organization-types.destroy');
 
         Route::get('form-types', [AttachmentTypeController::class, 'index'])->name('form-types.index');
+        Route::get('form-types/create', [AttachmentTypeController::class, 'create'])->name('form-types.create');
         Route::post('form-types', [AttachmentTypeController::class, 'store'])->name('form-types.store');
         Route::put('form-types/{attachmentType}', [AttachmentTypeController::class, 'update'])->name('form-types.update');
         Route::delete('form-types/{attachmentType}', [AttachmentTypeController::class, 'destroy'])->name('form-types.destroy');
 
         Route::get('currencies', [CurrencySettingsController::class, 'index'])->name('currencies.index');
+        Route::get('currencies/create', [CurrencySettingsController::class, 'createCurrency'])->name('currencies.create');
         Route::post('currencies', [CurrencySettingsController::class, 'storeCurrency'])->name('currencies.store');
         Route::put('currencies/{currency}', [CurrencySettingsController::class, 'updateCurrency'])->name('currencies.update');
         Route::delete('currencies/{currency}', [CurrencySettingsController::class, 'destroyCurrency'])->name('currencies.destroy');
 
+        Route::get('exchange-rates/create', [CurrencySettingsController::class, 'createExchangeRate'])->name('exchange-rates.create');
         Route::post('exchange-rates', [CurrencySettingsController::class, 'storeExchangeRate'])->name('exchange-rates.store');
         Route::put('exchange-rates/{exchangeRate}', [CurrencySettingsController::class, 'updateExchangeRate'])->name('exchange-rates.update');
         Route::delete('exchange-rates/{exchangeRate}', [CurrencySettingsController::class, 'destroyExchangeRate'])->name('exchange-rates.destroy');
+
+        Route::get('backups', [StorageBackupController::class, 'index'])->name('backups.index');
+        Route::post('backups', [StorageBackupController::class, 'store'])->name('backups.store');
+        Route::get('backups/{storageBackup}/download', [StorageBackupController::class, 'download'])->name('backups.download');
+        Route::delete('backups/{storageBackup}', [StorageBackupController::class, 'destroy'])->name('backups.destroy');
     });
 });

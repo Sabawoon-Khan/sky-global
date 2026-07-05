@@ -40,6 +40,15 @@ class UserManagementController extends Controller
         ]);
     }
 
+    public function create(Request $request): Response
+    {
+        $this->authorizePermission($request, 'settings.manage_users');
+
+        return Inertia::render('settings/Users/Create', [
+            'roles' => Role::query()->orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
     public function store(StoreUserManagementRequest $request): RedirectResponse
     {
         $this->authorizePermission($request, 'settings.manage_users');
@@ -57,7 +66,9 @@ class UserManagementController extends Controller
             $user->syncRoles($roles);
         }
 
-        return back()->with('success', 'User created.');
+        return redirect()
+            ->route('settings.users.index')
+            ->with('success', 'User created.');
     }
 
     public function update(UpdateUserManagementRequest $request, User $user): RedirectResponse

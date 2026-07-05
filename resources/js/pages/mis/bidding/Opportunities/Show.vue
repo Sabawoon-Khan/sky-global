@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -67,11 +65,7 @@ defineOptions({
     <div class="flex flex-1 flex-col gap-6 p-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <Heading
-                    :title="opportunity.title"
-                    :description="opportunity.reference_number ?? undefined"
-                />
-                <div class="mt-2 flex flex-wrap gap-2">
+<div class="mt-2 flex flex-wrap gap-2">
                     <Badge>{{ opportunity.status }}</Badge>
                     <Badge v-if="opportunity.organization" variant="secondary">
                         {{ opportunity.organization.name }}
@@ -151,8 +145,7 @@ defineOptions({
         <Card>
             <CardHeader>
                 <CardTitle>{{ t('Bids') }}</CardTitle>
-                <CardDescription>{{ t('Bids submitted for this opportunity') }}</CardDescription>
-            </CardHeader>
+                </CardHeader>
             <CardContent>
                 <div
                     v-if="opportunity.bids.length === 0"

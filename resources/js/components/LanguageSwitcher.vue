@@ -22,7 +22,7 @@ const currentLocale = computed(() =>
 <template>
     <DropdownMenu>
         <DropdownMenuTrigger as-child>
-            <Button variant="ghost" size="icon" class="h-9 w-9">
+            <Button variant="ghost" size="icon" class="size-9 rounded-full">
                 <Languages class="size-4" />
                 <span class="sr-only">{{ currentLocale?.name ?? t('Language') }}</span>
             </Button>
