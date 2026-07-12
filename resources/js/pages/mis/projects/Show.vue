@@ -671,6 +671,7 @@ const closeIssueEdit = (): void => {
                         method="post"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
+                        validate-files
                         v-slot="{ processing }"
                     >
                         <Input name="competitor_name" :placeholder="t('Company name')" required />
@@ -821,6 +822,7 @@ const closeIssueEdit = (): void => {
                         method="post"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
+                        validate-files
                         v-slot="{ errors, processing }"
                         @success="setActiveTab('finance')"
                     >
@@ -863,6 +865,7 @@ const closeIssueEdit = (): void => {
                         method="post"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
+                        validate-files
                         v-slot="{ errors, processing }"
                         @success="setActiveTab('finance')"
                     >
@@ -1065,6 +1068,7 @@ const closeIssueEdit = (): void => {
                         method="post"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
+                        validate-files
                         v-slot="{ errors, processing }"
                         @success="setActiveTab('issues')"
                     >
@@ -1122,6 +1126,7 @@ const closeIssueEdit = (): void => {
                         v-bind="ProjectController.update.form(project.id)"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
+                        validate-files
                         v-slot="{ processing }"
                     >
                         <OptionalAttachmentField />

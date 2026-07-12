@@ -212,7 +212,7 @@ const show = (name: typeof props.section): boolean =>
                 id="doc-file"
                 name="file"
                 type="file"
-                class="h-10 rounded-xl file:me-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm"
+                class="h-10 rounded-xl file:me-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm file:font-medium"
                 :required="fileRequired"
             />
             <InputError :message="errors.file" />

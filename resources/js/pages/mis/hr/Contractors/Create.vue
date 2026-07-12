@@ -49,6 +49,7 @@ defineOptions({
             v-bind="ContractorController.store.form()"
             class="space-y-6"
             :options="{ forceFormData: true }"
+            validate-files
             v-slot="{ errors, processing }"
         >
             <input type="hidden" name="agreements_synced" value="1" />

@@ -71,6 +71,7 @@ defineOptions({
             method="post"
             class="flex flex-1 flex-col gap-6"
             :options="{ forceFormData: true }"
+            validate-files
             v-slot="{ errors, processing }"
         >
             <Card>

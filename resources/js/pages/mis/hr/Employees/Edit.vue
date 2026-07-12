@@ -89,6 +89,7 @@ defineOptions({
             v-bind="EmployeeController.update.form(employee.id)"
             class="space-y-6"
             :options="{ forceFormData: true }"
+            validate-files
             v-slot="{ errors, processing }"
         >
             <Card>

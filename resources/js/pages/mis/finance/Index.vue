@@ -496,6 +496,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 method="post"
                                 class="grid gap-3 sm:grid-cols-2"
                                 :options="{ preserveScroll: true, resetOnSuccess: true, forceFormData: true }"
+                                validate-files
                                 v-slot="{ errors, processing }"
                             >
                                 <div class="grid gap-2 sm:col-span-2">
@@ -611,6 +612,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 method="post"
                                 class="grid gap-3 sm:grid-cols-2"
                                 :options="{ preserveScroll: true, resetOnSuccess: true, forceFormData: true }"
+                                validate-files
                                 v-slot="{ errors, processing }"
                             >
                                 <div class="grid gap-2 sm:col-span-2">

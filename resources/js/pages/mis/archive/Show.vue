@@ -273,6 +273,7 @@ const moveToLongTermArchive = (): void => {
                             method="put"
                             class="space-y-6"
                             :options="{ preserveScroll: true, forceFormData: true }"
+                            validate-files
                             v-slot="{ errors, processing }"
                         >
                             <ArchiveDocumentFields
