@@ -84,6 +84,7 @@ class EmployeeController extends Controller
             'date_of_birth' => ['nullable', 'date'],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
             'status' => ['nullable', 'string', 'in:active,inactive,terminated'],
+            'is_permanent' => ['nullable', 'boolean'],
             'job_detail' => ['nullable', 'array'],
             'job_detail.department_id' => ['nullable', 'exists:departments,id'],
             'job_detail.designation' => ['nullable', 'string', 'max:100'],
@@ -98,7 +99,9 @@ class EmployeeController extends Controller
         $employee = Employee::query()->create([
             ...$validated,
             'status' => $validated['status'] ?? 'active',
+            'is_permanent' => $validated['is_permanent'] ?? false,
         ]);
+        $employee->logStatusChange($employee->status, null, $request->user());
 
         if (is_array($jobDetail)) {
             $employee->jobDetails()->create($jobDetail);
@@ -117,11 +120,12 @@ class EmployeeController extends Controller
 
         $employee->load([
             'jobDetails.department',
-            'salaries',
+            'salaries' => fn ($q) => $q->orderByDesc('effective_from'),
             'contracts',
             'user',
             'attachments',
             'personnelAttachments.attachmentType',
+            'statusChangeLogs' => fn ($q) => $q->with('changedBy:id,name')->latest(),
         ]);
 
         $employee->setAttribute(
@@ -190,6 +194,7 @@ class EmployeeController extends Controller
             'date_of_birth' => ['nullable', 'date'],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
             'status' => ['nullable', 'string', 'in:active,inactive,terminated'],
+            'is_permanent' => ['nullable', 'boolean'],
             'job_detail' => ['nullable', 'array'],
             'job_detail.department_id' => ['nullable', 'exists:departments,id'],
             'job_detail.designation' => ['nullable', 'string', 'max:100'],
@@ -201,7 +206,13 @@ class EmployeeController extends Controller
         $jobDetail = $validated['job_detail'] ?? null;
         unset($validated['job_detail'], $validated['personnel_forms']);
 
+        $oldStatus = $employee->status;
+
         $employee->update($validated);
+
+        if (array_key_exists('status', $validated) && $validated['status'] !== $oldStatus) {
+            $employee->logStatusChange($validated['status'], $oldStatus, $request->user());
+        }
 
         if (is_array($jobDetail)) {
             $employee->jobDetails()->updateOrCreate(
@@ -214,6 +225,10 @@ class EmployeeController extends Controller
 
         if (array_keys($validated) === ['status']) {
             return back()->with('success', 'Employee status updated.');
+        }
+
+        if (array_keys($validated) === ['is_permanent']) {
+            return back()->with('success', 'Employee employment type updated.');
         }
 
         return redirect()

@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Project;
 
+use App\Enums\SecurityScopeType;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateProjectRequest extends FormRequest
 {
@@ -24,7 +26,8 @@ class UpdateProjectRequest extends FormRequest
             'scope_summary' => ['nullable', 'string'],
             'source' => ['nullable', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
-            'security_scope' => ['nullable', 'string', 'max:255'],
+            'security_scope' => ['nullable', 'array'],
+            'security_scope.*' => ['string', Rule::in(SecurityScopeType::values())],
             'submission_deadline' => ['nullable', 'date'],
             'our_bid_amount' => ['nullable', 'numeric', 'min:0'],
             'total_contract_value' => ['nullable', 'numeric', 'min:0'],

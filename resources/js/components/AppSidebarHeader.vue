@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { Bell, Search } from '@lucide/vue';
+import { Search } from '@lucide/vue';
 import { computed } from 'vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
+import NotificationBell from '@/components/NotificationBell.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -67,17 +68,7 @@ const showAvatar = computed(
 
             <LanguageSwitcher />
 
-            <Button
-                variant="ghost"
-                size="icon"
-                class="relative size-9 rounded-full text-muted-foreground hover:text-foreground"
-            >
-                <Bell class="size-[18px]" stroke-width="1.75" />
-                <span
-                    class="absolute end-2 top-2 size-2 rounded-full bg-school-gold ring-2 ring-background"
-                />
-                <span class="sr-only">{{ t('Notifications') }}</span>
-            </Button>
+            <NotificationBell />
 
             <DropdownMenu v-if="user">
                 <DropdownMenuTrigger as-child>

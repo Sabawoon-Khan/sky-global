@@ -24,7 +24,10 @@ class UserManagementController extends Controller
         $search = $request->string('search')->trim()->toString();
 
         $users = User::query()
-            ->with('roles')
+            ->with([
+                'roles',
+                'statusChangeLogs' => fn ($q) => $q->with('changedBy:id,name')->latest(),
+            ])
             ->when($search, fn ($q) => $q->where(function ($query) use ($search) {
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
@@ -66,6 +69,8 @@ class UserManagementController extends Controller
             $user->syncRoles($roles);
         }
 
+        $user->logStatusChange('active', null, $request->user());
+
         return redirect()
             ->route('settings.users.index')
             ->with('success', 'User created.');
@@ -87,7 +92,7 @@ class UserManagementController extends Controller
 
         if (array_key_exists('is_active', $validated)) {
             if ($validated['is_active']) {
-                $user->enable();
+                $user->enable($request->user());
             } else {
                 $user->disable($request->user());
             }

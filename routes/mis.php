@@ -27,10 +27,13 @@ use App\Http\Controllers\Project\ProjectController;
 use App\Http\Controllers\Project\ProjectDeploymentController;
 use App\Http\Controllers\Project\ProjectIssueController;
 use App\Http\Controllers\Project\ProjectSiteController;
+use App\Http\Controllers\Settings\AuthenticationLogController;
 use App\Http\Controllers\Settings\CurrencySettingsController;
 use App\Http\Controllers\Settings\OrganizationTypeController;
+use App\Http\Controllers\Settings\PayrollSettingController;
 use App\Http\Controllers\Settings\RoleManagementController;
 use App\Http\Controllers\Settings\StorageBackupController;
+use App\Http\Controllers\Settings\TranslationController;
 use App\Http\Controllers\Settings\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
@@ -87,6 +90,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [ArchivedDocumentController::class, 'index'])->name('index');
         Route::get('create', [ArchivedDocumentController::class, 'create'])->name('create');
         Route::post('/', [ArchivedDocumentController::class, 'store'])->name('store');
+        Route::get('{archivedDocument}/download', [ArchivedDocumentController::class, 'download'])->name('download');
         Route::get('{archivedDocument}', [ArchivedDocumentController::class, 'show'])->name('show');
         Route::put('{archivedDocument}', [ArchivedDocumentController::class, 'update'])->name('update');
         Route::post('{archivedDocument}/archive', [ArchivedDocumentController::class, 'archive'])->name('archive');
@@ -131,6 +135,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('contractors/{contractor}', [ContractorController::class, 'update'])->name('contractors.update');
 
         Route::get('attendance', [PersonnelAttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('attendance/print', [PersonnelAttendanceController::class, 'print'])->name('attendance.print');
+        Route::delete('attendance/sheets/{sheet}', [PersonnelAttendanceController::class, 'destroySheet'])->name('attendance.sheets.destroy');
         Route::get('attendance/create', [PersonnelAttendanceController::class, 'create'])->name('attendance.create');
         Route::post('attendance', [PersonnelAttendanceController::class, 'store'])->name('attendance.store');
         Route::post('attendance/bulk', [PersonnelAttendanceController::class, 'storeBulk'])->name('attendance.bulk');
@@ -145,6 +151,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('payroll', [PayrollRunController::class, 'index'])->name('payroll.index');
         Route::post('payroll', [PayrollRunController::class, 'store'])->name('payroll.store');
         Route::get('payroll/{payrollRun}', [PayrollRunController::class, 'show'])->name('payroll.show');
+        Route::get('payroll/{payrollRun}/print', [PayrollRunController::class, 'print'])->name('payroll.print');
         Route::delete('payroll/{payrollRun}', [PayrollRunController::class, 'destroy'])->name('payroll.destroy');
         Route::post('payroll/{payrollRun}/process', [PayrollRunController::class, 'process'])->name('payroll.process');
         Route::put('payroll/{payrollRun}/items/{payrollItem}', [PayrollRunController::class, 'updateItem'])->name('payroll.items.update');
@@ -187,11 +194,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('users', [UserManagementController::class, 'store'])->name('users.store');
         Route::put('users/{user}', [UserManagementController::class, 'update'])->name('users.update');
 
+        Route::get('login-logs', [AuthenticationLogController::class, 'index'])->name('login-logs.index');
+
         Route::get('roles', [RoleManagementController::class, 'index'])->name('roles.index');
         Route::get('roles/create', [RoleManagementController::class, 'create'])->name('roles.create');
         Route::post('roles', [RoleManagementController::class, 'store'])->name('roles.store');
         Route::put('roles/{role}', [RoleManagementController::class, 'update'])->name('roles.update');
         Route::delete('roles/{role}', [RoleManagementController::class, 'destroy'])->name('roles.destroy');
+
+        Route::get('payroll-rules', [PayrollSettingController::class, 'edit'])->name('payroll-rules.edit');
+        Route::put('payroll-rules', [PayrollSettingController::class, 'update'])->name('payroll-rules.update');
 
         Route::get('organization-types', [OrganizationTypeController::class, 'index'])->name('organization-types.index');
         Route::get('organization-types/create', [OrganizationTypeController::class, 'create'])->name('organization-types.create');
@@ -220,5 +232,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('backups', [StorageBackupController::class, 'store'])->name('backups.store');
         Route::get('backups/{storageBackup}/download', [StorageBackupController::class, 'download'])->name('backups.download');
         Route::delete('backups/{storageBackup}', [StorageBackupController::class, 'destroy'])->name('backups.destroy');
+
+        Route::get('translations', [TranslationController::class, 'index'])->name('translations.index');
+        Route::put('translations', [TranslationController::class, 'update'])->name('translations.update');
     });
 });

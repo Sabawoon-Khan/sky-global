@@ -11,3 +11,4 @@ Route::redirect('/favicon.ico', '/favicon.svg');
 
 require __DIR__.'/mis.php';
 require __DIR__.'/settings.php';
+require __DIR__.'/notifications.php';

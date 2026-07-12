@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Building2, FolderKanban, Search, Users } from '@lucide/vue';
+import {
+    Building2,
+    CheckCircle2,
+    FileText,
+    FolderKanban,
+    Search,
+    Users,
+} from '@lucide/vue';
+import { computed } from 'vue';
 import MisCreateButton from '@/components/MisCreateButton.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import MisPage from '@/components/MisPage.vue';
@@ -17,9 +25,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMisPage } from '@/composables/useMisPage';
-import type { Paginated } from '@/lib/format';
+import { formatNumber, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { toggleIsActiveAction } from '@/lib/status-actions';
+import { cn } from '@/lib/utils';
 
 interface OrganizationType {
     id: number;
@@ -47,7 +56,9 @@ interface Props {
     stats: {
         total: number;
         active: number;
+        inactive: number;
         with_projects: number;
+        with_opportunities: number;
     };
     filters?: {
         search?: string | null;
@@ -55,9 +66,56 @@ interface Props {
     };
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const { t, viewAction, editAction, deleteAction, gateActions } = useMisPage();
+
+const statCards = computed(() => {
+    const { stats, organizationTypes } = props;
+    const projectRate =
+        stats.total > 0
+            ? Math.round((stats.with_projects / stats.total) * 100)
+            : 0;
+
+    return [
+        {
+            label: t('Total registered'),
+            value: formatNumber(stats.total),
+            sub:
+                organizationTypes.length > 0
+                    ? t(':count organization types', {
+                          count: String(organizationTypes.length),
+                      })
+                    : t('Clients, partners, and bidders'),
+            icon: Building2,
+            accent: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+        },
+        {
+            label: t('Active organizations'),
+            value: formatNumber(stats.active),
+            sub:
+                stats.inactive > 0
+                    ? t(':count inactive', { count: String(stats.inactive) })
+                    : t('All organizations active'),
+            icon: CheckCircle2,
+            accent: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+        },
+        {
+            label: t('With active projects'),
+            value: formatNumber(stats.with_projects),
+            sub: t(':percent of total', { percent: String(projectRate) }),
+            icon: FolderKanban,
+            accent: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
+        },
+        {
+            label: t('With opportunities'),
+            value: formatNumber(stats.with_opportunities),
+            sub: t('Organizations with tracked bids'),
+            icon: FileText,
+            accent: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+        },
+    ];
+});
 
 defineOptions({
     layout: {
@@ -100,21 +158,35 @@ const organizationActions = (org: Organization): RowActionItem[] => [
     <Head :title="t('Organizations')" />
 
     <MisPage>
-        <div class="grid gap-4 md:grid-cols-3">
-            <Card>
-                <CardHeader class="pb-2">
-<CardTitle class="text-3xl">{{ stats.total }}</CardTitle>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <Card
+                v-for="card in statCards"
+                :key="card.label"
+                class="ui-surface-hover overflow-hidden transition-all"
+            >
+                <CardHeader class="flex flex-row items-start justify-between space-y-0 pb-2">
+                    <CardTitle class="text-sm font-medium text-muted-foreground">
+                        {{ card.label }}
+                    </CardTitle>
+                    <div
+                        :class="
+                            cn(
+                                'flex size-9 shrink-0 items-center justify-center rounded-lg',
+                                card.accent,
+                            )
+                        "
+                    >
+                        <component :is="card.icon" class="size-4" stroke-width="2" />
+                    </div>
                 </CardHeader>
-            </Card>
-            <Card>
-                <CardHeader class="pb-2">
-<CardTitle class="text-3xl">{{ stats.active }}</CardTitle>
-                </CardHeader>
-            </Card>
-            <Card>
-                <CardHeader class="pb-2">
-<CardTitle class="text-3xl">{{ stats.with_projects }}</CardTitle>
-                </CardHeader>
+                <CardContent>
+                    <p class="text-3xl font-bold tracking-tight tabular-nums">
+                        {{ card.value }}
+                    </p>
+                    <p class="mt-1 text-xs text-muted-foreground">
+                        {{ card.sub }}
+                    </p>
+                </CardContent>
             </Card>
         </div>
 

@@ -2,30 +2,16 @@
 
 namespace Database\Seeders;
 
+use App\Services\MisPermissionRegistrar;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
-    /** @var list<string> */
-    private array $modules = ['bidding', 'projects', 'finance', 'hr', 'archive', 'settings'];
-
-    /** @var list<string> */
-    private array $verbs = ['view', 'create', 'edit', 'delete', 'archive'];
-
     public function run(): void
     {
-        $permissions = collect();
-
-        foreach ($this->modules as $module) {
-            foreach ($this->verbs as $verb) {
-                $permissions->push(Permission::findOrCreate("{$module}.{$verb}"));
-            }
-        }
-
-        $permissions->push(Permission::findOrCreate('bidding.view_competitors'));
-        $permissions->push(Permission::findOrCreate('settings.manage_users'));
+        app(MisPermissionRegistrar::class)->sync();
 
         $owner = Role::findOrCreate('Owner');
         $owner->syncPermissions(Permission::all());

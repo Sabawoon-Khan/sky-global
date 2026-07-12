@@ -14,6 +14,7 @@ class PayrollItem extends Model
         'personnel_type',
         'personnel_id',
         'project_id',
+        'personnel_attendance_id',
         'base_amount',
         'bonus',
         'deductions',
@@ -51,6 +52,11 @@ class PayrollItem extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function attendance(): BelongsTo
+    {
+        return $this->belongsTo(PersonnelAttendance::class, 'personnel_attendance_id');
     }
 
     public function personnel(): MorphTo

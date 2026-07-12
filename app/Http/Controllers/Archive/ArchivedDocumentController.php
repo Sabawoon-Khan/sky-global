@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ArchivedDocumentController extends Controller
 {
@@ -113,6 +114,21 @@ class ArchivedDocumentController extends Controller
             'organizations' => Organization::query()->orderBy('name')->get(['id', 'name']),
             'projects' => Project::query()->orderBy('name')->get(['id', 'code', 'name']),
         ]);
+    }
+
+    public function download(Request $request, ArchivedDocument $archivedDocument): StreamedResponse
+    {
+        $this->authorizePermission($request, 'archive.view');
+
+        abort_unless(
+            $archivedDocument->file_path && Storage::disk('local')->exists($archivedDocument->file_path),
+            404,
+        );
+
+        return Storage::disk('local')->download(
+            $archivedDocument->file_path,
+            $archivedDocument->original_filename ?? basename($archivedDocument->file_path),
+        );
     }
 
     public function update(Request $request, ArchivedDocument $archivedDocument): RedirectResponse

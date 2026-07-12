@@ -3,6 +3,9 @@ import { Form, Head, usePage } from '@inertiajs/vue3';
 import { Pencil, Search, Shield, UserCog } from '@lucide/vue';
 import { computed } from 'vue';
 import UserManagementController from '@/actions/App/Http/Controllers/Settings/UserManagementController';
+import StatusChangeHistory, {
+    type StatusChangeLogRecord,
+} from '@/components/StatusChangeHistory.vue';
 import Can from '@/components/Can.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
@@ -35,6 +38,7 @@ interface UserRecord {
     email: string;
     is_active: boolean;
     roles?: Role[];
+    status_change_logs?: StatusChangeLogRecord[];
 }
 
 interface Props {
@@ -223,6 +227,12 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                                 </Form>
                             </div>
                         </div>
+
+                        <StatusChangeHistory
+                            v-if="user.status_change_logs?.length"
+                            class="mt-4"
+                            :logs="user.status_change_logs"
+                        />
                     </div>
                 </div>
 

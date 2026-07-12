@@ -37,6 +37,8 @@ class ArchivedDocument extends Model
         'replaces_id',
     ];
 
+    protected $appends = ['download_url'];
+
     protected function casts(): array
     {
         return [
@@ -81,5 +83,14 @@ class ArchivedDocument extends Model
     public function links(): HasMany
     {
         return $this->hasMany(ArchivedDocumentLink::class);
+    }
+
+    public function getDownloadUrlAttribute(): ?string
+    {
+        if (! $this->file_path) {
+            return null;
+        }
+
+        return route('archive.download', $this);
     }
 }

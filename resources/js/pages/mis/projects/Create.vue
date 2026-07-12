@@ -3,6 +3,7 @@ import { Form, Head, Link } from '@inertiajs/vue3';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
+import SecurityScopeField from '@/components/SecurityScopeField.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -112,34 +113,11 @@ defineOptions({
                 </CardHeader>
                 <CardContent class="grid gap-4">
                     <div class="grid gap-2">
-                        <Label for="our_bid_amount">{{ t('Our bid amount') }}</Label>
+                        <Label for="our_bid_amount">{{ t('Our bid amount (AFN)') }}</Label>
                         <Input id="our_bid_amount" name="our_bid_amount" type="number" min="0" step="0.01" />
+                        <input type="hidden" name="currency" value="AFN" />
                     </div>
-                    <div class="grid gap-2">
-                        <Label for="currency">{{ t('Currency') }}</Label>
-                        <select
-                            id="currency"
-                            name="currency"
-                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                        >
-                            <option value="USD">USD</option>
-                            <option value="AFN">AFN</option>
-                        </select>
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="security_scope">{{ t('Scope type') }}</Label>
-                        <select
-                            id="security_scope"
-                            name="security_scope"
-                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                        >
-                            <option value="">—</option>
-                            <option value="static">{{ t('Static guards') }}</option>
-                            <option value="mobile">{{ t('Mobile patrol') }}</option>
-                            <option value="vip">{{ t('VIP') }}</option>
-                            <option value="event">{{ t('Event') }}</option>
-                        </select>
-                    </div>
+                    <SecurityScopeField :error="errors.security_scope" />
                     <div class="grid gap-2">
                         <Label for="location">{{ t('Location') }}</Label>
                         <Input id="location" name="location" />

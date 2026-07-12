@@ -60,6 +60,7 @@ class Project extends Model
     protected function casts(): array
     {
         return [
+            'security_scope' => 'array',
             'contract_start' => 'date',
             'contract_end' => 'date',
             'published_at' => 'date',

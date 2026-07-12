@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import {
-    AlertCircle,
     CalendarDays,
     CheckCircle2,
+    Printer,
     Receipt,
+    UserRound,
     Users,
     Wallet,
 } from '@lucide/vue';
@@ -13,7 +14,6 @@ import Can from '@/components/Can.vue';
 import EntityAttachments, {
     type EntityAttachment,
 } from '@/components/EntityAttachments.vue';
-import InputError from '@/components/InputError.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,14 +23,23 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-
 import { useMisPage } from '@/composables/useMisPage';
+import { formatAfn } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
+import { cn } from '@/lib/utils';
 
 interface Personnel {
     first_name?: string;
     last_name?: string;
+}
+
+interface AttendanceSummary {
+    days_present: number;
+    days_absent: number;
+    days_sick_leave: number;
+    days_annual_leave: number;
+    days_casual_leave: number;
+    days_other: number;
 }
 
 interface PayrollItem {
@@ -39,17 +48,22 @@ interface PayrollItem {
     personnel_id: number;
     personnel?: Personnel | null;
     project?: { id: number; code: string; name?: string } | null;
-    base_amount: number;
-    bonus: number;
-    deductions: number;
-    advance: number;
-    net_amount: number;
+    attendance?: AttendanceSummary | null;
+    base_amount: number | string;
+    bonus: number | string;
+    deductions: number | string;
+    advance: number | string;
+    net_amount: number | string;
     currency?: string | null;
-    notes?: string | null;
 }
 
 interface PayrollRun {
     id: number;
+    title: string;
+    payroll_type: 'general' | 'project';
+    project?: { id: number; code: string; name?: string } | null;
+    date_from: string;
+    date_to: string;
     period_year: number;
     period_month: number;
     status: string;
@@ -58,26 +72,18 @@ interface PayrollRun {
     attachments?: EntityAttachment[];
 }
 
-interface PendingAdjustment {
-    id: number;
-    personnel_type: string;
-    personnel_id: number;
-    personnel?: Personnel | null;
-    project?: { id: number; code: string; name?: string } | null;
-    type: string;
-    amount: number;
-    notes?: string | null;
-}
-
 interface Props {
     payrollRun: PayrollRun;
-    approvedAttendanceCount: number;
-    pendingAdjustments: PendingAdjustment[];
 }
 
 const props = defineProps<Props>();
 
 const { t, deleteAction } = useMisPage();
+
+const EMPLOYEE_TYPE = 'App\\Models\\Hr\\Employee';
+const CONTRACTOR_TYPE = 'App\\Models\\Hr\\Contractor';
+
+const activeTab = ref<'employees' | 'contractors'>('employees');
 
 defineOptions({
     layout: {
@@ -89,27 +95,18 @@ defineOptions({
     },
 });
 
-const monthName = (month: number): string => {
-    if (!month || month < 1 || month > 12) {
-        return '—';
-    }
-
-    return new Intl.DateTimeFormat('en-US', { month: 'long' }).format(
-        new Date(2000, month - 1, 1),
+const formatDate = (value: string): string =>
+    new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(
+        new Date(value),
     );
-};
 
-const formatCurrency = (value?: number | null, currency = 'USD'): string => {
-    if (value == null) {
-        return '—';
-    }
+const amount = (value?: number | string | null): string =>
+    formatAfn(value == null ? null : Number(value));
 
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 0,
-    }).format(value);
-};
+const dayCount = (
+    item: PayrollItem,
+    field: keyof AttendanceSummary,
+): number => item.attendance?.[field] ?? 0;
 
 const personnelLabel = (item: PayrollItem): string => {
     if (item.personnel?.first_name || item.personnel?.last_name) {
@@ -121,58 +118,45 @@ const personnelLabel = (item: PayrollItem): string => {
     return `#${item.personnel_id}`;
 };
 
-const personnelTypeLabel = (type: string): string => {
-    const parts = type.split('\\');
+const allItems = computed(() => props.payrollRun.items ?? []);
 
-    return parts[parts.length - 1] ?? type;
-};
-
-const periodLabel = computed(
-    () =>
-        `${monthName(props.payrollRun.period_month)} ${props.payrollRun.period_year}`,
+const employeeItems = computed(() =>
+    allItems.value.filter((item) => item.personnel_type === EMPLOYEE_TYPE),
 );
 
-const itemCount = computed(() => props.payrollRun.items?.length ?? 0);
-
-const totalNet = computed(() =>
-    (props.payrollRun.items ?? []).reduce(
-        (sum, item) => sum + Number(item.net_amount),
-        0,
-    ),
+const contractorItems = computed(() =>
+    allItems.value.filter((item) => item.personnel_type === CONTRACTOR_TYPE),
 );
 
-const totalBonus = computed(() =>
-    (props.payrollRun.items ?? []).reduce(
-        (sum, item) => sum + Number(item.bonus ?? 0),
-        0,
-    ),
+const activeItems = computed(() =>
+    activeTab.value === 'employees'
+        ? employeeItems.value
+        : contractorItems.value,
 );
+
+const sumField = (
+    items: PayrollItem[],
+    field: keyof Pick<
+        PayrollItem,
+        'base_amount' | 'bonus' | 'deductions' | 'advance' | 'net_amount'
+    >,
+): number =>
+    items.reduce((sum, item) => sum + Number(item[field] ?? 0), 0);
+
+const tabTotals = computed(() => ({
+    base: sumField(activeItems.value, 'base_amount'),
+    bonus: sumField(activeItems.value, 'bonus'),
+    deductions: sumField(activeItems.value, 'deductions'),
+    advance: sumField(activeItems.value, 'advance'),
+    net: sumField(activeItems.value, 'net_amount'),
+}));
+
+const itemCount = computed(() => allItems.value.length);
+
+const totalNet = computed(() => sumField(allItems.value, 'net_amount'));
 
 const totalDeductions = computed(() =>
-    (props.payrollRun.items ?? []).reduce(
-        (sum, item) => sum + Number(item.deductions ?? 0),
-        0,
-    ),
-);
-
-const totalAdvance = computed(() =>
-    (props.payrollRun.items ?? []).reduce(
-        (sum, item) => sum + Number(item.advance ?? 0),
-        0,
-    ),
-);
-
-const isDraft = computed(() => props.payrollRun.status !== 'processed');
-
-const isProcessed = computed(() => props.payrollRun.status === 'processed');
-
-const canEditItems = computed(() => itemCount.value > 0 && isProcessed.value);
-
-const pendingAdjustmentCount = computed(() => props.pendingAdjustments.length);
-
-const attendanceFilterUrl = computed(
-    () =>
-        `/hr/attendance?year=${props.payrollRun.period_year}&month=${props.payrollRun.period_month}`,
+    sumField(allItems.value, 'deductions'),
 );
 
 const adjustmentsUrl = computed(
@@ -180,28 +164,9 @@ const adjustmentsUrl = computed(
         `/hr/payroll-adjustments?year=${props.payrollRun.period_year}&month=${props.payrollRun.period_month}`,
 );
 
-const adjustmentTypeLabel = (type: string): string => {
-    switch (type) {
-        case 'bonus':
-            return t('Bonus');
-        case 'deduction':
-            return t('Deduction');
-        case 'advance':
-            return t('Advance');
-        default:
-            return type;
-    }
-};
-
-const pendingPersonnelLabel = (adjustment: PendingAdjustment): string => {
-    if (adjustment.personnel?.first_name || adjustment.personnel?.last_name) {
-        return [adjustment.personnel.first_name, adjustment.personnel.last_name]
-            .filter(Boolean)
-            .join(' ');
-    }
-
-    return `#${adjustment.personnel_id}`;
-};
+const printUrl = computed(
+    () => `/hr/payroll/${props.payrollRun.id}/print?autoprint=1`,
+);
 
 const runActions = computed((): RowActionItem[] => [
     deleteAction(
@@ -209,7 +174,7 @@ const runActions = computed((): RowActionItem[] => [
             href: `/hr/payroll/${props.payrollRun.id}`,
             title: t('Delete payroll run?'),
             description: t(
-                'This payroll run and all its line items will be removed. Applied adjustments for this period will become pending again.',
+                'This payroll run and all its line items will be removed.',
             ),
         },
         'hr.delete',
@@ -218,50 +183,47 @@ const runActions = computed((): RowActionItem[] => [
 </script>
 
 <template>
-    <Head :title="`${periodLabel} ${t('Payroll')}`" />
+    <Head :title="payrollRun.title" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <h1 class="text-2xl font-semibold tracking-tight">
-                    {{ periodLabel }}
+                    {{ payrollRun.title }}
                 </h1>
-                <div class="mt-3 flex flex-wrap items-center gap-2">
-                    <Badge :variant="isProcessed ? 'default' : 'secondary'">
-                        {{ payrollRun.status }}
-                    </Badge>
-                    <span
-                        v-if="isProcessed"
-                        class="text-sm text-muted-foreground"
-                    >
-                        {{ t('Processed by') }}
-                        {{ payrollRun.processed_by?.name ?? '—' }}
-                    </span>
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <Badge variant="default">{{ payrollRun.status }}</Badge>
+                    <span>{{ formatDate(payrollRun.date_from) }} — {{ formatDate(payrollRun.date_to) }}</span>
+                    <span v-if="payrollRun.project">{{ payrollRun.project.code }}</span>
                 </div>
+                <p v-if="payrollRun.processed_by" class="mt-1 text-sm text-muted-foreground">
+                    {{ t('Generated by') }} {{ payrollRun.processed_by.name }}
+                </p>
             </div>
             <div class="flex shrink-0 flex-wrap gap-2">
                 <Button variant="outline" as-child>
                     <Link href="/hr/payroll">{{ t('Back to list') }}</Link>
                 </Button>
                 <Button variant="outline" as-child>
-                    <Link :href="attendanceFilterUrl">{{
-                        t('View attendance')
-                    }}</Link>
+                    <Link :href="adjustmentsUrl">
+                        <Receipt class="size-4" />
+                        {{ t('Adjustments') }}
+                    </Link>
                 </Button>
-                <Button v-if="isDraft" variant="outline" as-child>
-                    <Link :href="adjustmentsUrl">{{
-                        t('Manage adjustments')
-                    }}</Link>
+                <Button variant="outline" as-child>
+                    <a :href="printUrl" target="_blank" rel="noopener noreferrer">
+                        <Printer class="size-4" />
+                        {{ t('Print') }}
+                    </a>
                 </Button>
                 <Form
-                    v-if="isDraft"
                     :action="`/hr/payroll/${payrollRun.id}/process`"
                     method="post"
                     :options="{ preserveScroll: true }"
                     v-slot="{ processing }"
                 >
-                    <Button type="submit" :disabled="processing">
-                        {{ t('Process payroll') }}
+                    <Button type="submit" variant="outline" :disabled="processing">
+                        {{ t('Regenerate') }}
                     </Button>
                 </Form>
                 <Can permission="hr.delete">
@@ -274,372 +236,174 @@ const runActions = computed((): RowActionItem[] => [
             <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="flex items-center gap-2 text-2xl">
-                        <CalendarDays class="size-5 text-muted-foreground" />
-                        {{ approvedAttendanceCount }}
+                        <Users class="size-5 text-muted-foreground" />
+                        {{ itemCount }}
                     </CardTitle>
-            </CardHeader>
+                </CardHeader>
                 <CardContent class="text-xs text-muted-foreground">
-                    {{
-                        t('Records for :period ready for payroll', {
-                            period: periodLabel,
-                        })
-                    }}
+                    {{ employeeItems.length }} {{ t('employees') }},
+                    {{ contractorItems.length }} {{ t('contractors') }}
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="flex items-center gap-2 text-2xl">
-                        <Users class="size-5 text-muted-foreground" />
-                        {{ itemCount }}
+                        <CalendarDays class="size-5 text-muted-foreground" />
+                        {{ amount(totalDeductions) }}
                     </CardTitle>
-            </CardHeader>
+                </CardHeader>
                 <CardContent class="text-xs text-muted-foreground">
-                    {{ t('Personnel entries in this payroll run') }}
+                    {{ t('Total deductions') }}
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="flex items-center gap-2 text-2xl">
                         <Wallet class="size-5 text-muted-foreground" />
-                        {{ formatCurrency(totalNet) }}
+                        {{ amount(totalNet) }}
                     </CardTitle>
-            </CardHeader>
+                </CardHeader>
                 <CardContent class="text-xs text-muted-foreground">
-                    {{ t('Combined net amount for this run') }}
+                    {{ t('Combined net pay') }}
                 </CardContent>
             </Card>
         </div>
 
-        <Card
-            v-if="isDraft"
-            class="border-dashed bg-muted/20"
-        >
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2 text-base">
-                    <Receipt class="size-5" />
-                    {{ t('Pending adjustments') }} ({{ pendingAdjustmentCount }})
-                </CardTitle>
-            </CardHeader>
-            <CardContent class="space-y-4">
-                <div
-                    v-if="pendingAdjustmentCount === 0"
-                    class="text-sm text-muted-foreground"
-                >
-                    {{
-                        t(
-                            'No adjustments recorded for this month yet. Add advances, bonuses, or deductions before processing payroll.',
-                        )
-                    }}
-                </div>
-                <div v-else class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b text-left text-muted-foreground">
-                                <th class="pb-3 pr-4 font-medium">{{ t('Personnel') }}</th>
-                                <th class="pb-3 pr-4 font-medium">{{ t('Project') }}</th>
-                                <th class="pb-3 pr-4 font-medium">{{ t('Type') }}</th>
-                                <th class="pb-3 pr-4 text-right font-medium">{{ t('Amount') }}</th>
-                                <th class="pb-3 font-medium">{{ t('Notes') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr
-                                v-for="adjustment in pendingAdjustments"
-                                :key="adjustment.id"
-                                class="border-b last:border-0"
-                            >
-                                <td class="py-3 pr-4">{{ pendingPersonnelLabel(adjustment) }}</td>
-                                <td class="py-3 pr-4 text-muted-foreground">
-                                    {{ adjustment.project?.code ?? '—' }}
-                                </td>
-                                <td class="py-3 pr-4">
-                                    {{ adjustmentTypeLabel(adjustment.type) }}
-                                </td>
-                                <td
-                                    class="py-3 pr-4 text-right font-medium"
-                                    :class="
-                                        adjustment.type === 'bonus'
-                                            ? 'text-green-700 dark:text-green-400'
-                                            : 'text-destructive'
-                                    "
-                                >
-                                    {{ formatCurrency(adjustment.amount) }}
-                                </td>
-                                <td class="py-3 text-muted-foreground">
-                                    {{ adjustment.notes ?? '—' }}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <Button variant="outline" size="sm" class="w-fit" as-child>
-                    <Link :href="adjustmentsUrl">{{ t('Add or edit adjustments') }}</Link>
-                </Button>
-            </CardContent>
-        </Card>
-
-        <Card
-            v-if="isDraft"
-            class="border-dashed bg-muted/20"
-        >
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2 text-base">
-                    <AlertCircle class="size-5" />
-                    {{ t('Next step') }}
-                </CardTitle>
-            </CardHeader>
-            <CardContent class="text-sm text-muted-foreground">
-                <p>
-                    {{ t('You currently have') }}
-                    <strong class="text-foreground">{{ approvedAttendanceCount }}</strong>
-                    {{ t('approved attendance') }}
-                    {{
-                        approvedAttendanceCount === 1 ? t('record') : t('records')
-                    }}
-                    {{ t('and') }}
-                    <strong class="text-foreground">{{ pendingAdjustmentCount }}</strong>
-                    {{ t('pending') }}
-                    {{
-                        pendingAdjustmentCount === 1
-                            ? t('adjustment')
-                            : t('adjustments')
-                    }}.
-                    {{ t('Click') }}
-                    <strong class="text-foreground">{{ t('Process payroll') }}</strong>
-                    {{ t('when you are ready to calculate amounts.') }}
-                </p>
-            </CardContent>
-        </Card>
-
-        <Card
-            v-else-if="itemCount === 0"
-            class="border-dashed bg-muted/20"
-        >
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2 text-base">
-                    <AlertCircle class="size-5" />
-                    {{ t('No line items generated') }}
-                </CardTitle>
-            </CardHeader>
-            <CardContent class="flex flex-col gap-3 text-sm text-muted-foreground">
-                <p>
-                    {{
-                        t(
-                            'Record attendance, approve it, then create a new payroll run or re-process if your workflow allows it.',
-                        )
-                    }}
-                </p>
-                <Button variant="outline" size="sm" class="w-fit" as-child>
-                    <Link :href="attendanceFilterUrl">{{ t('Go to attendance') }}</Link>
-                </Button>
-            </CardContent>
-        </Card>
-
-        <Card v-else-if="isProcessed">
+        <Card v-if="itemCount > 0">
             <CardHeader class="pb-2">
                 <CardTitle class="flex items-center gap-2 text-base text-green-700 dark:text-green-400">
                     <CheckCircle2 class="size-5" />
-                    {{ t('Payroll processed') }}
+                    {{ t('Payroll generated from attendance') }}
                 </CardTitle>
             </CardHeader>
+            <CardContent class="text-sm text-muted-foreground">
+                {{
+                    t(
+                        'To change amounts, add payroll adjustments then click Regenerate.',
+                    )
+                }}
+            </CardContent>
         </Card>
 
         <Card>
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2">
-                    <Wallet class="size-5" />
-                    {{ t('Line items') }}
-                </CardTitle>
+            <CardHeader class="space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <CardTitle class="flex items-center gap-2">
+                        <Wallet class="size-5" />
+                        {{ t('Line items') }}
+                    </CardTitle>
+                    <div class="inline-flex rounded-lg border bg-muted/30 p-1">
+                        <button
+                            type="button"
+                            :class="
+                                cn(
+                                    'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                                    activeTab === 'employees'
+                                        ? 'bg-background text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground',
+                                )
+                            "
+                            @click="activeTab = 'employees'"
+                        >
+                            <UserRound class="size-4" />
+                            {{ t('Employees') }}
+                            <span class="rounded bg-muted px-1.5 py-0.5 text-xs tabular-nums">
+                                {{ employeeItems.length }}
+                            </span>
+                        </button>
+                        <button
+                            type="button"
+                            :class="
+                                cn(
+                                    'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                                    activeTab === 'contractors'
+                                        ? 'bg-background text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground',
+                                )
+                            "
+                            @click="activeTab = 'contractors'"
+                        >
+                            <Users class="size-4" />
+                            {{ t('Contractors') }}
+                            <span class="rounded bg-muted px-1.5 py-0.5 text-xs tabular-nums">
+                                {{ contractorItems.length }}
+                            </span>
+                        </button>
+                    </div>
+                </div>
+                <div
+                    v-if="activeItems.length > 0"
+                    class="flex flex-wrap gap-4 text-sm text-muted-foreground"
+                >
+                    <span>{{ t('Base') }}: <strong class="text-foreground">{{ amount(tabTotals.base) }}</strong></span>
+                    <span>{{ t('Bonus') }}: <strong class="text-foreground">{{ amount(tabTotals.bonus) }}</strong></span>
+                    <span>{{ t('Deductions') }}: <strong class="text-foreground">{{ amount(tabTotals.deductions) }}</strong></span>
+                    <span>{{ t('Advance') }}: <strong class="text-foreground">{{ amount(tabTotals.advance) }}</strong></span>
+                    <span>{{ t('Net') }}: <strong class="text-base text-foreground">{{ amount(tabTotals.net) }}</strong></span>
+                </div>
             </CardHeader>
             <CardContent>
                 <div
                     v-if="itemCount === 0"
                     class="ui-empty-state"
                 >
+                    {{ t('No attendance found for this period. Record attendance first, then regenerate.') }}
+                </div>
+                <div
+                    v-else-if="activeItems.length === 0"
+                    class="rounded-xl border border-dashed bg-muted/10 px-4 py-10 text-center text-sm text-muted-foreground"
+                >
                     {{
-                        isDraft
-                            ? t(
-                                  'Line items will appear here after you process this run.',
-                              )
-                            : t(
-                                  'No payroll amounts were calculated for this period.',
-                              )
+                        activeTab === 'employees'
+                            ? t('No employees in this payroll run.')
+                            : t('No contractors in this payroll run.')
                     }}
                 </div>
-                <div v-else class="space-y-4">
-                    <div
-                        v-if="canEditItems"
-                        class="flex flex-wrap gap-4 text-xs text-muted-foreground"
-                    >
-                        <span>{{ t('Bonus total:') }} {{ formatCurrency(totalBonus) }}</span>
-                        <span>{{ t('Deductions total:') }} {{ formatCurrency(totalDeductions) }}</span>
-                        <span>{{ t('Advance total:') }} {{ formatCurrency(totalAdvance) }}</span>
-                    </div>
-                    <div class="overflow-x-auto">
+                <div v-else class="overflow-x-auto rounded-xl border">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="border-b text-left text-muted-foreground">
-                                <th class="pb-3 pr-4 font-medium">{{ t('Personnel') }}</th>
-                                <th class="pb-3 pr-4 font-medium">{{ t('Type') }}</th>
-                                <th class="pb-3 pr-4 font-medium">{{ t('Project') }}</th>
-                                <th class="pb-3 pr-4 text-right font-medium">
-                                    {{ t('Base') }}
-                                </th>
-                                <th class="pb-3 pr-4 text-right font-medium">
-                                    {{ t('Bonus') }}
-                                </th>
-                                <th class="pb-3 pr-4 text-right font-medium">
-                                    {{ t('Deductions') }}
-                                </th>
-                                <th class="pb-3 pr-4 text-right font-medium">
-                                    {{ t('Advance') }}
-                                </th>
-                                <th class="pb-3 pr-4 text-right font-medium">{{ t('Net') }}</th>
-                                <th
-                                    v-if="canEditItems"
-                                    class="pb-3 text-right font-medium"
-                                >
-                                    {{ t('Actions') }}
-                                </th>
+                            <tr class="border-b bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
+                                <th class="px-3 py-3 text-start font-semibold">#</th>
+                                <th class="px-3 py-3 text-start font-semibold">{{ t('Personnel') }}</th>
+                                <th class="px-2 py-3 text-center font-semibold">{{ t('Present') }}</th>
+                                <th class="px-2 py-3 text-center font-semibold">{{ t('Absent') }}</th>
+                                <th class="px-2 py-3 text-center font-semibold">{{ t('Sick') }}</th>
+                                <th class="px-2 py-3 text-center font-semibold">{{ t('Annual') }}</th>
+                                <th class="px-2 py-3 text-center font-semibold">{{ t('Casual') }}</th>
+                                <th class="px-2 py-3 text-center font-semibold">{{ t('Other') }}</th>
+                                <th class="px-3 py-3 text-end font-semibold">{{ t('Base') }}</th>
+                                <th class="px-3 py-3 text-end font-semibold">{{ t('Bonus') }}</th>
+                                <th class="px-3 py-3 text-end font-semibold">{{ t('Deductions') }}</th>
+                                <th class="px-3 py-3 text-end font-semibold">{{ t('Advance') }}</th>
+                                <th class="px-3 py-3 text-end font-semibold">{{ t('Net') }}</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr
-                                v-for="item in payrollRun.items"
+                                v-for="(item, index) in activeItems"
                                 :key="item.id"
-                                class="border-b last:border-0"
+                                class="border-b last:border-0 hover:bg-muted/20"
                             >
-                                <td class="py-3 pr-4">
-                                    <div>{{ personnelLabel(item) }}</div>
-                                    <p
-                                        v-if="item.notes && !canEditItems"
-                                        class="text-xs text-muted-foreground"
-                                    >
-                                        {{ item.notes }}
-                                    </p>
+                                <td class="px-3 py-3 text-muted-foreground tabular-nums">
+                                    {{ index + 1 }}
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
-                                    {{ personnelTypeLabel(item.personnel_type) }}
+                                <td class="px-3 py-3 font-medium">
+                                    {{ personnelLabel(item) }}
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
-                                    {{ item.project?.code ?? '—' }}
-                                </td>
-                                <td class="py-3 pr-4 text-right">
-                                    {{
-                                        formatCurrency(
-                                            item.base_amount,
-                                            item.currency ?? 'USD',
-                                        )
-                                    }}
-                                </td>
-                                <Form
-                                    v-if="canEditItems"
-                                    :action="`/hr/payroll/${payrollRun.id}/items/${item.id}`"
-                                    method="put"
-                                    class="contents"
-                                    :options="{ preserveScroll: true }"
-                                    v-slot="{ errors, processing }"
-                                >
-                                    <td class="py-3 pr-2 align-top">
-                                        <Input
-                                            name="bonus"
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            class="h-8 w-24 text-right"
-                                            :default-value="item.bonus ?? 0"
-                                        />
-                                        <InputError :message="errors.bonus" />
-                                    </td>
-                                    <td class="py-3 pr-2 align-top">
-                                        <Input
-                                            name="deductions"
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            class="h-8 w-24 text-right"
-                                            :default-value="item.deductions ?? 0"
-                                        />
-                                        <InputError :message="errors.deductions" />
-                                    </td>
-                                    <td class="py-3 pr-2 align-top">
-                                        <Input
-                                            name="advance"
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            class="h-8 w-24 text-right"
-                                            :default-value="item.advance ?? 0"
-                                        />
-                                        <InputError :message="errors.advance" />
-                                    </td>
-                                    <td class="py-3 pr-2 align-top text-right font-medium">
-                                        {{
-                                            formatCurrency(
-                                                item.net_amount,
-                                                item.currency ?? 'USD',
-                                            )
-                                        }}
-                                    </td>
-                                    <td class="py-3 align-top">
-                                        <div class="flex flex-col gap-1">
-                                            <Input
-                                                name="notes"
-                                                :placeholder="t('Notes')"
-                                                class="h-8 min-w-32"
-                                                :default-value="item.notes ?? ''"
-                                            />
-                                            <InputError :message="errors.notes" />
-                                            <Button
-                                                type="submit"
-                                                size="sm"
-                                                variant="outline"
-                                                class="w-fit self-end"
-                                                :disabled="processing"
-                                            >
-                                                {{ t('Save') }}
-                                            </Button>
-                                        </div>
-                                    </td>
-                                </Form>
-                                <template v-else>
-                                    <td class="py-3 pr-4 text-right text-green-700 dark:text-green-400">
-                                        {{
-                                            formatCurrency(
-                                                item.bonus ?? 0,
-                                                item.currency ?? 'USD',
-                                            )
-                                        }}
-                                    </td>
-                                    <td class="py-3 pr-4 text-right text-destructive">
-                                        {{
-                                            formatCurrency(
-                                                item.deductions,
-                                                item.currency ?? 'USD',
-                                            )
-                                        }}
-                                    </td>
-                                    <td class="py-3 pr-4 text-right text-destructive">
-                                        {{
-                                            formatCurrency(
-                                                item.advance ?? 0,
-                                                item.currency ?? 'USD',
-                                            )
-                                        }}
-                                    </td>
-                                    <td class="py-3 text-right font-medium">
-                                        {{
-                                            formatCurrency(
-                                                item.net_amount,
-                                                item.currency ?? 'USD',
-                                            )
-                                        }}
-                                    </td>
-                                </template>
+                                <td class="px-2 py-3 text-center tabular-nums">{{ dayCount(item, 'days_present') }}</td>
+                                <td class="px-2 py-3 text-center tabular-nums text-destructive">{{ dayCount(item, 'days_absent') }}</td>
+                                <td class="px-2 py-3 text-center tabular-nums">{{ dayCount(item, 'days_sick_leave') }}</td>
+                                <td class="px-2 py-3 text-center tabular-nums">{{ dayCount(item, 'days_annual_leave') }}</td>
+                                <td class="px-2 py-3 text-center tabular-nums">{{ dayCount(item, 'days_casual_leave') }}</td>
+                                <td class="px-2 py-3 text-center tabular-nums">{{ dayCount(item, 'days_other') }}</td>
+                                <td class="px-3 py-3 text-end text-base tabular-nums">{{ amount(item.base_amount) }}</td>
+                                <td class="px-3 py-3 text-end text-base tabular-nums text-green-700 dark:text-green-400">{{ amount(item.bonus) }}</td>
+                                <td class="px-3 py-3 text-end text-base tabular-nums text-destructive">{{ amount(item.deductions) }}</td>
+                                <td class="px-3 py-3 text-end text-base tabular-nums text-destructive">{{ amount(item.advance) }}</td>
+                                <td class="px-3 py-3 text-end text-base font-semibold tabular-nums">{{ amount(item.net_amount) }}</td>
                             </tr>
                         </tbody>
                     </table>
-                    </div>
                 </div>
             </CardContent>
         </Card>

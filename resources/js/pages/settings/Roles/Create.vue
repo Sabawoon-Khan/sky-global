@@ -43,6 +43,7 @@ const permissionVerbOrder = [
     'archive',
     'view_competitors',
     'manage_users',
+    'view_login_logs',
 ];
 
 const permissionGroups = computed(() => {
@@ -105,6 +106,7 @@ const formatPermissionLabel = (permissionName: string): string => {
         delete: t('Delete'),
         view_competitors: t('View competitors'),
         manage_users: t('Manage users'),
+        view_login_logs: t('View login logs'),
     };
 
     return labels[verb] ?? verb.replace(/_/g, ' ');

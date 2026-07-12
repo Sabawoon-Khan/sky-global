@@ -23,6 +23,7 @@ interface Employee {
     phone?: string | null;
     email?: string | null;
     status: string;
+    is_permanent?: boolean;
     job_detail?: {
         designation?: string | null;
         department?: { name: string } | null;
@@ -118,6 +119,7 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
                                     t('Department')
                                 }}</th>
                                 <th class="pb-3 pe-4 font-medium">{{ t('Contact') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{ t('Type') }}</th>
                                 <th class="pb-3 pe-4 font-medium">{{ t('Status') }}</th>
                                 <th class="pb-3 text-end font-medium">{{ t('Actions') }}</th>
                             </tr>
@@ -148,6 +150,15 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
                                 <td class="py-3 pe-4 text-muted-foreground">
                                     <div>{{ employee.phone ?? '—' }}</div>
                                     <div class="text-xs">{{ employee.email ?? '' }}</div>
+                                </td>
+                                <td class="py-3 pe-4">
+                                    <Badge :variant="employee.is_permanent ? 'default' : 'outline'">
+                                        {{
+                                            employee.is_permanent
+                                                ? t('Permanent')
+                                                : t('Project-based')
+                                        }}
+                                    </Badge>
                                 </td>
                                 <td class="py-3 pe-4">
                                     <Badge

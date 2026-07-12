@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Archive, Search } from '@lucide/vue';
+import { Archive, Paperclip, Search } from '@lucide/vue';
 import MisCreateButton from '@/components/MisCreateButton.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,8 @@ interface ArchivedDocument {
     title: string;
     direction?: string | null;
     document_date?: string | null;
+    original_filename?: string | null;
+    download_url?: string | null;
     document_category?: { id: number; name: string } | null;
     organization?: { id: number; name: string } | null;
     project?: { id: number; code: string; name: string } | null;
@@ -107,6 +109,7 @@ const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
                                 <th class="pb-3 pe-4 font-medium">{{ t('Category') }}</th>
                                 <th class="pb-3 pe-4 font-medium">{{ t('Linked To') }}</th>
                                 <th class="pb-3 pe-4 font-medium">{{ t('Date') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{ t('Attachment') }}</th>
                                 <th class="pb-3 pe-4 font-medium">{{ t('Direction') }}</th>
                                 <th class="pb-3 text-end font-medium">{{ t('Actions') }}</th>
                             </tr>
@@ -141,6 +144,20 @@ const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
                                 </td>
                                 <td class="py-3 pe-4 text-muted-foreground">
                                     {{ formatDate(doc.document_date) }}
+                                </td>
+                                <td class="py-3 pe-4">
+                                    <a
+                                        v-if="doc.download_url"
+                                        :href="doc.download_url"
+                                        class="inline-flex items-center gap-1 text-primary hover:underline"
+                                        :title="doc.original_filename ?? undefined"
+                                    >
+                                        <Paperclip class="size-3.5 shrink-0" />
+                                        <span class="max-w-[8rem] truncate text-xs">
+                                            {{ doc.original_filename ?? t('Download') }}
+                                        </span>
+                                    </a>
+                                    <span v-else class="text-muted-foreground">—</span>
                                 </td>
                                 <td class="py-3 pe-4">
                                     <Badge

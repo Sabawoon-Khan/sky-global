@@ -49,10 +49,10 @@ class InvoiceController extends Controller
                 'outstanding' => (float) Invoice::query()->whereIn('status', ['draft', 'sent', 'overdue'])->sum('total'),
                 'currency_breakdown' => $currencyBreakdown->values()->all(),
             ],
-            'incomes' => ProjectIncome::query()->with('project')->latest('transaction_date')->limit(50)->get(),
-            'expenses' => ProjectExpense::query()->with('project')->latest('transaction_date')->limit(50)->get(),
-            'generalIncomes' => GeneralIncome::query()->latest('transaction_date')->limit(50)->get(),
-            'generalExpenses' => GeneralExpense::query()->latest('transaction_date')->limit(50)->get(),
+            'incomes' => ProjectIncome::query()->with(['project', 'attachments'])->latest('transaction_date')->limit(50)->get(),
+            'expenses' => ProjectExpense::query()->with(['project', 'attachments'])->latest('transaction_date')->limit(50)->get(),
+            'generalIncomes' => GeneralIncome::query()->with('attachments')->latest('transaction_date')->limit(50)->get(),
+            'generalExpenses' => GeneralExpense::query()->with('attachments')->latest('transaction_date')->limit(50)->get(),
             'invoices' => $invoices,
         ]);
     }

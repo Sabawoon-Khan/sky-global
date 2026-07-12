@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useMisPage } from '@/composables/useMisPage';
-import { formatCurrency, type Paginated } from '@/lib/format';
+import { formatAfn, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { projectStatusActions } from '@/lib/status-actions';
 
@@ -175,9 +175,8 @@ const projectActions = (project: Project): RowActionItem[] => [
                                 </td>
                                 <td class="px-3 py-2">
                                     {{
-                                        formatCurrency(
+                                        formatAfn(
                                             project.our_bid_amount ?? project.total_contract_value,
-                                            project.currency,
                                         )
                                     }}
                                 </td>

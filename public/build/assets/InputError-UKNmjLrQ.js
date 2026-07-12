@@ -1,1 +1,0 @@
-import{C as e,E as t,Et as n,V as r,b as i,f as a,nt as o}from"./dist-DlR-ATWd.js";var s={class:`text-sm text-red-600 dark:text-red-500`},c=t({__name:`InputError`,props:{message:{}},setup(t){return(c,l)=>o((r(),e(`div`,null,[i(`p`,s,n(t.message),1)],512)),[[a,t.message]])}});export{c as t};

@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Models\Attachment;
 use App\Models\Equipment\EquipmentCatalog;
 use App\Models\Finance\GeneralExpense;
+use App\Models\Finance\GeneralIncome;
 use App\Models\Finance\Invoice;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
@@ -36,6 +37,7 @@ class AttachmentController extends Controller
         ProjectIncome::class => 'finance.view',
         ProjectExpense::class => 'finance.view',
         GeneralExpense::class => 'finance.view',
+        GeneralIncome::class => 'finance.view',
         Invoice::class => 'finance.view',
         PersonnelAttendance::class => 'hr.view',
         PayrollRun::class => 'hr.view',

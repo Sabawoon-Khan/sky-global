@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Http\Middleware\Concerns\ResolvesRequestLocale;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Inertia\Middleware;
@@ -10,6 +11,7 @@ use Inertia\Middleware;
 class HandleInertiaRequests extends Middleware
 {
     use ResolvesRequestLocale;
+
     /**
      * The root template that's loaded on the first page visit.
      *
@@ -65,6 +67,9 @@ class HandleInertiaRequests extends Middleware
                 ->values()
                 ->all(),
             'translations' => $this->translationsFor($locale),
+            'notifications' => fn () => $request->user()
+                ? ['unread_count' => app(NotificationService::class)->unreadCount($request->user())]
+                : null,
         ];
     }
 

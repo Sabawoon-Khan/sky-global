@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
-import { Plus, Receipt, Wallet } from '@lucide/vue';
+import { computed, ref, watch } from 'vue';
+import { ClipboardList, Plus, Printer, Wallet } from '@lucide/vue';
 import Can from '@/components/Can.vue';
-import InputError from '@/components/InputError.vue';
+import MisPage from '@/components/MisPage.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
@@ -16,29 +17,56 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMisPage } from '@/composables/useMisPage';
-import { formatCurrency, type Paginated } from '@/lib/format';
+import { formatCurrency, formatNumber, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
+import { cn } from '@/lib/utils';
+
+interface ProjectOption {
+    id: number;
+    code: string;
+    name: string;
+}
 
 interface PayrollRun {
     id: number;
+    title: string;
+    payroll_type: 'general' | 'project';
+    project?: { id: number; code: string; name?: string } | null;
+    date_from: string;
+    date_to: string;
     period_year: number;
     period_month: number;
     status: string;
-    processed_by?: { name: string } | null;
     items_count?: number;
     total_net?: number | string | null;
+    processed_by?: { name: string } | null;
+    created_by_name?: string | null;
 }
 
 interface Props {
     payrollRuns: Paginated<PayrollRun>;
+    projects: ProjectOption[];
     filters?: {
+        date_from?: string;
+        date_to?: string;
         year?: number;
+        month?: number;
+        project_id?: number;
     };
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const { t, viewAction, deleteAction } = useMisPage();
+
+const newPayrollType = ref<'general' | 'project'>('general');
+const newProjectId = ref<string>('');
+
+watch(newPayrollType, (type) => {
+    if (type === 'general') {
+        newProjectId.value = '';
+    }
+});
 
 defineOptions({
     layout: {
@@ -49,30 +77,64 @@ defineOptions({
     },
 });
 
-const monthName = (month: number): string => {
-    if (!month || month < 1 || month > 12) {
-        return '—';
+const formatDate = (value: string): string =>
+    new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(
+        new Date(value),
+    );
+
+const typeLabel = (type: PayrollRun['payroll_type']): string =>
+    type === 'project' ? t('Project') : t('General');
+
+const typeVariant = (type: PayrollRun['payroll_type']): 'default' | 'secondary' =>
+    type === 'project' ? 'default' : 'secondary';
+
+const listTitle = computed(() => {
+    if (props.filters?.year && props.filters?.month) {
+        const month = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(
+            new Date(2000, props.filters.month - 1, 1),
+        );
+
+        return t('Payroll runs for :month :year', {
+            month,
+            year: String(props.filters.year),
+        });
     }
 
-    return new Intl.DateTimeFormat('en-US', { month: 'long' }).format(
-        new Date(2000, month - 1, 1),
-    );
-};
+    return t('All payroll runs');
+});
 
-const periodLabel = (run: PayrollRun): string =>
-    `${monthName(run.period_month)} ${run.period_year}`;
+const runStats = computed(() => [
+    {
+        label: t('Total runs'),
+        value: formatNumber(props.payrollRuns.meta?.total ?? props.payrollRuns.data.length),
+        icon: Wallet,
+        accent: 'bg-primary/10 text-primary',
+    },
+    {
+        label: t('On this page'),
+        value: formatNumber(props.payrollRuns.data.length),
+        icon: ClipboardList,
+        accent: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+    },
+]);
 
-const statusVariant = (status: string): 'default' | 'secondary' | 'outline' =>
-    status === 'processed' ? 'default' : 'secondary';
+const printUrl = (run: PayrollRun): string =>
+    `/hr/payroll/${run.id}/print`;
 
 const payrollActions = (run: PayrollRun): RowActionItem[] => [
     viewAction(`/hr/payroll/${run.id}`),
+    {
+        label: t('Print'),
+        icon: Printer,
+        href: `${printUrl(run)}?autoprint=1`,
+        download: true,
+    },
     deleteAction(
         {
             href: `/hr/payroll/${run.id}`,
             title: t('Delete payroll run?'),
             description: t(
-                'This payroll run and all its line items will be removed. Applied adjustments for this period will become pending again.',
+                'This payroll run and all its line items will be removed.',
             ),
         },
         'hr.delete',
@@ -83,209 +145,251 @@ const payrollActions = (run: PayrollRun): RowActionItem[] => [
 <template>
     <Head :title="t('Payroll')" />
 
-    <div class="flex flex-1 flex-col gap-6 p-4">
-        <div class="grid gap-6 xl:grid-cols-3">
+    <MisPage>
+        <div class="flex flex-wrap items-start justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Wallet class="size-5" />
+                </div>
+                <div>
+                    <h1 class="text-xl font-semibold tracking-tight">
+                        {{ t('Payroll') }}
+                    </h1>
+                    <p class="text-sm text-muted-foreground">
+                        {{ t('Generate payroll from attendance in one click.') }}
+                    </p>
+                </div>
+            </div>
             <Can permission="hr.create">
-                <Card class="xl:col-span-1">
-                    <CardHeader>
-                        <CardTitle class="flex items-center gap-2">
-                            <Plus class="size-5" />
-                            {{ t('Create payroll run') }}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Form
-                            action="/hr/payroll"
-                            method="post"
-                            class="grid gap-4"
-                            :options="{
-                                preserveScroll: true,
-                                resetOnSuccess: true,
-                            }"
-                            v-slot="{ errors, processing }"
+                <Form
+                    action="/hr/payroll"
+                    method="post"
+                    class="flex flex-wrap items-end gap-2 rounded-xl border bg-card p-3 shadow-sm"
+                    :options="{ preserveScroll: true }"
+                    v-slot="{ processing }"
+                >
+                    <div class="grid gap-1.5">
+                        <Label for="payroll_type" class="text-xs font-medium">
+                            {{ t('Type') }}
+                        </Label>
+                        <select
+                            id="payroll_type"
+                            v-model="newPayrollType"
+                            name="payroll_type"
+                            class="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-xs"
                         >
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="grid gap-2">
-                                    <Label for="period_year">{{
-                                        t('Year')
-                                    }}</Label>
-                                    <Input
-                                        id="period_year"
-                                        name="period_year"
-                                        type="number"
-                                        min="2000"
-                                        max="2100"
-                                        required
-                                        :default-value="
-                                            filters?.year ??
-                                            new Date().getFullYear()
-                                        "
-                                    />
-                                    <InputError :message="errors.period_year" />
-                                </div>
-                                <div class="grid gap-2">
-                                    <Label for="period_month">{{
-                                        t('Month')
-                                    }}</Label>
-                                    <Input
-                                        id="period_month"
-                                        name="period_month"
-                                        type="number"
-                                        min="1"
-                                        max="12"
-                                        required
-                                        :default-value="
-                                            new Date().getMonth() + 1
-                                        "
-                                    />
-                                    <InputError :message="errors.period_month" />
-                                </div>
-                            </div>
-
-                            <p class="text-xs text-muted-foreground">
-                                {{
-                                    t(
-                                        'Record monthly attendance, approve records, then process payroll',
-                                    )
-                                }}
-                            </p>
-
-                            <Button type="submit" :disabled="processing">
-                                {{ t('New run') }}
-                            </Button>
-                        </Form>
-
-                        <div class="mt-4 border-t pt-4">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                class="w-full"
-                                as-child
+                            <option value="general">{{ t('General') }}</option>
+                            <option value="project">{{ t('Project') }}</option>
+                        </select>
+                    </div>
+                    <div class="grid gap-1.5">
+                        <Label for="title" class="text-xs font-medium">
+                            {{ t('Title') }}
+                        </Label>
+                        <Input
+                            id="title"
+                            name="title"
+                            type="text"
+                            class="h-9 w-40"
+                            :placeholder="t('Optional')"
+                        />
+                    </div>
+                    <div class="grid gap-1.5">
+                        <Label for="date_from" class="text-xs font-medium">
+                            {{ t('From') }}
+                        </Label>
+                        <Input
+                            id="date_from"
+                            name="date_from"
+                            type="date"
+                            required
+                            class="h-9 w-36"
+                            :default-value="filters?.date_from"
+                        />
+                    </div>
+                    <div class="grid gap-1.5">
+                        <Label for="date_to" class="text-xs font-medium">
+                            {{ t('To') }}
+                        </Label>
+                        <Input
+                            id="date_to"
+                            name="date_to"
+                            type="date"
+                            required
+                            class="h-9 w-36"
+                            :default-value="filters?.date_to"
+                        />
+                    </div>
+                    <div class="grid gap-1.5">
+                        <Label for="project_id" class="text-xs font-medium">
+                            {{ t('Project') }}
+                        </Label>
+                        <select
+                            id="project_id"
+                            v-model="newProjectId"
+                            name="project_id"
+                            :disabled="newPayrollType !== 'project'"
+                            :required="newPayrollType === 'project'"
+                            class="h-9 min-w-[9rem] rounded-md border border-input bg-background px-3 text-sm shadow-xs disabled:opacity-50"
+                        >
+                            <option value="">{{ t('Select project') }}</option>
+                            <option
+                                v-for="project in projects"
+                                :key="project.id"
+                                :value="project.id"
                             >
-                                <Link href="/hr/payroll-adjustments">
-                                    <Receipt class="size-4" />
-                                    {{ t('Payroll Adjustments') }}
-                                </Link>
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                                {{ project.code }}
+                            </option>
+                        </select>
+                    </div>
+                    <Button type="submit" class="h-9 gap-1.5 shadow-sm" :disabled="processing">
+                        <Plus class="size-3.5" />
+                        {{ t('Generate payroll') }}
+                    </Button>
+                </Form>
             </Can>
+        </div>
 
-            <Card class="xl:col-span-2">
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2">
-                        <Wallet class="size-5" />
-                        {{ t('Monthly payroll runs') }}
+        <div class="grid gap-3 sm:grid-cols-2">
+            <div
+                v-for="stat in runStats"
+                :key="stat.label"
+                class="flex items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm"
+            >
+                <div
+                    :class="
+                        cn(
+                            'flex size-9 items-center justify-center rounded-lg',
+                            stat.accent,
+                        )
+                    "
+                >
+                    <component :is="stat.icon" class="size-4" />
+                </div>
+                <div>
+                    <p class="text-xs text-muted-foreground">{{ stat.label }}</p>
+                    <p class="text-2xl font-bold tabular-nums tracking-tight">
+                        {{ stat.value }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <Card class="overflow-hidden border-border/60 shadow-sm">
+            <CardHeader class="border-b bg-muted/10 pb-4">
+                <div class="flex flex-wrap items-end justify-between gap-3">
+                    <CardTitle class="text-base font-semibold">
+                        {{ listTitle }}
                     </CardTitle>
-                </CardHeader>
-                <CardContent class="space-y-4">
                     <form
                         method="get"
                         action="/hr/payroll"
-                        class="flex flex-wrap items-end gap-4"
+                        class="flex flex-wrap items-end gap-2"
                     >
-                        <div class="grid gap-2">
-                            <Label for="filter_year">{{ t('Year') }}</Label>
-                            <Input
-                                id="filter_year"
-                                name="year"
-                                type="number"
-                                :default-value="
-                                    filters?.year ?? new Date().getFullYear()
-                                "
-                                class="w-28"
-                            />
-                        </div>
-                        <Button type="submit" variant="outline">{{
-                            t('Filter')
-                        }}</Button>
+                        <Input
+                            name="year"
+                            type="number"
+                            min="2000"
+                            max="2100"
+                            :default-value="filters?.year ?? ''"
+                            class="h-9 w-24"
+                            :placeholder="t('Year')"
+                        />
+                        <Input
+                            name="month"
+                            type="number"
+                            min="1"
+                            max="12"
+                            :default-value="filters?.month ?? ''"
+                            class="h-9 w-20"
+                            :placeholder="t('Month')"
+                        />
+                        <select
+                            name="project_id"
+                            class="h-9 min-w-[8rem] rounded-md border border-input bg-background px-3 text-sm shadow-xs"
+                        >
+                            <option value="">{{ t('All projects') }}</option>
+                            <option
+                                v-for="project in projects"
+                                :key="project.id"
+                                :value="project.id"
+                                :selected="filters?.project_id === project.id"
+                            >
+                                {{ project.code }}
+                            </option>
+                        </select>
+                        <Button type="submit" variant="outline" class="h-9 shadow-sm">
+                            {{ t('Filter') }}
+                        </Button>
                     </form>
+                </div>
+            </CardHeader>
+            <CardContent class="space-y-4 pt-4">
+                <div
+                    v-if="payrollRuns.data.length === 0"
+                    class="rounded-xl border border-dashed bg-muted/10 px-4 py-12 text-center text-sm text-muted-foreground"
+                >
+                    {{ t('No payroll runs yet. Record attendance first, then generate payroll.') }}
+                </div>
 
-                    <div
-                        v-if="payrollRuns.data.length === 0"
-                        class="ui-empty-state"
-                    >
-                        {{ t('No payroll runs recorded.') }}
-                    </div>
-
-                    <div v-else class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr
-                                    class="border-b text-start text-muted-foreground"
-                                >
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('Period') }}
-                                    </th>
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('Status') }}
-                                    </th>
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('Line items') }}
-                                    </th>
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('Total net pay') }}
-                                    </th>
-                                    <th class="pe-4 pb-3 font-medium">
-                                        {{ t('Processed by') }}
-                                    </th>
-                                    <th class="pb-3 text-end font-medium">
-                                        {{ t('Actions') }}
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr
-                                    v-for="run in payrollRuns.data"
-                                    :key="run.id"
-                                    class="border-b last:border-0"
-                                >
-                                    <td class="py-3 pe-4 font-medium">
-                                        <Link
-                                            :href="`/hr/payroll/${run.id}`"
-                                            class="hover:underline"
-                                        >
-                                            {{ periodLabel(run) }}
-                                        </Link>
-                                    </td>
-                                    <td class="py-3 pe-4">
-                                        <Badge :variant="statusVariant(run.status)">
-                                            {{ run.status }}
-                                        </Badge>
-                                    </td>
-                                    <td class="py-3 pe-4 text-muted-foreground">
+                <div v-else class="overflow-x-auto rounded-xl border">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b bg-muted/30 text-start text-xs uppercase tracking-wide text-muted-foreground">
+                                <th class="px-4 py-3 font-semibold">{{ t('Payroll') }}</th>
+                                <th class="px-4 py-3 font-semibold">{{ t('Type') }}</th>
+                                <th class="px-4 py-3 font-semibold">{{ t('Date range') }}</th>
+                                <th class="px-4 py-3 font-semibold">{{ t('Project') }}</th>
+                                <th class="px-4 py-3 font-semibold">{{ t('Staff') }}</th>
+                                <th class="px-4 py-3 font-semibold">{{ t('Total net') }}</th>
+                                <th class="px-4 py-3 text-end font-semibold">{{ t('Actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="run in payrollRuns.data"
+                                :key="run.id"
+                                class="border-b transition-colors last:border-0 hover:bg-muted/20"
+                            >
+                                <td class="px-4 py-3">
+                                    <Link
+                                        :href="`/hr/payroll/${run.id}`"
+                                        class="font-medium hover:text-primary hover:underline"
+                                    >
+                                        {{ run.title }}
+                                    </Link>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <Badge :variant="typeVariant(run.payroll_type)">
+                                        {{ typeLabel(run.payroll_type) }}
+                                    </Badge>
+                                </td>
+                                <td class="px-4 py-3 text-muted-foreground tabular-nums">
+                                    {{ formatDate(run.date_from) }}
+                                    —
+                                    {{ formatDate(run.date_to) }}
+                                </td>
+                                <td class="px-4 py-3 text-muted-foreground">
+                                    {{ run.project?.code ?? '—' }}
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="inline-flex min-w-[2rem] justify-center rounded-md bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums">
                                         {{ run.items_count ?? 0 }}
-                                    </td>
-                                    <td class="py-3 pe-4 font-medium">
-                                        {{
-                                            run.status === 'processed'
-                                                ? formatCurrency(
-                                                      Number(run.total_net ?? 0),
-                                                  )
-                                                : '—'
-                                        }}
-                                    </td>
-                                    <td class="py-3 pe-4 text-muted-foreground">
-                                        {{
-                                            run.status === 'processed'
-                                                ? (run.processed_by?.name ?? '—')
-                                                : '—'
-                                        }}
-                                    </td>
-                                    <td class="py-3 text-end">
-                                        <RowActionsMenu
-                                            :actions="payrollActions(run)"
-                                        />
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 font-medium tabular-nums">
+                                    {{ formatCurrency(Number(run.total_net ?? 0)) }}
+                                </td>
+                                <td class="px-4 py-3 text-end">
+                                    <RowActionsMenu :actions="payrollActions(run)" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
-                    <MisPagination :pagination="payrollRuns" />
-                </CardContent>
-            </Card>
-        </div>
-    </div>
+                <MisPagination :pagination="payrollRuns" />
+            </CardContent>
+        </Card>
+    </MisPage>
 </template>

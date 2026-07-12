@@ -6,6 +6,7 @@
 @source '../../storage/framework/views/*.php';
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant print (@media print);
 
 @theme inline {
     --font-sans:
@@ -1039,5 +1040,31 @@
     }
     50% {
         box-shadow: 0 0 0 6px rgba(220, 38, 38, 0);
+    }
+}
+
+@media print {
+    [data-sidebar='sidebar'],
+    header.glass-header,
+    [data-sonner-toaster],
+    [data-sidebar='trigger'] {
+        display: none !important;
+    }
+
+    body {
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+    main,
+    [data-sidebar='inset'] {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: none !important;
+        width: 100% !important;
+    }
+
+    [data-sidebar='inset'] > div {
+        padding: 1rem !important;
     }
 }

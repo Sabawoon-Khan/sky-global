@@ -45,7 +45,9 @@ class OrganizationController extends Controller
             'stats' => [
                 'total' => Organization::query()->count(),
                 'active' => Organization::query()->where('is_active', true)->count(),
+                'inactive' => Organization::query()->where('is_active', false)->count(),
                 'with_projects' => Organization::query()->has('projects')->count(),
+                'with_opportunities' => Organization::query()->has('procurementOpportunities')->count(),
             ],
             'filters' => [
                 'search' => $search ?: null,
