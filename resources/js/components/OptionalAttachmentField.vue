@@ -31,7 +31,7 @@ const { t } = useTranslations();
             :name="props.name"
             type="file"
             :required="required"
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs file:me-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm file:font-medium"
+            class="flex min-h-10 w-full cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs file:me-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
         />
         <InputError :message="props.error" />
     </div>

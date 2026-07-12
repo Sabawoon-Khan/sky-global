@@ -38,10 +38,10 @@ const props = withDefaults(
         fileRequired?: boolean;
         showFileField?: boolean;
         fileLabel?: string;
-        section?: 'all' | 'basic' | 'dates' | 'links' | 'file' | 'description';
+        fieldsSection?: 'all' | 'basic' | 'dates' | 'links' | 'file' | 'description';
     }>(),
     {
-        section: 'all',
+        fieldsSection: 'all',
     },
 );
 
@@ -53,12 +53,12 @@ const selectClass =
 const dateValue = (value?: string | null): string | undefined =>
     value?.slice(0, 10) || undefined;
 
-const show = (name: typeof props.section): boolean =>
-    props.section === 'all' || props.section === name;
+const show = (name: NonNullable<typeof props.fieldsSection>): boolean =>
+    props.fieldsSection === 'all' || props.fieldsSection === name;
 </script>
 
 <template>
-    <div :class="section === 'all' ? 'space-y-8' : ''">
+    <div :class="fieldsSection === 'all' ? 'space-y-8' : ''">
         <div v-if="show('basic')" class="grid gap-4 md:grid-cols-3">
             <div class="grid gap-2 md:col-span-3">
                 <Label for="doc-title">{{ t('Title') }} *</Label>
@@ -206,13 +206,16 @@ const show = (name: typeof props.section): boolean =>
         <div v-if="show('file') && showFileField !== false" class="grid gap-2">
             <Label for="doc-file">
                 {{ fileLabel ?? t('File') }}
-                <span v-if="fileRequired"> *</span>
+                <span v-if="fileRequired" class="text-destructive"> *</span>
+                <span v-else class="font-normal text-muted-foreground">
+                    {{ t('(optional)') }}
+                </span>
             </Label>
-            <Input
+            <input
                 id="doc-file"
                 name="file"
                 type="file"
-                class="h-10 rounded-xl file:me-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm file:font-medium"
+                class="flex h-10 w-full rounded-xl border border-input bg-transparent px-3 py-1 text-sm shadow-sm file:me-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm file:font-medium"
                 :required="fileRequired"
             />
             <InputError :message="errors.file" />
