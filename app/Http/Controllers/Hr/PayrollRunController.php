@@ -11,9 +11,10 @@ use App\Models\Hr\PayrollItem;
 use App\Models\Hr\PayrollRun;
 use App\Models\Hr\PersonnelAttendance;
 use App\Models\Hr\PersonnelPayrollAdjustment;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -78,9 +79,26 @@ class PayrollRunController extends Controller
             ->with('success', 'Payroll run created.');
     }
 
+    public function print(Request $request, PayrollRun $payrollRun): Response
+    {
+        $this->authorizePermission($request, 'hr.view');
+
+        $payrollRun->load(['items.project', 'items.personnel', 'processedBy']);
+
+        $dateFrom = Date::create($payrollRun->period_year, $payrollRun->period_month, 1)->startOfDay();
+        $dateTo = $dateFrom->endOfMonth();
+
+        return Inertia::render('mis/hr/Payroll/Print', [
+            'payrollRun' => $payrollRun,
+            'periodLabel' => $this->periodLabel($dateFrom, $dateTo),
+            'autoprint' => $request->boolean('autoprint'),
+        ]);
+    }
+
     private function duplicatePayrollPeriodResponse(int $year, int $month): RedirectResponse
     {
-        $periodLabel = Carbon::create($year, $month, 1)->format('F')." {$year}";
+        $dateFrom = Date::create($year, $month, 1)->startOfDay();
+        $periodLabel = $this->periodLabel($dateFrom, $dateFrom->copy()->endOfMonth());
 
         Inertia::flash('toast', [
             'type' => 'error',
@@ -342,5 +360,28 @@ class PayrollRunController extends Controller
         }
 
         return round((float) $attendance->days_present * 100, 2);
+    }
+
+    private function periodLabel(?CarbonInterface $dateFrom, ?CarbonInterface $dateTo = null): string
+    {
+        if ($dateFrom === null) {
+            return '—';
+        }
+
+        $dateTo ??= $dateFrom;
+
+        if (
+            $dateFrom->format('Y-m') === $dateTo->format('Y-m')
+            && $dateFrom->isStartOfMonth()
+            && $dateTo->isEndOfMonth()
+        ) {
+            return $dateFrom->format('F Y');
+        }
+
+        if ($dateFrom->isSameDay($dateTo)) {
+            return $dateFrom->format('F j, Y');
+        }
+
+        return $dateFrom->format('M j, Y').' – '.$dateTo->format('M j, Y');
     }
 }

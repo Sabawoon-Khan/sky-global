@@ -14,6 +14,7 @@ createInertiaApp({
         switch (true) {
             case name === 'Welcome':
             case name.startsWith('errors/'):
+            case name === 'mis/hr/Payroll/Print':
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;

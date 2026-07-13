@@ -144,6 +144,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('payroll', [PayrollRunController::class, 'index'])->name('payroll.index');
         Route::post('payroll', [PayrollRunController::class, 'store'])->name('payroll.store');
+        Route::get('payroll/{payrollRun}/print', [PayrollRunController::class, 'print'])->name('payroll.print');
         Route::get('payroll/{payrollRun}', [PayrollRunController::class, 'show'])->name('payroll.show');
         Route::delete('payroll/{payrollRun}', [PayrollRunController::class, 'destroy'])->name('payroll.destroy');
         Route::post('payroll/{payrollRun}/process', [PayrollRunController::class, 'process'])->name('payroll.process');
