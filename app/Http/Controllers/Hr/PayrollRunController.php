@@ -17,6 +17,7 @@ use App\Enums\ProjectStatus;
 use App\Services\PayrollCalculationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -508,8 +509,8 @@ class PayrollRunController extends Controller
     private function defaultTitle(
         string $payrollType,
         ?int $projectId,
-        Carbon $dateFrom,
-        Carbon $dateTo,
+        CarbonInterface $dateFrom,
+        CarbonInterface $dateTo,
     ): string {
         $period = $this->periodLabel($dateFrom, $dateTo);
 
@@ -522,7 +523,7 @@ class PayrollRunController extends Controller
         return "General Payroll — {$period}";
     }
 
-    private function periodLabel(?Carbon $dateFrom, ?Carbon $dateTo = null): string
+    private function periodLabel(?CarbonInterface $dateFrom, ?CarbonInterface $dateTo = null): string
     {
         if ($dateFrom === null) {
             return '—';
