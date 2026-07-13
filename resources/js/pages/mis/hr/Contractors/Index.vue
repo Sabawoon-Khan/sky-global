@@ -51,6 +51,30 @@ defineOptions({
 const fullName = (contractor: Contractor): string =>
     `${contractor.first_name} ${contractor.last_name}`;
 
+const statusVariant = (
+    status: string,
+): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    if (status === 'active') {
+        return 'default';
+    }
+
+    if (status === 'terminated') {
+        return 'destructive';
+    }
+
+    return 'secondary';
+};
+
+const statusLabel = (status: string): string => {
+    const labels: Record<string, string> = {
+        active: t('Active'),
+        inactive: t('Inactive'),
+        terminated: t('Terminated'),
+    };
+
+    return labels[status] ?? status;
+};
+
 const contractorActions = (contractor: Contractor): RowActionItem[] => [
     viewAction(`/hr/contractors/${contractor.id}`),
     editAction(`/hr/contractors/${contractor.id}/edit`, 'hr.edit'),
@@ -111,8 +135,7 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
                         <thead>
                             <tr class="border-b text-start text-muted-foreground">
                                 <th class="pb-3 pe-4 font-medium">{{ t('Name') }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{ t('Phone') }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{ t('Email') }}</th>
+                                <th class="pb-3 pe-4 font-medium">{{ t('Contact') }}</th>
                                 <th class="pb-3 pe-4 font-medium">{{ t('Status') }}</th>
                                 <th class="pb-3 text-end font-medium">{{ t('Actions') }}</th>
                             </tr>
@@ -132,26 +155,12 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
                                     </Link>
                                 </td>
                                 <td class="py-3 pe-4 text-muted-foreground">
-                                    {{ contractor.phone ?? '—' }}
-                                </td>
-                                <td class="py-3 pe-4 text-muted-foreground">
-                                    {{ contractor.email ?? '—' }}
+                                    <div>{{ contractor.phone ?? '—' }}</div>
+                                    <div class="text-xs">{{ contractor.email ?? '' }}</div>
                                 </td>
                                 <td class="py-3 pe-4">
-                                    <Badge
-                                        :variant="
-                                            contractor.status === 'active'
-                                                ? 'default'
-                                                : 'outline'
-                                        "
-                                    >
-                                        {{
-                                            contractor.status === 'active'
-                                                ? t('Active')
-                                                : contractor.status === 'inactive'
-                                                  ? t('Inactive')
-                                                  : contractor.status
-                                        }}
+                                    <Badge :variant="statusVariant(contractor.status)">
+                                        {{ statusLabel(contractor.status) }}
                                     </Badge>
                                 </td>
                                 <td class="py-3 text-end">

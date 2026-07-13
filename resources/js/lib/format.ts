@@ -49,7 +49,16 @@ export function normalizeCurrency(currency?: string | null): string {
         return code;
     }
 
-    return 'USD';
+    return 'AFN';
+}
+
+/** Format amounts in Afghan Afghani without a currency symbol prefix. */
+export function formatAfn(value?: number | null): string {
+    if (value == null) {
+        return '—';
+    }
+
+    return `${formatNumber(value, { maximumFractionDigits: 0 })} AFN`;
 }
 
 export function formatCurrency(

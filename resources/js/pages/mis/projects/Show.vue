@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link, router } from '@inertiajs/vue3';
-import { Pencil, Trash2 } from '@lucide/vue';
+import { Pencil, Paperclip, Trash2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import Can from '@/components/Can.vue';
 import EntityAttachments, {
@@ -9,6 +9,7 @@ import EntityAttachments, {
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
+import SecurityScopeField from '@/components/SecurityScopeField.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import ProjectController from '@/actions/App/Http/Controllers/Project/ProjectController';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatAfn, formatDate } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { useMisPage } from '@/composables/useMisPage';
 
@@ -50,12 +51,19 @@ interface CompetitorBid {
     notes: string | null;
 }
 
+interface FinanceAttachment {
+    id: number;
+    original_filename: string;
+    download_url: string;
+}
+
 interface FinanceRow {
     id: number;
     amount: number;
     currency: string;
     description: string | null;
     transaction_date: string;
+    attachments?: FinanceAttachment[];
 }
 
 interface ProjectActivity {
@@ -103,7 +111,7 @@ interface Project {
     status: string;
     scope_summary: string | null;
     location: string | null;
-    security_scope: string | null;
+    security_scope: string[] | null;
     submission_deadline: string | null;
     our_bid_amount: number | null;
     total_contract_value: number | null;
@@ -140,6 +148,7 @@ const props = defineProps<{
     statusOptions: StatusOption[];
     employees?: PersonOption[];
     contractors?: PersonOption[];
+    currencies?: string[];
 }>();
 
 const { t, can, gateActions } = useMisPage();
@@ -201,6 +210,18 @@ const editingIssue = ref<ProjectIssue | null>(null);
 const isBiddingPhase = computed(() =>
     ['draft', 'submitted', 'won', 'lost'].includes(props.project.status),
 );
+
+const scopeTypeLabels: Record<string, string> = {
+    static: 'Static guards',
+    mobile: 'Mobile patrol',
+    vip: 'VIP',
+    event: 'Event',
+};
+
+const formatScopeType = (value: string): string =>
+    t(scopeTypeLabels[value] ?? value);
+
+const projectScopeTypes = computed(() => props.project.security_scope ?? []);
 
 const statusVariant = (status: string) => {
     if (status === 'won' || status === 'active') return 'default';
@@ -348,8 +369,12 @@ const closeIssueEdit = (): void => {
                     <Badge v-if="project.organization" variant="secondary">
                         {{ project.organization.name }}
                     </Badge>
-                    <Badge v-if="project.security_scope" variant="outline">
-                        {{ project.security_scope }}
+                    <Badge
+                        v-for="scope in projectScopeTypes"
+                        :key="scope"
+                        variant="outline"
+                    >
+                        {{ formatScopeType(scope) }}
                     </Badge>
                 </div>
             </div>
@@ -377,7 +402,7 @@ const closeIssueEdit = (): void => {
                 <CardContent class="p-3">
                     <p class="text-xs text-muted-foreground">{{ t('Our bid') }}</p>
                     <p class="text-lg font-semibold">
-                        {{ formatCurrency(project.our_bid_amount, project.currency) }}
+                        {{ formatAfn(project.our_bid_amount) }}
                     </p>
                 </CardContent>
             </Card>
@@ -399,7 +424,7 @@ const closeIssueEdit = (): void => {
                 <CardContent class="p-3">
                     <p class="text-xs text-muted-foreground">{{ t('Margin') }}</p>
                     <p class="text-lg font-semibold">
-                        {{ formatCurrency(finance.margin, finance.currency) }}
+                        {{ formatAfn(finance.margin) }}
                     </p>
                 </CardContent>
             </Card>
@@ -436,7 +461,12 @@ const closeIssueEdit = (): void => {
                     </div>
                     <div class="flex justify-between gap-4">
                         <span class="text-muted-foreground">{{ t('Scope') }}</span>
-                        <span class="text-right">{{ project.security_scope ?? '—' }}</span>
+                        <span class="text-right">
+                            <template v-if="projectScopeTypes.length">
+                                {{ projectScopeTypes.map(formatScopeType).join(', ') }}
+                            </template>
+                            <template v-else>—</template>
+                        </span>
                     </div>
                     <div v-if="project.scope_summary" class="pt-2">
                         <p class="text-muted-foreground">{{ t('Summary') }}</p>
@@ -448,14 +478,70 @@ const closeIssueEdit = (): void => {
                 <CardHeader class="pb-2">
                     <CardTitle class="text-base">{{ t('Contract (when won)') }}</CardTitle>
                 </CardHeader>
-                <CardContent class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">{{ t('Contract value') }}</span>
-                        <span>{{ formatCurrency(project.total_contract_value, project.currency) }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">{{ t('Period') }}</span>
-                        <span>{{ formatDate(project.contract_start) }} – {{ formatDate(project.contract_end) }}</span>
+                <CardContent>
+                    <Form
+                        v-if="can('projects.edit')"
+                        v-bind="ProjectController.update.form(project.id)"
+                        class="grid gap-3 sm:grid-cols-2"
+                        v-slot="{ errors, processing }"
+                        :options="{ preserveScroll: true }"
+                    >
+                        <div class="grid gap-1.5">
+                            <Label for="contract_number">{{ t('Contract #') }}</Label>
+                            <Input
+                                id="contract_number"
+                                name="contract_number"
+                                :default-value="project.contract_number ?? ''"
+                            />
+                            <InputError :message="errors.contract_number" />
+                        </div>
+                        <div class="grid gap-1.5">
+                            <Label for="total_contract_value">{{ t('Contract value (AFN)') }}</Label>
+                            <Input
+                                id="total_contract_value"
+                                name="total_contract_value"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                :default-value="project.total_contract_value ?? project.our_bid_amount ?? ''"
+                            />
+                            <InputError :message="errors.total_contract_value" />
+                        </div>
+                        <div class="grid gap-1.5">
+                            <Label for="contract_start">{{ t('Contract start') }}</Label>
+                            <Input
+                                id="contract_start"
+                                name="contract_start"
+                                type="date"
+                                :default-value="project.contract_start?.slice(0, 10) ?? ''"
+                            />
+                            <InputError :message="errors.contract_start" />
+                        </div>
+                        <div class="grid gap-1.5">
+                            <Label for="contract_end">{{ t('Contract end') }}</Label>
+                            <Input
+                                id="contract_end"
+                                name="contract_end"
+                                type="date"
+                                :default-value="project.contract_end?.slice(0, 10) ?? ''"
+                            />
+                            <InputError :message="errors.contract_end" />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <Button type="submit" size="sm" :disabled="processing">
+                                {{ t('Save contract') }}
+                            </Button>
+                        </div>
+                    </Form>
+                    <div v-else class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">{{ t('Contract value') }}</span>
+                            <span>{{ formatAfn(project.total_contract_value) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">{{ t('Period') }}</span>
+                            <span>{{ formatDate(project.contract_start) }} – {{ formatDate(project.contract_end) }}</span>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -467,7 +553,7 @@ const closeIssueEdit = (): void => {
                     <p v-if="project.loss_reason">{{ project.loss_reason }}</p>
                     <p v-if="project.winning_competitor_name">
                         {{ t('Winner:') }} {{ project.winning_competitor_name }}
-                        ({{ formatCurrency(project.winning_amount, project.currency) }})
+                        ({{ formatAfn(project.winning_amount) }})
                     </p>
                 </CardContent>
             </Card>
@@ -486,7 +572,7 @@ const closeIssueEdit = (): void => {
                     :options="{ preserveScroll: true }"
                 >
                     <div class="grid gap-1.5">
-                        <Label for="our_bid_amount">{{ t('Our bid amount') }}</Label>
+                        <Label for="our_bid_amount">{{ t('Our bid amount (AFN)') }}</Label>
                         <Input
                             id="our_bid_amount"
                             name="our_bid_amount"
@@ -497,17 +583,7 @@ const closeIssueEdit = (): void => {
                         />
                         <InputError :message="errors.our_bid_amount" />
                     </div>
-                    <div class="grid gap-1.5">
-                        <Label for="currency">{{ t('Currency') }}</Label>
-                        <select
-                            id="currency"
-                            name="currency"
-                            class="flex h-9 w-full rounded-md border border-input px-3 text-sm"
-                        >
-                            <option value="USD" :selected="project.currency === 'USD'">USD</option>
-                            <option value="AFN" :selected="project.currency === 'AFN'">AFN</option>
-                        </select>
-                    </div>
+                    <input type="hidden" name="currency" value="AFN" />
                     <div class="grid gap-1.5">
                         <Label for="submission_deadline">{{ t('Deadline') }}</Label>
                         <Input
@@ -525,6 +601,11 @@ const closeIssueEdit = (): void => {
                             :default-value="project.reference_number ?? ''"
                         />
                     </div>
+                    <SecurityScopeField
+                        :selected="project.security_scope"
+                        :error="errors.security_scope"
+                        include-marker
+                    />
                     <div class="grid gap-1.5 sm:col-span-2">
                         <Label for="scope_summary">{{ t('Scope summary') }}</Label>
                         <textarea
@@ -561,7 +642,7 @@ const closeIssueEdit = (): void => {
                             <div>
                                 <p class="font-medium">{{ comp.competitor_name }}</p>
                                 <p class="text-xs text-muted-foreground">
-                                    {{ formatCurrency(comp.bid_amount, comp.currency) }}
+                                    {{ formatAfn(comp.bid_amount) }}
                                     <span v-if="comp.is_estimated"> {{ t('(estimated)') }}</span>
                                 </p>
                             </div>
@@ -590,14 +671,12 @@ const closeIssueEdit = (): void => {
                         method="post"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
+                        validate-files
                         v-slot="{ processing }"
                     >
                         <Input name="competitor_name" :placeholder="t('Company name')" required />
-                        <Input name="bid_amount" type="number" min="0" step="0.01" :placeholder="t('Amount')" />
-                        <select name="currency" class="h-9 rounded-md border border-input px-3 text-sm">
-                            <option value="USD">USD</option>
-                            <option value="AFN">AFN</option>
-                        </select>
+                        <Input name="bid_amount" type="number" min="0" step="0.01" :placeholder="t('Amount (AFN)')" />
+                        <input type="hidden" name="currency" value="AFN" />
                         <label class="flex items-center gap-2 text-sm">
                             <input type="checkbox" name="is_estimated" value="1" />
                             Estimated price
@@ -640,7 +719,7 @@ const closeIssueEdit = (): void => {
                             </div>
                             <div class="flex items-center gap-2">
                                 <span v-if="deployment.monthly_rate" class="text-sm font-medium">
-                                    {{ formatCurrency(deployment.monthly_rate, deployment.currency ?? 'USD') }}/mo
+                                    {{ formatAfn(deployment.monthly_rate) }}/mo
                                 </span>
                                 <Can permission="projects.delete">
                                 <Button
@@ -701,7 +780,8 @@ const closeIssueEdit = (): void => {
                         <Input name="role" :placeholder="t('Role on site')" />
                         <Input name="start_date" type="date" />
                         <Input name="end_date" type="date" />
-                        <Input name="monthly_rate" type="number" min="0" step="0.01" :placeholder="t('Monthly rate')" />
+                        <Input name="monthly_rate" type="number" min="0" step="0.01" :placeholder="t('Monthly rate (AFN)')" />
+                        <input type="hidden" name="currency" value="AFN" />
                         <Button type="submit" size="sm" :disabled="processing">{{ t('Assign') }}</Button>
                     </Form>
                 </CardContent>
@@ -715,15 +795,15 @@ const closeIssueEdit = (): void => {
                 <CardContent class="grid gap-3 p-4 sm:grid-cols-3">
                     <div class="rounded-md border p-3">
                         <p class="text-xs text-muted-foreground">{{ t('Income') }}</p>
-                        <p class="text-xl font-bold">{{ formatCurrency(finance.income, finance.currency) }}</p>
+                        <p class="text-xl font-bold">{{ formatAfn(finance.income) }}</p>
                     </div>
                     <div class="rounded-md border p-3">
                         <p class="text-xs text-muted-foreground">{{ t('Expenses') }}</p>
-                        <p class="text-xl font-bold">{{ formatCurrency(finance.expense, finance.currency) }}</p>
+                        <p class="text-xl font-bold">{{ formatAfn(finance.expense) }}</p>
                     </div>
                     <div class="rounded-md border p-3">
                         <p class="text-xs text-muted-foreground">{{ t('Margin') }}</p>
-                        <p class="text-xl font-bold">{{ formatCurrency(finance.margin, finance.currency) }}</p>
+                        <p class="text-xl font-bold">{{ formatAfn(finance.margin) }}</p>
                     </div>
                 </CardContent>
             </Card>
@@ -731,7 +811,10 @@ const closeIssueEdit = (): void => {
             <Can permission="finance.create">
             <Card>
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-base">{{ t('Add income') }}</CardTitle>
+                    <CardTitle class="text-base">{{ t('Record payment') }}</CardTitle>
+                    <p class="text-xs text-muted-foreground">
+                        {{ t('Log a client payment received for this project (amount in AFN).') }}
+                    </p>
                 </CardHeader>
                 <CardContent>
                     <Form
@@ -739,6 +822,7 @@ const closeIssueEdit = (): void => {
                         method="post"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
+                        validate-files
                         v-slot="{ errors, processing }"
                         @success="setActiveTab('finance')"
                     >
@@ -747,7 +831,7 @@ const closeIssueEdit = (): void => {
                             type="number"
                             min="0"
                             step="0.01"
-                            :placeholder="t('Amount')"
+                            :placeholder="t('Amount (AFN)')"
                             required
                         />
                         <InputError :message="errors.amount" />
@@ -758,12 +842,12 @@ const closeIssueEdit = (): void => {
                             required
                         />
                         <InputError :message="errors.transaction_date" />
-                        <Textarea name="description" rows="3" :placeholder="t('Description')" />
+                        <Textarea name="description" rows="3" :placeholder="t('Payment note (optional)')" />
                         <InputError :message="errors.description" />
-                        <input type="hidden" name="currency" :value="project.currency" />
+                        <input type="hidden" name="currency" value="AFN" />
                         <OptionalAttachmentField :label="t('Receipt')" :error="errors.attachment" />
                         <Button type="submit" size="sm" :disabled="processing">
-                            Record payment
+                            {{ t('Record payment') }}
                         </Button>
                     </Form>
                 </CardContent>
@@ -781,6 +865,7 @@ const closeIssueEdit = (): void => {
                         method="post"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
+                        validate-files
                         v-slot="{ errors, processing }"
                         @success="setActiveTab('finance')"
                     >
@@ -789,7 +874,7 @@ const closeIssueEdit = (): void => {
                             type="number"
                             min="0"
                             step="0.01"
-                            :placeholder="t('Amount')"
+                            :placeholder="t('Amount (AFN)')"
                             required
                         />
                         <InputError :message="errors.amount" />
@@ -802,7 +887,7 @@ const closeIssueEdit = (): void => {
                         <InputError :message="errors.transaction_date" />
                         <Textarea name="description" rows="3" :placeholder="t('Description')" />
                         <InputError :message="errors.description" />
-                        <input type="hidden" name="currency" :value="project.currency" />
+                        <input type="hidden" name="currency" value="AFN" />
                         <OptionalAttachmentField :label="t('Receipt')" :error="errors.attachment" />
                         <Button type="submit" size="sm" :disabled="processing">
                             Record expense
@@ -827,14 +912,23 @@ const closeIssueEdit = (): void => {
                     >
                         <div class="min-w-0">
                             <span class="text-green-600 dark:text-green-400">
-                                + {{ row.description ?? t('Income') }}
+                                + {{ row.description ?? t('Payment received') }}
                             </span>
                             <p class="text-xs text-muted-foreground">
                                 {{ formatDate(row.transaction_date) }}
+                                <a
+                                    v-for="file in row.attachments ?? []"
+                                    :key="file.id"
+                                    :href="file.download_url"
+                                    class="ms-2 inline-flex items-center gap-0.5 text-primary hover:underline"
+                                >
+                                    <Paperclip class="size-3" />
+                                    {{ file.original_filename }}
+                                </a>
                             </p>
                         </div>
                         <div class="flex shrink-0 items-center gap-2">
-                            <span>{{ formatCurrency(row.amount, row.currency) }}</span>
+                            <span>{{ formatAfn(row.amount) }}</span>
                             <RowActionsMenu :actions="financeEntryActions(row, 'income')" />
                         </div>
                     </div>
@@ -849,10 +943,19 @@ const closeIssueEdit = (): void => {
                             </span>
                             <p class="text-xs text-muted-foreground">
                                 {{ formatDate(row.transaction_date) }}
+                                <a
+                                    v-for="file in row.attachments ?? []"
+                                    :key="file.id"
+                                    :href="file.download_url"
+                                    class="ms-2 inline-flex items-center gap-0.5 text-primary hover:underline"
+                                >
+                                    <Paperclip class="size-3" />
+                                    {{ file.original_filename }}
+                                </a>
                             </p>
                         </div>
                         <div class="flex shrink-0 items-center gap-2">
-                            <span>{{ formatCurrency(row.amount, row.currency) }}</span>
+                            <span>{{ formatAfn(row.amount) }}</span>
                             <RowActionsMenu :actions="financeEntryActions(row, 'expense')" />
                         </div>
                     </div>
@@ -965,6 +1068,7 @@ const closeIssueEdit = (): void => {
                         method="post"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
+                        validate-files
                         v-slot="{ errors, processing }"
                         @success="setActiveTab('issues')"
                     >
@@ -1022,6 +1126,7 @@ const closeIssueEdit = (): void => {
                         v-bind="ProjectController.update.form(project.id)"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
+                        validate-files
                         v-slot="{ processing }"
                     >
                         <OptionalAttachmentField />
@@ -1056,7 +1161,7 @@ const closeIssueEdit = (): void => {
                         <DialogTitle>
                             {{
                                 editingFinance.type === 'income'
-                                    ? t('Edit income')
+                                    ? t('Edit payment')
                                     : t('Edit expense')
                             }}
                         </DialogTitle>
@@ -1064,7 +1169,7 @@ const closeIssueEdit = (): void => {
 
                     <div class="grid gap-3 py-4">
                         <div class="grid gap-2">
-                            <Label for="edit-finance-amount">{{ t('Amount') }}</Label>
+                            <Label for="edit-finance-amount">{{ t('Amount (AFN)') }}</Label>
                             <Input
                                 id="edit-finance-amount"
                                 name="amount"
@@ -1099,7 +1204,7 @@ const closeIssueEdit = (): void => {
                         <input
                             type="hidden"
                             name="currency"
-                            :value="editingFinance.row.currency"
+                            value="AFN"
                         />
                     </div>
 

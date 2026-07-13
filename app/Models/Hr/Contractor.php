@@ -4,13 +4,14 @@ namespace App\Models\Hr;
 
 use App\Concerns\HasAttachments;
 use App\Concerns\HasPersonnelAttachments;
+use App\Concerns\HasStatusChangeLogs;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Contractor extends Model
 {
-    use HasAttachments, HasPersonnelAttachments, SoftDeletes;
+    use HasAttachments, HasPersonnelAttachments, HasStatusChangeLogs, SoftDeletes;
 
     protected $fillable = [
         'first_name',

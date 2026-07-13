@@ -13,6 +13,8 @@ createInertiaApp({
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':
+            case name === 'mis/hr/Attendance/Print':
+            case name === 'mis/hr/Payroll/Print':
             case name.startsWith('errors/'):
             case name === 'mis/hr/Payroll/Print':
                 return null;

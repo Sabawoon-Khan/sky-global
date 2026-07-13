@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
+import { Form, Head, usePage } from '@inertiajs/vue3';
 import { Pencil, Tags, Trash2 } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import AlertError from '@/components/AlertError.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import SettingsAddButton from '@/components/SettingsAddButton.vue';
+import InputError from '@/components/InputError.vue';
+import { useAutoSlug } from '@/composables/useAutoSlug';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -30,6 +33,7 @@ import { toggleIsActiveAction } from '@/lib/status-actions';
 interface OrganizationType {
     id: number;
     name: string;
+    slug: string;
     color?: string | null;
     description?: string | null;
     is_active?: boolean;
@@ -43,6 +47,13 @@ interface Props {
 defineProps<Props>();
 
 const { t } = useTranslations();
+const page = usePage();
+
+const pageErrors = computed(() => {
+    const errors = page.props.errors as Record<string, string>;
+
+    return Object.values(errors).filter(Boolean);
+});
 
 defineOptions({
     layout: {
@@ -57,10 +68,17 @@ defineOptions({
 });
 
 const editingType = ref<OrganizationType | null>(null);
+const { name, slug, onSlugInput, initialize } = useAutoSlug();
 
 const openEdit = (type: OrganizationType): void => {
     editingType.value = type;
 };
+
+watch(editingType, (type) => {
+    if (type) {
+        initialize(type.name, type.slug);
+    }
+});
 
 const closeEdit = (): void => {
     editingType.value = null;
@@ -102,6 +120,12 @@ const organizationTypeActions = (type: OrganizationType): RowActionItem[] => [
     <Head :title="t('Organization Types')" />
 
     <div class="space-y-6">
+        <AlertError
+            v-if="pageErrors.length"
+            :errors="pageErrors"
+            :title="t('Something went wrong.')"
+        />
+
         <Card>
             <CardHeader>
                 <CardTitle class="flex items-center gap-2">
@@ -181,20 +205,34 @@ const organizationTypeActions = (type: OrganizationType): RowActionItem[] => [
                 </DialogHeader>
 
                 <div class="grid gap-4 py-4">
+                    <AlertError
+                        v-if="Object.keys(errors).length"
+                        :errors="Object.values(errors)"
+                        :title="t('Please fix the errors below.')"
+                    />
+
                     <div class="grid gap-2">
                         <Label for="edit-name">{{ t('Name') }}</Label>
                         <Input
                             id="edit-name"
                             name="name"
-                            :default-value="editingType.name"
+                            v-model="name"
                             required
                         />
-                        <p
-                            v-if="errors.name"
-                            class="text-sm text-destructive"
-                        >
-                            {{ errors.name }}
+                        <InputError :message="errors.name" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="edit-slug">{{ t('Slug') }}</Label>
+                        <Input
+                            id="edit-slug"
+                            name="slug"
+                            :model-value="slug"
+                            @update:model-value="onSlugInput"
+                        />
+                        <p class="text-sm text-muted-foreground">
+                            {{ t('Auto-generated from name. You can edit it.') }}
                         </p>
+                        <InputError :message="errors.slug" />
                     </div>
                     <div class="grid gap-2">
                         <Label for="edit-color">{{ t('Color') }}</Label>
@@ -205,6 +243,7 @@ const organizationTypeActions = (type: OrganizationType): RowActionItem[] => [
                             class="h-10 w-full cursor-pointer p-1"
                             :default-value="editingType.color ?? '#000000'"
                         />
+                        <InputError :message="errors.color" />
                     </div>
                     <div class="grid gap-2">
                         <Label for="edit-description">{{ t('Description') }}</Label>
@@ -213,6 +252,7 @@ const organizationTypeActions = (type: OrganizationType): RowActionItem[] => [
                             name="description"
                             :default-value="editingType.description ?? ''"
                         />
+                        <InputError :message="errors.description" />
                     </div>
                 </div>
 

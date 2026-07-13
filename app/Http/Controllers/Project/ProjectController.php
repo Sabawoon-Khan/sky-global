@@ -10,6 +10,7 @@ use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Project\StoreProjectRequest;
 use App\Http\Requests\Project\UpdateProjectRequest;
+use App\Models\Finance\Currency;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
 use App\Models\Hr\Contractor;
@@ -86,7 +87,7 @@ class ProjectController extends Controller
         $project = Project::query()->create([
             ...$validated,
             'code' => $this->generateProjectCode(),
-            'currency' => $validated['currency'] ?? 'USD',
+            'currency' => $validated['currency'] ?? 'AFN',
             'status' => $validated['status'] ?? ProjectStatus::Draft->value,
             'project_manager_id' => $request->user()->id,
             'created_by' => $request->user()->id,
@@ -122,12 +123,12 @@ class ProjectController extends Controller
             'documents' => fn ($q) => $q->latest(),
             'sites',
             'deployments' => fn ($q) => $q->with('projectSite')->latest(),
-            'incomes' => fn ($q) => $q->latest('transaction_date')->limit(20),
-            'expenses' => fn ($q) => $q->latest('transaction_date')->limit(20),
+            'incomes' => fn ($q) => $q->with('attachments')->latest('transaction_date')->limit(20),
+            'expenses' => fn ($q) => $q->with('attachments')->latest('transaction_date')->limit(20),
         ]);
 
-        $income = $project->incomes()->sum('amount_usd') ?: $project->incomes()->sum('amount');
-        $expense = $project->expenses()->sum('amount_usd') ?: $project->expenses()->sum('amount');
+        $income = $project->incomes()->sum('amount');
+        $expense = $project->expenses()->sum('amount');
 
         return Inertia::render('mis/projects/Show', [
             'project' => $project,
@@ -135,7 +136,7 @@ class ProjectController extends Controller
                 'income' => (float) $income,
                 'expense' => (float) $expense,
                 'margin' => (float) $income - (float) $expense,
-                'currency' => $project->currency ?? 'USD',
+                'currency' => 'AFN',
             ],
             'statusOptions' => $this->allowedStatusTransitions($project),
             'organizations' => Organization::query()
@@ -144,6 +145,7 @@ class ProjectController extends Controller
                 ->get(['id', 'name']),
             'employees' => Employee::query()
                 ->where('status', 'active')
+                ->where('is_permanent', false)
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name']),
@@ -162,6 +164,10 @@ class ProjectController extends Controller
         $validated = $request->validated();
         $detail = $validated['detail'] ?? null;
         unset($validated['detail']);
+
+        if ($request->has('has_security_scope')) {
+            $validated['security_scope'] = $request->input('security_scope', []);
+        }
 
         $previousStatus = $project->status;
         $project->update($validated);
@@ -237,7 +243,7 @@ class ProjectController extends Controller
 
         $competitorBid = $project->competitorBids()->create([
             ...$validated,
-            'currency' => $validated['currency'] ?? $project->currency ?? 'USD',
+            'currency' => $validated['currency'] ?? 'AFN',
         ]);
         $this->storeOptionalAttachment($request, $competitorBid);
 
@@ -277,10 +283,7 @@ class ProjectController extends Controller
         $income = ProjectIncome::query()->create([
             ...$validated,
             'project_id' => $project->id,
-            'currency' => $validated['currency'] ?? $project->currency ?? 'USD',
-            'amount_usd' => ($validated['currency'] ?? $project->currency ?? 'USD') === 'USD'
-                ? $validated['amount']
-                : null,
+            'currency' => 'AFN',
             'created_by' => $request->user()->id,
         ]);
         $this->storeOptionalAttachment($request, $income);
@@ -293,7 +296,7 @@ class ProjectController extends Controller
             ['amount' => $validated['amount']],
         );
 
-        return back()->with('success', 'Income recorded.');
+        return back()->with('success', 'Payment recorded.');
     }
 
     public function storeExpense(Request $request, Project $project): RedirectResponse
@@ -311,10 +314,7 @@ class ProjectController extends Controller
         $expense = ProjectExpense::query()->create([
             ...$validated,
             'project_id' => $project->id,
-            'currency' => $validated['currency'] ?? $project->currency ?? 'USD',
-            'amount_usd' => ($validated['currency'] ?? $project->currency ?? 'USD') === 'USD'
-                ? $validated['amount']
-                : null,
+            'currency' => 'AFN',
             'created_by' => $request->user()->id,
         ]);
         $this->storeOptionalAttachment($request, $expense);

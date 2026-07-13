@@ -1,0 +1,225 @@
+<script setup lang="ts">
+import { Head, useForm } from '@inertiajs/vue3';
+import { Languages, Loader2, Search } from '@lucide/vue';
+import { ref, watch } from 'vue';
+import MisPagination from '@/components/MisPagination.vue';
+import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { useLocale } from '@/composables/useLocale';
+import { useTranslations } from '@/composables/useTranslations';
+import type { Paginated } from '@/lib/format';
+
+interface TranslationEntry {
+    key: string;
+    value: string;
+    missing: boolean;
+}
+
+interface Props {
+    entries: Paginated<TranslationEntry>;
+    editingLocale: string;
+    filters: { search?: string | null; locale: string };
+}
+
+const props = defineProps<Props>();
+
+const { t } = useTranslations();
+const { locales } = useLocale();
+
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Settings', href: '/settings/users' },
+            { title: 'Translations', href: '/settings/translations' },
+        ],
+    },
+});
+
+const formValues = ref<Record<string, string>>({});
+
+const form = useForm({
+    locale: props.editingLocale,
+    translations: {} as Record<string, string>,
+});
+
+const syncFormValues = (): void => {
+    const values: Record<string, string> = {};
+
+    props.entries.data.forEach((entry) => {
+        values[entry.key] = entry.value;
+    });
+
+    formValues.value = values;
+};
+
+watch(() => props.entries, syncFormValues, { immediate: true, deep: true });
+
+const localeTabHref = (code: string): string => {
+    const params = new URLSearchParams();
+
+    if (props.filters.search) {
+        params.set('search', props.filters.search);
+    }
+
+    params.set('locale', code);
+
+    const query = params.toString();
+
+    return query ? `/settings/translations?${query}` : '/settings/translations';
+};
+
+const saveTranslations = (): void => {
+    form.locale = props.editingLocale;
+    form.translations = { ...formValues.value };
+    form.put('/settings/translations', { preserveScroll: true });
+};
+</script>
+
+<template>
+    <Head :title="t('Translations')" />
+
+    <Card>
+        <CardHeader class="space-y-4 border-b pb-4">
+            <div class="flex flex-col gap-1">
+                <CardTitle class="flex items-center gap-2 text-base">
+                    <Languages class="size-4" />
+                    {{ t('Translations') }}
+                </CardTitle>
+                <CardDescription class="text-xs">
+                    {{ t('Edit application translations. Keys cannot be changed.') }}
+                </CardDescription>
+            </div>
+
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                    class="inline-flex w-fit gap-0.5 rounded-md bg-muted p-0.5"
+                >
+                    <a
+                        v-for="option in locales"
+                        :key="option.code"
+                        :href="localeTabHref(option.code)"
+                        :class="[
+                            'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                            editingLocale === option.code
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground',
+                        ]"
+                    >
+                        {{ option.native }}
+                    </a>
+                </div>
+
+                <div class="flex flex-1 items-center gap-2 sm:max-w-md sm:justify-end">
+                    <form
+                        method="get"
+                        action="/settings/translations"
+                        class="relative min-w-0 flex-1"
+                    >
+                        <input type="hidden" name="locale" :value="editingLocale" />
+                        <Search
+                            class="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+                        />
+                        <Input
+                            name="search"
+                            :default-value="filters.search ?? ''"
+                            :placeholder="t('Search translations...')"
+                            :aria-label="t('Search translations...')"
+                            class="h-8 pl-8 text-sm"
+                        />
+                    </form>
+
+                    <Button
+                        type="button"
+                        size="sm"
+                        class="shrink-0 gap-1.5"
+                        :disabled="form.processing || entries.data.length === 0"
+                        @click="saveTranslations"
+                    >
+                        <Loader2
+                            v-if="form.processing"
+                            class="size-3.5 animate-spin"
+                        />
+                        {{ t('Save') }}
+                    </Button>
+                </div>
+            </div>
+        </CardHeader>
+
+        <CardContent class="p-0">
+            <div
+                v-if="entries.data.length === 0"
+                class="px-6 py-12 text-center text-sm text-muted-foreground"
+            >
+                {{ t('No translations found.') }}
+            </div>
+
+            <form v-else @submit.prevent="saveTranslations">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b bg-muted/30 text-left text-xs text-muted-foreground">
+                                <th class="w-[42%] px-4 py-2 font-medium">
+                                    {{ t('Key') }}
+                                </th>
+                                <th class="px-4 py-2 font-medium">
+                                    {{ t('Translation') }}
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="(entry, index) in entries.data"
+                                :key="entry.key"
+                                class="border-b last:border-b-0 hover:bg-muted/15"
+                            >
+                                <td class="px-4 py-1.5 align-middle">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <span
+                                            v-if="entry.missing"
+                                            class="size-1.5 shrink-0 rounded-full bg-amber-500"
+                                            :title="t('Missing translation')"
+                                        />
+                                        <span
+                                            class="truncate text-xs text-muted-foreground"
+                                            :title="entry.key"
+                                        >
+                                            {{ entry.key }}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-1 align-middle">
+                                    <Input
+                                        :id="`translation-${index}`"
+                                        v-model="formValues[entry.key]"
+                                        class="h-8 border-transparent bg-transparent text-sm shadow-none focus-visible:border-input focus-visible:bg-background"
+                                    />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p
+                    v-if="form.errors.translations"
+                    class="border-t px-4 py-2 text-xs text-destructive"
+                >
+                    {{ form.errors.translations }}
+                </p>
+
+                <div
+                    v-if="entries.meta && entries.meta.last_page > 1"
+                    class="border-t px-4 py-3"
+                >
+                    <MisPagination :pagination="entries" />
+                </div>
+            </form>
+        </CardContent>
+    </Card>
+</template>

@@ -4,6 +4,7 @@ namespace App\Models\Hr;
 
 use App\Concerns\HasAttachments;
 use App\Concerns\HasPersonnelAttachments;
+use App\Concerns\HasStatusChangeLogs;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
 {
-    use HasAttachments, HasPersonnelAttachments, SoftDeletes;
+    use HasAttachments, HasPersonnelAttachments, HasStatusChangeLogs, SoftDeletes;
 
     protected $fillable = [
         'first_name',
@@ -27,6 +28,7 @@ class Employee extends Model
         'gender',
         'photo_path',
         'status',
+        'is_permanent',
         'user_id',
     ];
 
@@ -34,7 +36,18 @@ class Employee extends Model
     {
         return [
             'date_of_birth' => 'date',
+            'is_permanent' => 'boolean',
         ];
+    }
+
+    public function scopePermanent($query)
+    {
+        return $query->where('is_permanent', true);
+    }
+
+    public function scopeProjectBased($query)
+    {
+        return $query->where('is_permanent', false);
     }
 
     public function user(): BelongsTo

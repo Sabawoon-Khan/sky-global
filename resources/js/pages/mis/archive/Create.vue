@@ -8,6 +8,7 @@ import {
     StickyNote,
 } from '@lucide/vue';
 import ArchiveDocumentFields from '@/components/archive/ArchiveDocumentFields.vue';
+import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
 import MisPage from '@/components/MisPage.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -71,6 +72,7 @@ defineOptions({
             method="post"
             class="flex flex-1 flex-col gap-6"
             :options="{ forceFormData: true }"
+            validate-files
             v-slot="{ errors, processing }"
         >
             <Card>
@@ -85,7 +87,7 @@ defineOptions({
                 </CardHeader>
                 <CardContent>
                     <ArchiveDocumentFields
-                        section="basic"
+                        fields-section="basic"
                         :errors="errors"
                         :categories="categories"
                         :organizations="organizations"
@@ -106,7 +108,7 @@ defineOptions({
                 </CardHeader>
                 <CardContent>
                     <ArchiveDocumentFields
-                        section="dates"
+                        fields-section="dates"
                         :errors="errors"
                         :categories="categories"
                         :organizations="organizations"
@@ -127,7 +129,7 @@ defineOptions({
                 </CardHeader>
                 <CardContent>
                     <ArchiveDocumentFields
-                        section="links"
+                        fields-section="links"
                         :errors="errors"
                         :categories="categories"
                         :organizations="organizations"
@@ -147,13 +149,11 @@ defineOptions({
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <ArchiveDocumentFields
-                        section="file"
-                        :errors="errors"
-                        :categories="categories"
-                        :organizations="organizations"
-                        :projects="projects"
-                        file-required
+                    <OptionalAttachmentField
+                        name="file"
+                        :label="t('File')"
+                        :error="errors.file"
+                        required
                     />
                 </CardContent>
             </Card>
@@ -170,7 +170,7 @@ defineOptions({
                 </CardHeader>
                 <CardContent>
                     <ArchiveDocumentFields
-                        section="description"
+                        fields-section="description"
                         :errors="errors"
                         :categories="categories"
                         :organizations="organizations"

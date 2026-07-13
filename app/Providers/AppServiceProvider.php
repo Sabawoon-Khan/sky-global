@@ -3,12 +3,14 @@
 namespace App\Providers;
 
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Listeners\LogAuthenticationActivity;
 use App\Models\Hr\Contractor;
 use App\Models\Hr\Employee;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -34,6 +36,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configureMorphMap();
         $this->configureGates();
+        $this->configureAuthenticationLogging();
         $this->configureInertiaExceptionHandling();
         $this->refreshViteFontManifestCacheInLocal();
     }
@@ -81,6 +84,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::before(function ($user, $ability) {
             return $user->hasRole('Owner') ? true : null;
         });
+    }
+
+    protected function configureAuthenticationLogging(): void
+    {
+        Event::subscribe(LogAuthenticationActivity::class);
     }
 
     protected function configureInertiaExceptionHandling(): void

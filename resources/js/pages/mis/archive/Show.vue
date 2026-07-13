@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link, router } from '@inertiajs/vue3';
-import { Archive, FileText } from '@lucide/vue';
+import { Archive, Download, FileText } from '@lucide/vue';
 import ArchiveDocumentFields from '@/components/archive/ArchiveDocumentFields.vue';
 import Can from '@/components/Can.vue';
 import MisPage from '@/components/MisPage.vue';
@@ -32,6 +32,7 @@ interface ArchivedDocument {
     sent_at?: string | null;
     original_filename?: string | null;
     file_size?: number | null;
+    download_url?: string | null;
     version?: number | null;
     tags?: string[] | null;
     document_category_id?: number | null;
@@ -133,6 +134,16 @@ const moveToLongTermArchive = (): void => {
             </div>
 
             <div class="flex shrink-0 flex-wrap gap-2">
+                <Button
+                    v-if="document.download_url"
+                    variant="default"
+                    as-child
+                >
+                    <a :href="document.download_url">
+                        <Download class="me-2 size-4" />
+                        {{ t('Download file') }}
+                    </a>
+                </Button>
                 <Button variant="outline" as-child>
                     <Link href="/archive">{{ t('Back to list') }}</Link>
                 </Button>
@@ -216,7 +227,14 @@ const moveToLongTermArchive = (): void => {
                             {{ t('File') }}
                         </p>
                         <p>
-                            {{ document.original_filename ?? '—' }}
+                            <a
+                                v-if="document.download_url"
+                                :href="document.download_url"
+                                class="inline-flex items-center gap-1 font-medium hover:underline"
+                            >
+                                {{ document.original_filename ?? t('Download file') }}
+                            </a>
+                            <span v-else>{{ document.original_filename ?? '—' }}</span>
                             <span
                                 v-if="document.file_size"
                                 class="text-muted-foreground"
@@ -255,6 +273,7 @@ const moveToLongTermArchive = (): void => {
                             method="put"
                             class="space-y-6"
                             :options="{ preserveScroll: true, forceFormData: true }"
+                            validate-files
                             v-slot="{ errors, processing }"
                         >
                             <ArchiveDocumentFields

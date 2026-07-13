@@ -49,6 +49,7 @@ defineOptions({
             v-bind="EmployeeController.store.form()"
             class="space-y-6"
             :options="{ forceFormData: true }"
+            validate-files
             v-slot="{ errors, processing }"
         >
             <Card>
@@ -124,37 +125,59 @@ defineOptions({
                     <CardTitle>{{ t('Job details') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="grid gap-4">
-                    <div class="grid gap-2">
-                        <Label for="job_detail_department_id">{{ t('Department') }}</Label>
-                        <select
-                            id="job_detail_department_id"
-                            name="job_detail[department_id]"
-                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                        >
-                            <option value="">{{ t('Select department') }}</option>
-                            <option
-                                v-for="dept in departments"
-                                :key="dept.id"
-                                :value="dept.id"
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div class="grid gap-2">
+                            <Label for="job_detail_department_id">{{ t('Department') }}</Label>
+                            <select
+                                id="job_detail_department_id"
+                                name="job_detail[department_id]"
+                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
                             >
-                                {{ dept.name }}
-                            </option>
-                        </select>
+                                <option value="">{{ t('Select department') }}</option>
+                                <option
+                                    v-for="dept in departments"
+                                    :key="dept.id"
+                                    :value="dept.id"
+                                >
+                                    {{ dept.name }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="job_detail_designation">{{ t('Designation') }}</Label>
+                            <Input
+                                id="job_detail_designation"
+                                name="job_detail[designation]"
+                            />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="job_detail_hire_date">{{ t('Hire date') }}</Label>
+                            <Input
+                                id="job_detail_hire_date"
+                                name="job_detail[hire_date]"
+                                type="date"
+                            />
+                        </div>
                     </div>
-                    <div class="grid gap-2">
-                        <Label for="job_detail_designation">{{ t('Designation') }}</Label>
-                        <Input
-                            id="job_detail_designation"
-                            name="job_detail[designation]"
-                        />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="job_detail_hire_date">{{ t('Hire date') }}</Label>
-                        <Input
-                            id="job_detail_hire_date"
-                            name="job_detail[hire_date]"
-                            type="date"
-                        />
+                    <div class="rounded-lg border bg-muted/20 p-4">
+                        <input type="hidden" name="is_permanent" value="0" />
+                        <div class="flex items-start gap-3">
+                            <input
+                                id="is_permanent"
+                                name="is_permanent"
+                                type="checkbox"
+                                value="1"
+                                class="mt-1 size-4 rounded border border-input"
+                            />
+                            <div class="space-y-1">
+                                <Label for="is_permanent" class="cursor-pointer font-medium">
+                                    {{ t('Permanent staff') }}
+                                </Label>
+                                <p class="text-sm text-muted-foreground">
+                                    {{ t('Office-based employee included in general attendance, not assigned to projects.') }}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

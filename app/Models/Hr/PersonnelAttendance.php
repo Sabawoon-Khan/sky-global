@@ -3,6 +3,7 @@
 namespace App\Models\Hr;
 
 use App\Concerns\HasAttachments;
+use App\Models\Hr\AttendanceSheet;
 use App\Models\Project\Project;
 use App\Models\Project\ProjectSite;
 use App\Models\User;
@@ -20,10 +21,15 @@ class PersonnelAttendance extends Model
         'days_present' => 0,
         'days_absent' => 0,
         'days_leave' => 0,
+        'days_sick_leave' => 0,
+        'days_annual_leave' => 0,
+        'days_casual_leave' => 0,
+        'days_other' => 0,
         'overtime_hours' => 0,
     ];
 
     protected $fillable = [
+        'attendance_sheet_id',
         'personnel_type',
         'personnel_id',
         'project_id',
@@ -33,6 +39,11 @@ class PersonnelAttendance extends Model
         'days_present',
         'days_absent',
         'days_leave',
+        'days_sick_leave',
+        'days_annual_leave',
+        'days_casual_leave',
+        'days_other',
+        'daily_marks',
         'overtime_hours',
         'status',
         'approved_by',
@@ -42,6 +53,7 @@ class PersonnelAttendance extends Model
     protected function casts(): array
     {
         return [
+            'daily_marks' => 'array',
             'overtime_hours' => 'decimal:2',
         ];
     }
@@ -54,6 +66,11 @@ class PersonnelAttendance extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function attendanceSheet(): BelongsTo
+    {
+        return $this->belongsTo(AttendanceSheet::class, 'attendance_sheet_id');
     }
 
     public function projectSite(): BelongsTo

@@ -45,6 +45,7 @@ interface Employee {
     email?: string | null;
     current_address?: string | null;
     status: string;
+    is_permanent?: boolean;
     job_detail?: JobDetail | null;
     personnel_attachments?: PersonnelFormRecord[];
 }
@@ -88,6 +89,7 @@ defineOptions({
             v-bind="EmployeeController.update.form(employee.id)"
             class="space-y-6"
             :options="{ forceFormData: true }"
+            validate-files
             v-slot="{ errors, processing }"
         >
             <Card>
@@ -272,6 +274,27 @@ defineOptions({
                             type="date"
                             :default-value="employee.job_detail?.hire_date ?? ''"
                         />
+                    </div>
+                    <div class="rounded-lg border bg-muted/20 p-4 md:col-span-2">
+                        <input type="hidden" name="is_permanent" value="0" />
+                        <div class="flex items-start gap-3">
+                            <input
+                                id="is_permanent"
+                                name="is_permanent"
+                                type="checkbox"
+                                value="1"
+                                class="mt-1 size-4 rounded border border-input"
+                                :checked="employee.is_permanent"
+                            />
+                            <div class="space-y-1">
+                                <Label for="is_permanent" class="cursor-pointer font-medium">
+                                    Permanent staff
+                                </Label>
+                                <p class="text-sm text-muted-foreground">
+                                    Office-based employee included in general attendance, not assigned to projects.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

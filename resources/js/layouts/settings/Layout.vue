@@ -49,6 +49,18 @@ const adminNavItems = computed<NavItem[]>(() =>
                   href: '/settings/roles',
               }
             : null,
+        canAny(['settings.view_login_logs', 'settings.manage_users'])
+            ? {
+                  title: t('Login Logs'),
+                  href: '/settings/login-logs',
+              }
+            : null,
+        can('settings.edit')
+            ? {
+                  title: t('Payroll Rules'),
+                  href: '/settings/payroll-rules',
+              }
+            : null,
         can('settings.edit')
             ? {
                   title: t('Organization Types'),
@@ -71,6 +83,12 @@ const adminNavItems = computed<NavItem[]>(() =>
             ? {
                   title: t('Backups'),
                   href: '/settings/backups',
+              }
+            : null,
+        can('settings.edit')
+            ? {
+                  title: t('Translations'),
+                  href: '/settings/translations',
               }
             : null,
     ].filter((item): item is NavItem => item !== null),

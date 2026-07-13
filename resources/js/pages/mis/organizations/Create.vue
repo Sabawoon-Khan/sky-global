@@ -46,6 +46,7 @@ defineOptions({
             v-bind="OrganizationController.store.form()"
             class="space-y-6"
             :options="{ forceFormData: true }"
+            validate-files
             v-slot="{ errors, processing }"
         >
             <Card>

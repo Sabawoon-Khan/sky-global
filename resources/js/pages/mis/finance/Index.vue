@@ -5,6 +5,7 @@ import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
 import MisTabs from '@/components/MisTabs.vue';
+import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,8 +30,14 @@ import {
     approvalStatusActions,
     invoiceStatusActions,
 } from '@/lib/status-actions';
-import { ChevronDown, Plus } from '@lucide/vue';
+import { ChevronDown, Paperclip, Plus } from '@lucide/vue';
 import { cn } from '@/lib/utils';
+
+interface FinanceAttachment {
+    id: number;
+    original_filename: string;
+    download_url: string;
+}
 
 interface Income {
     id: number;
@@ -41,6 +48,7 @@ interface Income {
     received_at?: string | null;
     status?: string | null;
     project?: { id: number; code: string; name: string } | null;
+    attachments?: FinanceAttachment[];
 }
 
 interface Expense {
@@ -52,6 +60,7 @@ interface Expense {
     incurred_at?: string | null;
     status?: string | null;
     project?: { id: number; code: string; name: string } | null;
+    attachments?: FinanceAttachment[];
 }
 
 interface Invoice {
@@ -73,6 +82,7 @@ interface GeneralRecord {
     currency?: string | null;
     transaction_date?: string | null;
     status?: string | null;
+    attachments?: FinanceAttachment[];
 }
 
 interface FinanceSummary {
@@ -328,6 +338,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 <th class="px-3 py-2 font-medium">{{ t('Project') }}</th>
                                 <th class="px-3 py-2 font-medium">{{ t('Date') }}</th>
                                 <th class="px-3 py-2 font-medium">{{ t('Status') }}</th>
+                                <th class="px-3 py-2 font-medium">{{ t('Attachment') }}</th>
                                 <th class="px-3 py-2 text-end font-medium">{{ t('Amount') }}</th>
                                 <th class="px-3 py-2 text-end font-medium">{{ t('Actions') }}</th>
                             </tr>
@@ -349,6 +360,20 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                     <Badge variant="outline">
                                         {{ item.status ?? t('pending') }}
                                     </Badge>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <a
+                                        v-if="item.attachments?.length"
+                                        :href="item.attachments[0].download_url"
+                                        class="inline-flex items-center gap-1 text-primary hover:underline"
+                                        :title="item.attachments[0].original_filename"
+                                    >
+                                        <Paperclip class="size-3.5 shrink-0" />
+                                        <span class="max-w-[8rem] truncate text-xs">
+                                            {{ item.attachments[0].original_filename }}
+                                        </span>
+                                    </a>
+                                    <span v-else class="text-muted-foreground">—</span>
                                 </td>
                                 <td class="px-3 py-2 text-end font-medium">
                                     {{
@@ -387,6 +412,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 <th class="px-3 py-2 font-medium">{{ t('Project') }}</th>
                                 <th class="px-3 py-2 font-medium">{{ t('Date') }}</th>
                                 <th class="px-3 py-2 font-medium">{{ t('Status') }}</th>
+                                <th class="px-3 py-2 font-medium">{{ t('Attachment') }}</th>
                                 <th class="px-3 py-2 text-end font-medium">{{ t('Amount') }}</th>
                                 <th class="px-3 py-2 text-end font-medium">{{ t('Actions') }}</th>
                             </tr>
@@ -408,6 +434,20 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                     <Badge variant="outline">
                                         {{ item.status ?? t('pending') }}
                                     </Badge>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <a
+                                        v-if="item.attachments?.length"
+                                        :href="item.attachments[0].download_url"
+                                        class="inline-flex items-center gap-1 text-primary hover:underline"
+                                        :title="item.attachments[0].original_filename"
+                                    >
+                                        <Paperclip class="size-3.5 shrink-0" />
+                                        <span class="max-w-[8rem] truncate text-xs">
+                                            {{ item.attachments[0].original_filename }}
+                                        </span>
+                                    </a>
+                                    <span v-else class="text-muted-foreground">—</span>
                                 </td>
                                 <td class="px-3 py-2 text-end font-medium">
                                     {{
@@ -455,7 +495,8 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 action="/finance/general-incomes"
                                 method="post"
                                 class="grid gap-3 sm:grid-cols-2"
-                                :options="{ preserveScroll: true, resetOnSuccess: true }"
+                                :options="{ preserveScroll: true, resetOnSuccess: true, forceFormData: true }"
+                                validate-files
                                 v-slot="{ errors, processing }"
                             >
                                 <div class="grid gap-2 sm:col-span-2">
@@ -474,6 +515,12 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 <div class="grid gap-2">
                                     <Label for="gi-date">{{ t('Date') }} *</Label>
                                     <Input id="gi-date" name="transaction_date" type="date" required />
+                                </div>
+                                <div class="grid gap-2 sm:col-span-2">
+                                    <OptionalAttachmentField
+                                        :label="t('Receipt')"
+                                        :error="errors.attachment"
+                                    />
                                 </div>
                                 <div class="flex items-end sm:col-span-2">
                                     <Button type="submit" size="sm" :disabled="processing">
@@ -496,6 +543,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 <th class="px-3 py-2 font-medium">{{ t('Description') }}</th>
                                 <th class="px-3 py-2 font-medium">{{ t('Category') }}</th>
                                 <th class="px-3 py-2 font-medium">{{ t('Date') }}</th>
+                                <th class="px-3 py-2 font-medium">{{ t('Attachment') }}</th>
                                 <th class="px-3 py-2 text-end font-medium">{{ t('Amount') }}</th>
                             </tr>
                         </thead>
@@ -509,6 +557,20 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 <td class="px-3 py-2 text-muted-foreground">{{ item.category ?? '—' }}</td>
                                 <td class="px-3 py-2 text-muted-foreground">
                                     {{ formatDate(item.transaction_date) }}
+                                </td>
+                                <td class="px-3 py-2">
+                                    <a
+                                        v-if="item.attachments?.length"
+                                        :href="item.attachments[0].download_url"
+                                        class="inline-flex items-center gap-1 text-primary hover:underline"
+                                        :title="item.attachments[0].original_filename"
+                                    >
+                                        <Paperclip class="size-3.5 shrink-0" />
+                                        <span class="max-w-[8rem] truncate text-xs">
+                                            {{ item.attachments[0].original_filename }}
+                                        </span>
+                                    </a>
+                                    <span v-else class="text-muted-foreground">—</span>
                                 </td>
                                 <td class="px-3 py-2 text-end font-medium text-green-600 dark:text-green-400">
                                     {{ formatCurrency(item.amount_usd ?? item.amount, item.currency) }}
@@ -550,6 +612,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 method="post"
                                 class="grid gap-3 sm:grid-cols-2"
                                 :options="{ preserveScroll: true, resetOnSuccess: true, forceFormData: true }"
+                                validate-files
                                 v-slot="{ errors, processing }"
                             >
                                 <div class="grid gap-2 sm:col-span-2">
@@ -576,6 +639,12 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                     <Label for="ge-date">{{ t('Date') }} *</Label>
                                     <Input id="ge-date" name="transaction_date" type="date" required />
                                 </div>
+                                <div class="grid gap-2 sm:col-span-2">
+                                    <OptionalAttachmentField
+                                        :label="t('Receipt')"
+                                        :error="errors.attachment"
+                                    />
+                                </div>
                                 <div class="flex items-end sm:col-span-2">
                                     <Button type="submit" size="sm" :disabled="processing">
                                         {{ t('Save') }}
@@ -597,6 +666,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 <th class="px-3 py-2 font-medium">{{ t('Description') }}</th>
                                 <th class="px-3 py-2 font-medium">{{ t('Category') }}</th>
                                 <th class="px-3 py-2 font-medium">{{ t('Date') }}</th>
+                                <th class="px-3 py-2 font-medium">{{ t('Attachment') }}</th>
                                 <th class="px-3 py-2 text-end font-medium">{{ t('Amount') }}</th>
                             </tr>
                         </thead>
@@ -610,6 +680,20 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 <td class="px-3 py-2 text-muted-foreground">{{ item.category ?? '—' }}</td>
                                 <td class="px-3 py-2 text-muted-foreground">
                                     {{ formatDate(item.transaction_date) }}
+                                </td>
+                                <td class="px-3 py-2">
+                                    <a
+                                        v-if="item.attachments?.length"
+                                        :href="item.attachments[0].download_url"
+                                        class="inline-flex items-center gap-1 text-primary hover:underline"
+                                        :title="item.attachments[0].original_filename"
+                                    >
+                                        <Paperclip class="size-3.5 shrink-0" />
+                                        <span class="max-w-[8rem] truncate text-xs">
+                                            {{ item.attachments[0].original_filename }}
+                                        </span>
+                                    </a>
+                                    <span v-else class="text-muted-foreground">—</span>
                                 </td>
                                 <td class="px-3 py-2 text-end font-medium text-destructive">
                                     {{ formatCurrency(item.amount_usd ?? item.amount, item.currency) }}
@@ -641,6 +725,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 <th class="px-3 py-2 font-medium">{{ t('Client') }}</th>
                                 <th class="px-3 py-2 font-medium">{{ t('Due Date') }}</th>
                                 <th class="px-3 py-2 font-medium">{{ t('Status') }}</th>
+                                <th class="px-3 py-2 font-medium">{{ t('Attachment') }}</th>
                                 <th class="px-3 py-2 text-end font-medium">{{ t('Amount') }}</th>
                                 <th class="px-3 py-2 text-end font-medium">{{ t('Actions') }}</th>
                             </tr>
@@ -662,6 +747,20 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 </td>
                                 <td class="px-3 py-2">
                                     <Badge variant="outline">{{ invoice.status }}</Badge>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <a
+                                        v-if="item.attachments?.length"
+                                        :href="item.attachments[0].download_url"
+                                        class="inline-flex items-center gap-1 text-primary hover:underline"
+                                        :title="item.attachments[0].original_filename"
+                                    >
+                                        <Paperclip class="size-3.5 shrink-0" />
+                                        <span class="max-w-[8rem] truncate text-xs">
+                                            {{ item.attachments[0].original_filename }}
+                                        </span>
+                                    </a>
+                                    <span v-else class="text-muted-foreground">—</span>
                                 </td>
                                 <td class="px-3 py-2 text-end font-medium">
                                     {{ formatCurrency(invoice.total_amount, invoice.currency) }}

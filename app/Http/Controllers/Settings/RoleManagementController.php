@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\StoreRoleRequest;
 use App\Http\Requests\Settings\UpdateRoleRequest;
+use App\Services\MisPermissionRegistrar;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -20,9 +21,15 @@ class RoleManagementController extends Controller
     /** @var list<string> */
     private array $protectedRoles = ['Owner'];
 
+    public function __construct(
+        private MisPermissionRegistrar $permissions,
+    ) {}
+
     public function index(Request $request): Response
     {
         $this->authorizePermission($request, 'settings.manage_users');
+
+        $this->permissions->sync();
 
         return Inertia::render('settings/Roles/Index', [
             'roles' => Role::query()
@@ -37,6 +44,8 @@ class RoleManagementController extends Controller
     public function create(Request $request): Response
     {
         $this->authorizePermission($request, 'settings.manage_users');
+
+        $this->permissions->sync();
 
         return Inertia::render('settings/Roles/Create', [
             'permissions' => Permission::query()->orderBy('name')->get(['id', 'name']),

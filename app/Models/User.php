@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\HasStatusChangeLogs;
 use App\Models\Hr\Employee;
 use App\Models\Project\Project;
 use Database\Factories\UserFactory;
@@ -20,7 +21,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, LogsActivity, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+    use HasFactory, HasRoles, HasStatusChangeLogs, LogsActivity, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /** @use HasFactory<UserFactory> */
     protected $fillable = [
@@ -68,24 +69,37 @@ class User extends Authenticatable implements PasskeyUser
 
     public function disable(?User $by = null): void
     {
+        $fromStatus = $this->is_active ? 'active' : 'disabled';
+
         $this->update([
             'is_active' => false,
             'disabled_at' => now(),
             'disabled_by' => $by?->id ?? auth()->id(),
         ]);
+
+        $this->logStatusChange('disabled', $fromStatus, $by);
     }
 
-    public function enable(): void
+    public function enable(?User $by = null): void
     {
+        $fromStatus = $this->is_active ? 'active' : 'disabled';
+
         $this->update([
             'is_active' => true,
             'disabled_at' => null,
             'disabled_by' => null,
         ]);
+
+        $this->logStatusChange('active', $fromStatus, $by);
     }
 
     public function managedProjects(): HasMany
     {
         return $this->hasMany(Project::class, 'project_manager_id');
+    }
+
+    public function authenticationLogs(): HasMany
+    {
+        return $this->hasMany(AuthenticationLog::class);
     }
 }

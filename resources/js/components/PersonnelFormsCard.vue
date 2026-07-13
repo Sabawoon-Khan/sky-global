@@ -141,6 +141,7 @@ const selectedType = () =>
                     method="post"
                     class="space-y-4 ui-inset-panel"
                     :options="{ forceFormData: true }"
+                    validate-files
                     @success="showAddForm = false"
                     v-slot="{ errors, processing }"
                 >

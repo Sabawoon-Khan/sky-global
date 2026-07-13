@@ -31,7 +31,10 @@ class ProjectDeploymentController extends Controller
             'currency' => ['nullable', 'string', 'size:3'],
         ]);
 
-        $deployment = $project->deployments()->create($validated);
+        $deployment = $project->deployments()->create([
+            ...$validated,
+            'currency' => $validated['currency'] ?? 'AFN',
+        ]);
 
         ProjectActivityLogger::log(
             $project,

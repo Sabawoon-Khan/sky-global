@@ -39,11 +39,18 @@ export function usePermissions() {
         normalizePermissions(page.props.auth?.user?.permissions),
     );
 
+    const roles = computed(() =>
+        normalizePermissions(page.props.auth?.user?.roles),
+    );
+
+    const isOwner = computed(() => roles.value.includes('Owner'));
+
     const can = (permission: string): boolean =>
-        permissions.value.includes(permission);
+        isOwner.value || permissions.value.includes(permission);
 
     const canAny = (permissionList: string[]): boolean =>
+        isOwner.value ||
         permissionList.some((permission) => permissions.value.includes(permission));
 
-    return { permissions, can, canAny };
+    return { permissions, roles, isOwner, can, canAny };
 }
