@@ -1100,5 +1100,18 @@
     "Submitted": "ارسال شده",
     "After submitting, you will not be able to edit these records. Continue?": "پس از ارسال، دیگر نمی‌توانید این ریکوردها را ویرایش کنید. ادامه می‌دهید؟",
     "No editable records on this page. Submitted attendance can only be changed by an administrator.": "ریکورد قابل ویرایش در این صفحه نیست. حاضری ارسال‌شده فقط توسط مدیر قابل تغییر است.",
-    "No staff assigned to this project for :period.": "هیچ کارکنی برای این پروژه در :period اختصاص داده نشده است."
+    "No staff assigned to this project for :period.": "هیچ کارکنی برای این پروژه در :period اختصاص داده نشده است.",
+    "Salary grade": "درجه معاش",
+    "Project pay": "حقوق پروژه‌ای",
+    "No salary records yet. Click below to add one.": "هنوز سابقه معاش ثبت نشده. برای افزودن روی دکمه زیر کلیک کنید.",
+    "Salary :number": "معاش :number",
+    "Monthly amount": "مبلغ ماهانه",
+    "Add salary": "افزودن معاش",
+    "Project assignments": "تخصیص‌های پروژه",
+    "mo": "ماه",
+    "This employee is project-based. Pay is set per project when they are assigned.": "این کارمند پروژه‌ای است. حقوق هنگام تخصیص به هر پروژه تعیین می‌شود.",
+    "Project-based employees are paid through their project assignment. After saving, assign them to a project and set the monthly rate there.": "کارمندان پروژه‌ای از طریق تخصیص پروژه حقوق می‌گیرند. پس از ذخیره، آن‌ها را به پروژه اختصاص دهید و نرخ ماهانه را در آنجا تعیین کنید.",
+    "Project-based employees are paid through their project assignment. Assign them to a project and set the monthly rate there.": "کارمندان پروژه‌ای از طریق تخصیص پروژه حقوق می‌گیرند. آن‌ها را به پروژه اختصاص دهید و نرخ ماهانه را در آنجا تعیین کنید.",
+    "The date from which this monthly salary applies to payroll.": "تاریخی که از آن این معاش ماهانه در محاسبه حقوق اعمال می‌شود.",
+    "Optional. Last date this salary applies. Leave blank if it is still current.": "اختیاری. آخرین تاریخی که این معاش اعمال می‌شود. اگر هنوز جاری است خالی بگذارید."
 }

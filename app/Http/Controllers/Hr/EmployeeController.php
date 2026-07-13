@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Concerns\StoresPersonnelAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
+use App\Models\Finance\Currency;
 use App\Models\Forms\AttachmentType;
 use App\Models\Hr\Employee;
 use App\Models\Hr\PersonnelAttendance;
@@ -64,6 +65,7 @@ class EmployeeController extends Controller
 
         return Inertia::render('mis/hr/Employees/Create', [
             'departments' => Department::query()->orderBy('name')->get(),
+            'currencies' => $this->activeCurrencies(),
             'attachmentTypes' => $this->activeAttachmentTypes(),
         ]);
     }
@@ -90,11 +92,12 @@ class EmployeeController extends Controller
             'job_detail.designation' => ['nullable', 'string', 'max:100'],
             'job_detail.hire_date' => ['nullable', 'date'],
             'job_detail.salary_grade' => ['nullable', 'string', 'max:50'],
+            ...$this->salaryValidationRules(),
             ...$this->personnelAttachmentValidationRules(),
         ]);
 
         $jobDetail = $validated['job_detail'] ?? null;
-        unset($validated['job_detail'], $validated['personnel_forms']);
+        unset($validated['job_detail'], $validated['salaries'], $validated['personnel_forms']);
 
         $employee = Employee::query()->create([
             ...$validated,
@@ -107,6 +110,7 @@ class EmployeeController extends Controller
             $employee->jobDetails()->create($jobDetail);
         }
         $this->storeOptionalAttachment($request, $employee);
+        $this->syncSalaries($request, $employee);
         $this->storePersonnelAttachments($request, $employee, 'employee');
 
         return redirect()
@@ -164,7 +168,11 @@ class EmployeeController extends Controller
     {
         $this->authorizePermission($request, 'hr.edit');
 
-        $employee->load(['jobDetails.department', 'personnelAttachments.attachmentType']);
+        $employee->load([
+            'jobDetails.department',
+            'salaries' => fn ($q) => $q->orderByDesc('effective_from'),
+            'personnelAttachments.attachmentType',
+        ]);
 
         $employee->setAttribute(
             'job_detail',
@@ -174,6 +182,7 @@ class EmployeeController extends Controller
         return Inertia::render('mis/hr/Employees/Edit', [
             'employee' => $employee,
             'departments' => Department::query()->orderBy('name')->get(),
+            'currencies' => $this->activeCurrencies(),
             'attachmentTypes' => $this->activeAttachmentTypes(),
         ]);
     }
@@ -200,11 +209,12 @@ class EmployeeController extends Controller
             'job_detail.designation' => ['nullable', 'string', 'max:100'],
             'job_detail.hire_date' => ['nullable', 'date'],
             'job_detail.salary_grade' => ['nullable', 'string', 'max:50'],
+            ...$this->salaryValidationRules(true),
             ...$this->personnelAttachmentValidationRules(),
         ]);
 
         $jobDetail = $validated['job_detail'] ?? null;
-        unset($validated['job_detail'], $validated['personnel_forms']);
+        unset($validated['job_detail'], $validated['salaries'], $validated['personnel_forms']);
 
         $oldStatus = $employee->status;
 
@@ -221,6 +231,7 @@ class EmployeeController extends Controller
             );
         }
         $this->storeOptionalAttachment($request, $employee);
+        $this->syncSalaries($request, $employee);
         $this->storePersonnelAttachments($request, $employee, 'employee');
 
         if (array_keys($validated) === ['status']) {
@@ -234,6 +245,98 @@ class EmployeeController extends Controller
         return redirect()
             ->route('hr.employees.show', $employee)
             ->with('success', 'Employee updated.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function salaryValidationRules(bool $updating = false): array
+    {
+        $rules = [
+            'salaries' => ['nullable', 'array'],
+            'salaries.*.amount' => ['nullable', 'numeric', 'min:0'],
+            'salaries.*.currency' => ['nullable', 'string', 'size:3'],
+            'salaries.*.effective_from' => ['nullable', 'date'],
+            'salaries.*.effective_to' => ['nullable', 'date'],
+            'salaries.*.notes' => ['nullable', 'string'],
+        ];
+
+        if ($updating) {
+            $rules['salaries.*.id'] = ['nullable', 'exists:employee_salaries,id'];
+        }
+
+        return $rules;
+    }
+
+    private function syncSalaries(Request $request, Employee $employee): void
+    {
+        if (! $request->has('salaries_synced')) {
+            return;
+        }
+
+        if (! $employee->is_permanent) {
+            $employee->salaries()->delete();
+
+            return;
+        }
+
+        $salaries = $request->input('salaries', []);
+
+        if (! is_array($salaries)) {
+            return;
+        }
+
+        $keptIds = [];
+
+        foreach ($salaries as $salaryData) {
+            if (($salaryData['amount'] ?? null) === null || ($salaryData['amount'] ?? '') === '') {
+                continue;
+            }
+
+            if (empty($salaryData['effective_from'])) {
+                continue;
+            }
+
+            $payload = [
+                'amount' => $salaryData['amount'],
+                'currency' => $salaryData['currency'] ?? 'AFN',
+                'effective_from' => $salaryData['effective_from'],
+                'effective_to' => $salaryData['effective_to'] ?? null,
+                'notes' => $salaryData['notes'] ?? null,
+            ];
+
+            if (! empty($salaryData['id'])) {
+                $salary = $employee->salaries()->find($salaryData['id']);
+
+                if ($salary) {
+                    $salary->update($payload);
+                    $keptIds[] = $salary->id;
+                }
+
+                continue;
+            }
+
+            $created = $employee->salaries()->create($payload);
+            $keptIds[] = $created->id;
+        }
+
+        if ($keptIds !== []) {
+            $employee->salaries()->whereNotIn('id', $keptIds)->delete();
+        } else {
+            $employee->salaries()->delete();
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function activeCurrencies(): array
+    {
+        return Currency::query()
+            ->orderByDesc('is_default')
+            ->orderBy('code')
+            ->pluck('code')
+            ->all() ?: ['AFN'];
     }
 
     /**

@@ -399,12 +399,20 @@ class PersonnelAttendanceController extends Controller
 
         $calendarDays = $this->calendarDaysForRange($periodStart, $dateFrom, $dateTo);
 
+        $submittedCount = $sheet === null
+            ? 0
+            : PersonnelAttendance::query()
+                ->where('attendance_sheet_id', $sheet->id)
+                ->where('status', 'submitted')
+                ->count();
+
         return Inertia::render('mis/hr/Attendance/Create', [
             'projects' => $this->activeProjects(),
             'employees' => $employees,
             'contractors' => $contractors,
             'calendar_days' => $calendarDays,
             'mark_options' => DailyAttendanceMarks::allowedValues(),
+            'sheet_submitted_count' => $submittedCount,
             'filters' => [
                 'date_from' => $dateFrom->toDateString(),
                 'date_to' => $dateTo->toDateString(),
@@ -681,6 +689,28 @@ class PersonnelAttendanceController extends Controller
         Inertia::flash('toast', [
             'type' => 'success',
             'message' => 'Attendance approved.',
+        ]);
+
+        return back();
+    }
+
+    public function approveSheet(Request $request, AttendanceSheet $sheet): RedirectResponse
+    {
+        $this->authorizePermission($request, 'hr.edit');
+
+        $count = PersonnelAttendance::query()
+            ->where('attendance_sheet_id', $sheet->id)
+            ->where('status', 'submitted')
+            ->update([
+                'status' => 'approved',
+                'approved_by' => $request->user()->id,
+            ]);
+
+        Inertia::flash('toast', [
+            'type' => $count > 0 ? 'success' : 'error',
+            'message' => $count > 0
+                ? "Approved {$count} attendance record(s)."
+                : 'No submitted records to approve on this sheet.',
         ]);
 
         return back();

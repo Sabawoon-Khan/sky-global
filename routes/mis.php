@@ -137,6 +137,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('attendance', [PersonnelAttendanceController::class, 'index'])->name('attendance.index');
         Route::get('attendance/print', [PersonnelAttendanceController::class, 'print'])->name('attendance.print');
         Route::delete('attendance/sheets/{sheet}', [PersonnelAttendanceController::class, 'destroySheet'])->name('attendance.sheets.destroy');
+        Route::post('attendance/sheets/{sheet}/approve', [PersonnelAttendanceController::class, 'approveSheet'])->name('attendance.sheets.approve');
         Route::get('attendance/create', [PersonnelAttendanceController::class, 'create'])->name('attendance.create');
         Route::post('attendance', [PersonnelAttendanceController::class, 'store'])->name('attendance.store');
         Route::post('attendance/bulk', [PersonnelAttendanceController::class, 'storeBulk'])->name('attendance.bulk');

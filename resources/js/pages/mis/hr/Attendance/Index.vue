@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-import { CalendarDays, ClipboardList, Plus, Printer } from '@lucide/vue';
+import { CalendarDays, ClipboardList, Plus, Printer, CheckCircle } from '@lucide/vue';
 import Can from '@/components/Can.vue';
 import MisPage from '@/components/MisPage.vue';
 import MisPagination from '@/components/MisPagination.vue';
@@ -58,7 +58,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const { t, editAction, deleteAction } = useMisPage();
+const { t, editAction, deleteAction, can } = useMisPage();
 
 const newSheetType = ref<'general' | 'project'>('general');
 const newSheetProjectId = ref<string>('');
@@ -161,8 +161,27 @@ const openSheetUrl = (sheet: AttendanceSheet): string =>
 const printSheetUrl = (sheet: AttendanceSheet): string =>
     `/hr/attendance/print?sheet_id=${sheet.id}`;
 
+const canApproveSheet = (sheet: AttendanceSheet): boolean =>
+    can('hr.edit')
+    && (sheet.status === 'submitted' || sheet.status === 'partial');
+
 const sheetActions = (sheet: AttendanceSheet): RowActionItem[] => [
     editAction(openSheetUrl(sheet), 'hr.create'),
+    {
+        label: t('Approve'),
+        icon: CheckCircle,
+        separator: true,
+        href: `/hr/attendance/sheets/${sheet.id}/approve`,
+        method: 'post',
+        confirm: {
+            title: t('Approve attendance'),
+            description: t(
+                'Approve all submitted records on this sheet? This cannot be undone.',
+            ),
+            confirmLabel: t('Approve'),
+        },
+        hidden: !canApproveSheet(sheet),
+    },
     {
         label: t('Print'),
         icon: Printer,

@@ -778,8 +778,14 @@ const closeIssueEdit = (): void => {
                         </select>
                         <InputError :message="errors.personnel_id" />
                         <Input name="role" :placeholder="t('Role on site')" />
-                        <Input name="start_date" type="date" />
-                        <Input name="end_date" type="date" />
+                        <div class="grid gap-1">
+                            <Label for="deployment_start_date">{{ t('Start date') }}</Label>
+                            <Input id="deployment_start_date" name="start_date" type="date" />
+                        </div>
+                        <div class="grid gap-1">
+                            <Label for="deployment_end_date">{{ t('End date') }}</Label>
+                            <Input id="deployment_end_date" name="end_date" type="date" />
+                        </div>
                         <Input name="monthly_rate" type="number" min="0" step="0.01" :placeholder="t('Monthly rate (AFN)')" />
                         <input type="hidden" name="currency" value="AFN" />
                         <Button type="submit" size="sm" :disabled="processing">{{ t('Assign') }}</Button>

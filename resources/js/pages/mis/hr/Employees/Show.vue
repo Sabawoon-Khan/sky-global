@@ -85,6 +85,8 @@ interface AdjustmentRecord {
 interface DeploymentRecord {
     id: number;
     role: string | null;
+    monthly_rate?: number | null;
+    currency?: string | null;
     project?: { id: number; code: string; name: string } | null;
 }
 
@@ -386,7 +388,7 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
         </div>
 
         <div v-else-if="activeTab === 'salary'" class="grid gap-4 lg:grid-cols-3">
-            <Card class="lg:col-span-1">
+            <Card v-if="employee.is_permanent" class="lg:col-span-1">
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
                         <Wallet class="size-5" />
@@ -421,6 +423,53 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
                             <span class="font-medium">
                                 {{ formatCurrency(salary.amount, salary.currency ?? 'USD') }}
                             </span>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card v-else class="lg:col-span-1">
+                <CardHeader>
+                    <CardTitle class="flex items-center gap-2">
+                        <Wallet class="size-5" />
+                        {{ t('Project pay') }}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p class="text-sm text-muted-foreground">
+                        {{
+                            t(
+                                'This employee is project-based. Pay is set per project when they are assigned.',
+                            )
+                        }}
+                    </p>
+                    <div v-if="deployments?.length" class="mt-4 space-y-2">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            {{ t('Project assignments') }}
+                        </p>
+                        <div
+                            v-for="deployment in deployments"
+                            :key="deployment.id"
+                            class="rounded-md border px-3 py-2 text-sm"
+                        >
+                            <p class="font-medium">
+                                <Link
+                                    v-if="deployment.project"
+                                    :href="`/projects/${deployment.project.id}`"
+                                    class="hover:underline"
+                                >
+                                    {{ deployment.project.code }} — {{ deployment.project.name }}
+                                </Link>
+                            </p>
+                            <p v-if="deployment.role" class="text-muted-foreground">
+                                {{ deployment.role }}
+                            </p>
+                            <p
+                                v-if="deployment.monthly_rate"
+                                class="mt-1 font-medium"
+                            >
+                                {{ formatCurrency(deployment.monthly_rate, deployment.currency ?? 'AFN') }}/{{ t('mo') }}
+                            </p>
                         </div>
                     </div>
                 </CardContent>

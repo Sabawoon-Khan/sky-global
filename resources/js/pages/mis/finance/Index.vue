@@ -573,7 +573,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                     <span v-else class="text-muted-foreground">—</span>
                                 </td>
                                 <td class="px-3 py-2 text-end font-medium text-green-600 dark:text-green-400">
-                                    {{ formatCurrency(item.amount_usd ?? item.amount, item.currency) }}
+                                    {{ formatCurrency(item.amount, item.currency) }}
                                 </td>
                             </tr>
                         </tbody>
@@ -696,7 +696,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                     <span v-else class="text-muted-foreground">—</span>
                                 </td>
                                 <td class="px-3 py-2 text-end font-medium text-destructive">
-                                    {{ formatCurrency(item.amount_usd ?? item.amount, item.currency) }}
+                                    {{ formatCurrency(item.amount, item.currency) }}
                                 </td>
                             </tr>
                         </tbody>
