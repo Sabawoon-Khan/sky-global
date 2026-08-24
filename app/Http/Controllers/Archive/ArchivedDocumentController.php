@@ -178,4 +178,15 @@ class ArchivedDocumentController extends Controller
             ->route('archive.index')
             ->with('success', 'Document moved to long-term archive.');
     }
+
+    public function destroy(Request $request, ArchivedDocument $archivedDocument): RedirectResponse
+    {
+        $this->authorizePermission($request, 'archive.delete');
+
+        $archivedDocument->delete();
+
+        return redirect()
+            ->route('archive.index')
+            ->with('success', 'Document deleted.');
+    }
 }

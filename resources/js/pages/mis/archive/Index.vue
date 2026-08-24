@@ -40,7 +40,7 @@ interface Props {
 
 defineProps<Props>();
 
-const { t, viewAction, editAction } = useMisPage();
+const { t, viewAction, editAction, deleteAction } = useMisPage();
 
 defineOptions({
     layout: {
@@ -61,6 +61,17 @@ const formatDate = (value?: string | null): string => {
 const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
     viewAction(`/archive/${doc.id}`),
     editAction(`/archive/${doc.id}`, 'archive.edit'),
+    deleteAction(
+        {
+            href: `/archive/${doc.id}`,
+            title: t('Delete document'),
+            description: t(
+                'Are you sure you want to delete ":name"? This cannot be undone.',
+                { name: doc.title },
+            ),
+        },
+        'archive.delete',
+    ),
 ];
 </script>
 

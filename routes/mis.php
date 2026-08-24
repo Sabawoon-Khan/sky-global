@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\Archive\ArchivedDocumentController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Equipment\EquipmentCatalogController;
@@ -86,6 +87,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('{project}/deployments/{deployment}', [ProjectDeploymentController::class, 'destroy'])->name('deployments.destroy');
     });
 
+    Route::prefix('archive')->name('archive.')->group(function () {
+        Route::get('/', [ArchivedDocumentController::class, 'index'])->name('index');
+        Route::get('create', [ArchivedDocumentController::class, 'create'])->name('create');
+        Route::post('/', [ArchivedDocumentController::class, 'store'])->name('store');
+        Route::get('{archivedDocument}/download', [ArchivedDocumentController::class, 'download'])->name('download');
+        Route::get('{archivedDocument}', [ArchivedDocumentController::class, 'show'])->name('show');
+        Route::put('{archivedDocument}', [ArchivedDocumentController::class, 'update'])->name('update');
+        Route::delete('{archivedDocument}', [ArchivedDocumentController::class, 'destroy'])->name('destroy');
+        Route::post('{archivedDocument}/archive', [ArchivedDocumentController::class, 'archive'])->name('archive');
+    });
+
     Route::prefix('finance')->name('finance.')->group(function () {
         Route::get('/', [InvoiceController::class, 'index'])->name('index');
         Route::post('incomes', [ProjectIncomeController::class, 'store'])->name('incomes.store');
@@ -127,7 +139,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('attendance', [PersonnelAttendanceController::class, 'index'])->name('attendance.index');
         Route::get('attendance/print', [PersonnelAttendanceController::class, 'print'])->name('attendance.print');
         Route::delete('attendance/sheets/{sheet}', [PersonnelAttendanceController::class, 'destroySheet'])->name('attendance.sheets.destroy');
-        Route::post('attendance/sheets/{sheet}/approve', [PersonnelAttendanceController::class, 'approveSheet'])->name('attendance.sheets.approve');
         Route::get('attendance/create', [PersonnelAttendanceController::class, 'create'])->name('attendance.create');
         Route::post('attendance', [PersonnelAttendanceController::class, 'store'])->name('attendance.store');
         Route::post('attendance/bulk', [PersonnelAttendanceController::class, 'storeBulk'])->name('attendance.bulk');
@@ -141,7 +152,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('payroll', [PayrollRunController::class, 'index'])->name('payroll.index');
         Route::post('payroll', [PayrollRunController::class, 'store'])->name('payroll.store');
-        Route::get('payroll/{payrollRun}/print', [PayrollRunController::class, 'print'])->name('payroll.print');
         Route::get('payroll/{payrollRun}', [PayrollRunController::class, 'show'])->name('payroll.show');
         Route::get('payroll/{payrollRun}/print', [PayrollRunController::class, 'print'])->name('payroll.print');
         Route::delete('payroll/{payrollRun}', [PayrollRunController::class, 'destroy'])->name('payroll.destroy');

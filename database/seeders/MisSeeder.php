@@ -60,13 +60,6 @@ class MisSeeder extends Seeder
             );
         }
 
-        foreach (['Contract', 'Letter', 'Invoice', 'RFP', 'Certificate', 'Report'] as $index => $cat) {
-            DocumentCategory::query()->firstOrCreate(
-                ['slug' => Str::slug($cat)],
-                ['name' => $cat, 'sort_order' => $index],
-            );
-        }
-
         foreach (['Tazkira', 'Police Clearance', 'Medical Certificate', 'Training Certificate', 'Weapon License', 'Guarantee Form'] as $index => $type) {
             AttachmentType::query()->firstOrCreate(
                 ['slug' => Str::slug($type)],
