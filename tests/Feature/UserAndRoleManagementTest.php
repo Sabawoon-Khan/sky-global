@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -102,6 +103,74 @@ class UserAndRoleManagementTest extends TestCase
 
         $this->assertSame($originalHash, $user->password);
         $this->assertTrue($user->hasRole('Staff'));
+    }
+
+    public function test_owner_can_delete_user_without_system_activity(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($this->owner)
+            ->delete(route('settings.users.destroy', $user))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+    }
+
+    public function test_owner_cannot_delete_own_account(): void
+    {
+        $this->actingAs($this->owner)
+            ->delete(route('settings.users.destroy', $this->owner))
+            ->assertRedirect()
+            ->assertSessionHasErrors('user');
+
+        $this->assertDatabaseHas('users', ['id' => $this->owner->id]);
+    }
+
+    public function test_owner_cannot_delete_user_with_system_activity(): void
+    {
+        $user = User::factory()->create();
+
+        DB::table('storage_backups')->insert([
+            'filename' => 'backup.zip',
+            'path' => 'backups/backup.zip',
+            'created_by' => $user->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($this->owner)
+            ->delete(route('settings.users.destroy', $user))
+            ->assertRedirect()
+            ->assertSessionHasErrors('user');
+
+        $this->assertDatabaseHas('users', ['id' => $user->id]);
+    }
+
+    public function test_users_index_marks_deletable_users(): void
+    {
+        $deletable = User::factory()->create(['name' => 'Deletable User']);
+        $blocked = User::factory()->create(['name' => 'Blocked User']);
+
+        DB::table('storage_backups')->insert([
+            'filename' => 'backup.zip',
+            'path' => 'backups/backup.zip',
+            'created_by' => $blocked->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($this->owner)
+            ->get(route('settings.users.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('users.data')
+                ->where('users.data', function ($users) use ($deletable, $blocked) {
+                    $byId = collect($users)->keyBy('id');
+
+                    return ($byId[$deletable->id]['can_delete'] ?? false) === true
+                        && ($byId[$blocked->id]['can_delete'] ?? true) === false
+                        && ($byId[$this->owner->id]['can_delete'] ?? true) === false;
+                }));
     }
 
     public function test_owner_can_view_roles_index(): void

@@ -22,6 +22,7 @@ class UserManagementController extends Controller
         $this->authorizePermission($request, 'settings.manage_users');
 
         $search = $request->string('search')->trim()->toString();
+        $currentUserId = $request->user()->id;
 
         $users = User::query()
             ->with([
@@ -35,6 +36,17 @@ class UserManagementController extends Controller
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
+
+        $activityUserIds = User::idsWithSystemActivity($users->getCollection()->modelKeys());
+
+        $users->through(function (User $user) use ($currentUserId, $activityUserIds) {
+            $user->setAttribute(
+                'can_delete',
+                $user->id !== $currentUserId && ! in_array($user->id, $activityUserIds, true),
+            );
+
+            return $user;
+        });
 
         return Inertia::render('settings/Users/Index', [
             'users' => $users,
@@ -105,5 +117,23 @@ class UserManagementController extends Controller
         }
 
         return back()->with('success', 'User updated.');
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        $this->authorizePermission($request, 'settings.manage_users');
+
+        if ($user->id === $request->user()->id) {
+            return back()->withErrors(['user' => 'You cannot delete your own account.']);
+        }
+
+        if ($user->hasSystemActivity()) {
+            return back()->withErrors(['user' => 'Cannot delete a user that has activity in the system.']);
+        }
+
+        $user->statusChangeLogs()->delete();
+        $user->delete();
+
+        return back()->with('success', 'User deleted.');
     }
 }

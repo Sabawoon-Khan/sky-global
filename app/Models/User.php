@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -101,5 +102,115 @@ class User extends Authenticatable implements PasskeyUser
     public function authenticationLogs(): HasMany
     {
         return $this->hasMany(AuthenticationLog::class);
+    }
+
+    /**
+     * Whether this user has business activity that should block deletion.
+     * Auth/audit-only records (login logs, status logs, sessions) do not count.
+     */
+    public function hasSystemActivity(): bool
+    {
+        return in_array($this->id, self::idsWithSystemActivity([$this->id]), true);
+    }
+
+    /**
+     * @param  iterable<int>  $ids
+     * @return list<int>
+     */
+    public static function idsWithSystemActivity(iterable $ids): array
+    {
+        $ids = array_values(array_unique(array_map(
+            static fn ($id): int => (int) $id,
+            is_array($ids) ? $ids : iterator_to_array($ids),
+        )));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $found = self::query()
+            ->whereIn('id', $ids)
+            ->whereNotNull('employee_id')
+            ->pluck('id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        foreach (self::systemActivityReferences() as [$table, $column]) {
+            $remaining = array_values(array_diff($ids, $found));
+
+            if ($remaining === []) {
+                break;
+            }
+
+            $matched = DB::table($table)
+                ->whereIn($column, $remaining)
+                ->distinct()
+                ->pluck($column)
+                ->map(static fn ($id): int => (int) $id)
+                ->all();
+
+            $found = array_values(array_unique([...$found, ...$matched]));
+        }
+
+        $remaining = array_values(array_diff($ids, $found));
+
+        if ($remaining !== []) {
+            $matched = DB::table('project_activities')
+                ->where('causer_type', self::class)
+                ->whereIn('causer_id', $remaining)
+                ->distinct()
+                ->pluck('causer_id')
+                ->map(static fn ($id): int => (int) $id)
+                ->all();
+
+            $found = array_values(array_unique([...$found, ...$matched]));
+        }
+
+        return $found;
+    }
+
+    /**
+     * @return list<array{0: string, 1: string}>
+     */
+    private static function systemActivityReferences(): array
+    {
+        return [
+            ['employees', 'user_id'],
+            ['projects', 'created_by'],
+            ['projects', 'project_manager_id'],
+            ['projects', 'archived_by'],
+            ['project_members', 'user_id'],
+            ['project_documents', 'uploaded_by'],
+            ['project_issues', 'reported_by'],
+            ['project_issues', 'assigned_to'],
+            ['project_status_histories', 'changed_by'],
+            ['procurement_opportunities', 'created_by'],
+            ['bids', 'created_by'],
+            ['bid_documents', 'uploaded_by'],
+            ['bid_status_histories', 'changed_by'],
+            ['archived_documents', 'uploaded_by'],
+            ['attachments', 'uploaded_by'],
+            ['project_incomes', 'created_by'],
+            ['project_incomes', 'approved_by'],
+            ['project_expenses', 'created_by'],
+            ['project_expenses', 'approved_by'],
+            ['general_incomes', 'created_by'],
+            ['general_incomes', 'approved_by'],
+            ['general_expenses', 'created_by'],
+            ['general_expenses', 'approved_by'],
+            ['invoices', 'created_by'],
+            ['payments', 'created_by'],
+            ['attendance_sheets', 'created_by'],
+            ['personnel_attendances', 'approved_by'],
+            ['payroll_runs', 'processed_by'],
+            ['payroll_runs', 'created_by'],
+            ['form_submissions', 'submitted_by'],
+            ['form_submissions', 'verified_by'],
+            ['personnel_attachments', 'verified_by'],
+            ['personnel_equipment_issues', 'issued_by'],
+            ['personnel_equipment_returns', 'received_by'],
+            ['training_sessions', 'instructor_id'],
+            ['storage_backups', 'created_by'],
+        ];
     }
 }

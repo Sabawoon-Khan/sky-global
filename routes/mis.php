@@ -195,6 +195,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('users/create', [UserManagementController::class, 'create'])->name('users.create');
         Route::post('users', [UserManagementController::class, 'store'])->name('users.store');
         Route::put('users/{user}', [UserManagementController::class, 'update'])->name('users.update');
+        Route::delete('users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
 
         Route::get('login-logs', [AuthenticationLogController::class, 'index'])->name('login-logs.index');
 

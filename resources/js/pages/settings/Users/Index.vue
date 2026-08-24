@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, usePage } from '@inertiajs/vue3';
-import { KeyRound, Pencil, Search, Shield, UserCog } from '@lucide/vue';
+import { KeyRound, Pencil, Search, Shield, Trash2, UserCog } from '@lucide/vue';
 import { computed } from 'vue';
 import UserManagementController from '@/actions/App/Http/Controllers/Settings/UserManagementController';
 import StatusChangeHistory, {
@@ -39,6 +39,7 @@ interface UserRecord {
     name: string;
     email: string;
     is_active: boolean;
+    can_delete?: boolean;
     roles?: Role[];
     status_change_logs?: StatusChangeLogRecord[];
 }
@@ -99,6 +100,24 @@ const userActions = (user: UserRecord): RowActionItem[] => {
     if (activeAction) {
         actions.push(activeAction);
     }
+
+    actions.push({
+        label: t('Delete'),
+        icon: Trash2,
+        variant: 'destructive',
+        separator: true,
+        href: UserManagementController.destroy.url(user.id),
+        method: 'delete',
+        disabled: !user.can_delete,
+        confirm: {
+            title: t('Delete user'),
+            description: t(
+                'Are you sure you want to delete ":name"? This cannot be undone.',
+                { name: user.name },
+            ),
+            confirmLabel: t('Delete'),
+        },
+    });
 
     return actions;
 };
