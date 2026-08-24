@@ -1,5 +1,4 @@
 import {
-    Archive,
     BarChart3,
     Briefcase,
     Building2,
@@ -89,12 +88,6 @@ export function useMisNavigation() {
                         permission: 'bidding.view',
                     },
                     {
-                        title: t('Archive'),
-                        href: '/archive',
-                        icon: Archive,
-                        permission: 'archive.view',
-                    },
-                    {
                         title: t('Finance'),
                         href: '/finance',
                         icon: DollarSign,
@@ -165,13 +158,6 @@ export function useMisNavigation() {
 
     const misQuickLinks = computed(() =>
         filterQuickLinks([
-            {
-                title: t('Document Archive'),
-                description: t('Incoming and outgoing documents'),
-                href: '/archive',
-                icon: Archive,
-                permission: 'archive.view',
-            },
             {
                 title: t('Finance'),
                 description: t('Income, expenses, and invoices'),

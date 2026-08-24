@@ -1,0 +1,1 @@
+import{Ct as e,K as t,O as n,T as r,Tt as i,U as a}from"./dist-C08m-Blj.js";import{i as o}from"./Primitive-DIvfFS0S.js";var s=n({__name:`CardContent`,props:{class:{type:[Boolean,null,String,Object,Array]}},setup(n){let s=n;return(n,c)=>(a(),r(`div`,{"data-slot":`card-content`,class:i(e(o)(`px-6`,s.class))},[t(n.$slots,`default`)],2))}});export{s as t};

@@ -1096,5 +1096,18 @@
     "Locked": "تړل شوی",
     "After submitting, you will not be able to edit these records. Continue?": "له سپارلو وروسته به نشئ کولی دا ریکوردونه بدل کړئ. دوام ورکړئ؟",
     "No editable records on this page. Submitted attendance can only be changed by an administrator.": "په دې پاڼه کې د بدلولو وړ ریکورد نشته. سپارل شوې حاضري یوازې د مدیر لخوا بدلیدلی شي.",
-    "No staff assigned to this project for :period.": "په :period کې د دې پروژې لپاره هیڅ کارکوونکی ټاکل شوی نه دی."
+    "No staff assigned to this project for :period.": "په :period کې د دې پروژې لپاره هیڅ کارکوونکی ټاکل شوی نه دی.",
+    "Salary grade": "د معاش درجه",
+    "Project pay": "د پروژې معاش",
+    "No salary records yet. Click below to add one.": "تر اوسه د معاش ریکارډ نشته. د اضافه کولو لپاره لاندې کلیک وکړئ.",
+    "Salary :number": "معاش :number",
+    "Monthly amount": "میاشتنی مقدار",
+    "Add salary": "معاش اضافه کړئ",
+    "Project assignments": "د پروژې ټاکنې",
+    "mo": "میاشت",
+    "This employee is project-based. Pay is set per project when they are assigned.": "دا کارکوونکی د پروژې پر بنسټ دی. معاش د هرې پروژې ته د ټاکلو پر مهال ټاکل کیږي.",
+    "Project-based employees are paid through their project assignment. After saving, assign them to a project and set the monthly rate there.": "د پروژې پر بنسټ کارکوونکي د پروژې ټاکنې له لارې معاش اخلي. له خوندي کولو وروسته، هغوی پروژې ته وټاکئ او هلته میاشتنی نرخ ټاکئ.",
+    "Project-based employees are paid through their project assignment. Assign them to a project and set the monthly rate there.": "د پروژې پر بنسټ کارکوونکي د پروژې ټاکنې له لارې معاش اخلي. هغوی پروژې ته وټاکئ او هلته میاشتنی نرخ ټاکئ.",
+    "The date from which this monthly salary applies to payroll.": "هغه نېټه چې له همدې نېټې څخه دا میاشتنی معاش په معاش محاسبه کې پلي کیږي.",
+    "Optional. Last date this salary applies. Leave blank if it is still current.": "اختیاري. وروستۍ نېټه چې دا معاش پلي کیږي. که اوس هم جاري وي، خالي پریږدئ."
 }

@@ -201,6 +201,16 @@ const runActions = computed((): RowActionItem[] => [
                 </p>
             </div>
             <div class="flex shrink-0 flex-wrap gap-2">
+                <Button v-if="isProcessed" variant="outline" as-child>
+                    <a
+                        :href="`/hr/payroll/${payrollRun.id}/print?autoprint=1`"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <Printer class="size-4" />
+                        {{ t('Print') }}
+                    </a>
+                </Button>
                 <Button variant="outline" as-child>
                     <Link href="/hr/payroll">{{ t('Back to list') }}</Link>
                 </Button>

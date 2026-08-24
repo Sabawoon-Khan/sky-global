@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import EmployeeSalariesField from '@/components/EmployeeSalariesField.vue';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
@@ -25,10 +27,13 @@ interface Department {
 
 defineProps<{
     departments: Department[];
+    currencies: string[];
     attachmentTypes: AttachmentTypeOption[];
 }>();
 
 const { t } = useMisPage();
+
+const isPermanent = ref(false);
 
 defineOptions({
     layout: {
@@ -52,6 +57,7 @@ defineOptions({
             validate-files
             v-slot="{ errors, processing }"
         >
+            <input v-if="isPermanent" type="hidden" name="salaries_synced" value="1" />
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Personal details') }}</CardTitle>
@@ -158,12 +164,20 @@ defineOptions({
                                 type="date"
                             />
                         </div>
+                        <div class="grid gap-2">
+                            <Label for="job_detail_salary_grade">{{ t('Salary grade') }}</Label>
+                            <Input
+                                id="job_detail_salary_grade"
+                                name="job_detail[salary_grade]"
+                            />
+                        </div>
                     </div>
                     <div class="rounded-lg border bg-muted/20 p-4">
                         <input type="hidden" name="is_permanent" value="0" />
                         <div class="flex items-start gap-3">
                             <input
                                 id="is_permanent"
+                                v-model="isPermanent"
                                 name="is_permanent"
                                 type="checkbox"
                                 value="1"
@@ -179,6 +193,33 @@ defineOptions({
                             </div>
                         </div>
                     </div>
+                </CardContent>
+            </Card>
+
+            <Card v-if="isPermanent">
+                <CardHeader>
+                    <CardTitle>{{ t('Salary') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <EmployeeSalariesField
+                        :currencies="currencies"
+                        :errors="errors"
+                    />
+                </CardContent>
+            </Card>
+
+            <Card v-else>
+                <CardHeader>
+                    <CardTitle>{{ t('Project pay') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p class="text-sm text-muted-foreground">
+                        {{
+                            t(
+                                'Project-based employees are paid through their project assignment. After saving, assign them to a project and set the monthly rate there.',
+                            )
+                        }}
+                    </p>
                 </CardContent>
             </Card>
 

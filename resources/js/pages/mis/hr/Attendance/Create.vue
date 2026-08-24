@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-import { ArrowLeft, CalendarDays, ClipboardList, Printer, Save, Send, Users, Wand2 } from '@lucide/vue';
+import { ArrowLeft, CalendarDays, CheckCircle2, ClipboardList, Printer, Save, Send, Users, Wand2 } from '@lucide/vue';
 import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
@@ -13,6 +13,15 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMisPage } from '@/composables/useMisPage';
@@ -76,6 +85,7 @@ interface Props {
         attendance_type?: 'general' | 'project';
         tab?: string;
     };
+    sheet_submitted_count?: number;
 }
 
 const props = defineProps<Props>();
@@ -200,7 +210,11 @@ const contractorEntries = ref<Record<number, AttendanceEntry>>(
 );
 
 const isSaving = ref(false);
+const isApproving = ref(false);
 const pendingAction = ref<'save' | 'submit' | null>(null);
+const showSubmitConfirm = ref(false);
+const showNoEditableAlert = ref(false);
+const pendingSubmitAction = ref<'save' | 'submit' | null>(null);
 
 const lockedStatuses = new Set(['submitted', 'approved']);
 
@@ -224,17 +238,25 @@ const submitBulk = (action: 'save' | 'submit'): void => {
             return;
         }
 
-        const confirmed = window.confirm(
-            t(
-                'After submitting, you will not be able to edit these records. Continue?',
-            ),
-        );
+        pendingSubmitAction.value = action;
+        showSubmitConfirm.value = true;
 
-        if (!confirmed) {
-            return;
-        }
+        return;
     }
 
+    performBulkSubmit(action);
+};
+
+const confirmSubmit = (): void => {
+    showSubmitConfirm.value = false;
+
+    if (pendingSubmitAction.value) {
+        performBulkSubmit(pendingSubmitAction.value);
+        pendingSubmitAction.value = null;
+    }
+};
+
+const performBulkSubmit = (action: 'save' | 'submit'): void => {
     const entries: Record<
         number,
         {
@@ -280,11 +302,7 @@ const submitBulk = (action: 'save' | 'submit'): void => {
     }
 
     if (Object.keys(entries).length === 0) {
-        window.alert(
-            t(
-                'No editable records on this page. Submitted attendance can only be changed by an administrator.',
-            ),
-        );
+        showNoEditableAlert.value = true;
 
         return;
     }
@@ -704,6 +722,34 @@ const sheetMeta = computed(() => [
 const hasEditableRows = computed(() =>
     activeStaff.value.some(canEditRow),
 );
+
+const canApproveSheet = computed(
+    () =>
+        can('hr.edit')
+        && (props.sheet_submitted_count ?? 0) > 0
+        && props.filters?.sheet_id != null,
+);
+
+const approveSheet = (): void => {
+    const sheetId = props.filters?.sheet_id;
+
+    if (sheetId == null || isApproving.value) {
+        return;
+    }
+
+    isApproving.value = true;
+
+    router.post(
+        `/hr/attendance/sheets/${sheetId}/approve`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                isApproving.value = false;
+            },
+        },
+    );
+};
 
 const formError = computed(() => {
     const errors = page.props.errors as Record<string, string | string[]>;
@@ -1254,11 +1300,80 @@ const bulkPersonnelType = computed(() =>
                                             : t('Submit')
                                     }}
                                 </Button>
+                                <Can permission="hr.edit">
+                                    <Button
+                                        v-if="canApproveSheet"
+                                        type="button"
+                                        size="sm"
+                                        variant="default"
+                                        class="gap-1.5 bg-green-600 shadow-sm hover:bg-green-700"
+                                        :disabled="isApproving"
+                                        @click="approveSheet"
+                                    >
+                                        <CheckCircle2 class="size-3.5" />
+                                        {{
+                                            isApproving
+                                                ? t('Approving...')
+                                                : t('Approve')
+                                        }}
+                                    </Button>
+                                </Can>
                             </div>
                         </div>
                     </form>
                 </CardContent>
             </Card>
         </Can>
+
+        <Dialog
+            :open="showSubmitConfirm"
+            @update:open="(open) => !open && (showSubmitConfirm = false)"
+        >
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{{ t('Submit') }}</DialogTitle>
+                    <DialogDescription>
+                        {{
+                            t(
+                                'After submitting, you will not be able to edit these records. Continue?',
+                            )
+                        }}
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="gap-2">
+                    <DialogClose as-child>
+                        <Button variant="secondary">
+                            {{ t('Cancel') }}
+                        </Button>
+                    </DialogClose>
+                    <Button @click="confirmSubmit">
+                        {{ t('Submit') }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog
+            :open="showNoEditableAlert"
+            @update:open="(open) => !open && (showNoEditableAlert = false)"
+        >
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{{ t('Warning') }}</DialogTitle>
+                    <DialogDescription>
+                        {{
+                            t(
+                                'No editable records on this page. Submitted attendance can only be changed by an administrator.',
+                            )
+                        }}
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <DialogClose as-child>
+                        <Button>{{ t('Close') }}</Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </MisPage>
 </template>

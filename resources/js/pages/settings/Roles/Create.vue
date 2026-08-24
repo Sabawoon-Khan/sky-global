@@ -91,10 +91,6 @@ const formatPermissionLabel = (permissionName: string): string => {
     const [module, ...verbParts] = permissionName.split('.');
     const verb = verbParts.join('.') || permissionName;
 
-    if (verb === 'archive' && module === 'archive') {
-        return t('Move to long-term archive');
-    }
-
     if (verb === 'archive') {
         return t('Mark as archived');
     }

@@ -1,0 +1,1 @@
+import{K as e,O as t,T as n,Tt as r,U as i}from"./dist-C08m-Blj.js";var a=t({__name:`MisPage`,props:{title:{},narrow:{type:Boolean}},setup(t){return(a,o)=>(i(),n(`div`,{class:r([`flex w-full flex-1 flex-col gap-6`,t.narrow?`max-w-5xl`:``])},[e(a.$slots,`default`)],2))}});export{a as t};

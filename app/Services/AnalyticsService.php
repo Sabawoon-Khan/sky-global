@@ -38,8 +38,9 @@ class AnalyticsService
             ])
             ->values()
             ->all();
-        $totalIncomeUsd = (float) (ProjectIncome::query()->sum('amount_usd') ?: ProjectIncome::query()->sum('amount'));
+        $projectIncomeUsd = (float) (ProjectIncome::query()->sum('amount_usd') ?: ProjectIncome::query()->sum('amount'));
         $generalIncomeUsd = (float) (GeneralIncome::query()->sum('amount_usd') ?: GeneralIncome::query()->sum('amount'));
+        $totalIncomeUsd = $projectIncomeUsd + $generalIncomeUsd;
         $totalExpenseUsd = (float) (ProjectExpense::query()->sum('amount_usd') ?: ProjectExpense::query()->sum('amount'));
         $overheadUsd = (float) (GeneralExpense::query()->sum('amount_usd') ?: GeneralExpense::query()->sum('amount'));
         $netByCurrency = $this->netFinanceByCurrency();
@@ -60,6 +61,7 @@ class AnalyticsService
             ],
             'finance' => [
                 'total_income_usd' => $totalIncomeUsd,
+                'project_income_usd' => $projectIncomeUsd,
                 'general_income_usd' => $generalIncomeUsd,
                 'total_expense_usd' => $totalExpenseUsd,
                 'overhead_usd' => $overheadUsd,

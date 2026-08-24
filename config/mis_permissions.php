@@ -45,9 +45,6 @@ return [
         'hr' => [
             'extra' => [],
         ],
-        'archive' => [
-            'extra' => [],
-        ],
         'settings' => [
             'extra' => [
                 'manage_users',

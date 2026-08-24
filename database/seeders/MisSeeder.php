@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Archive\DocumentCategory;
 use App\Models\Department;
 use App\Models\Finance\ChartOfAccount;
 use App\Models\Finance\Currency;
