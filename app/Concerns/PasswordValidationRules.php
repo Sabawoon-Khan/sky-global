@@ -18,6 +18,16 @@ trait PasswordValidationRules
     }
 
     /**
+     * Get the validation rules used when a password may be omitted.
+     *
+     * @return array<int, Password|ValidationRule|array<mixed>|string>
+     */
+    protected function optionalPasswordRules(): array
+    {
+        return ['sometimes', 'required', 'string', Password::default(), 'confirmed'];
+    }
+
+    /**
      * Get the validation rules used to validate the current password.
      *
      * @return array<int, Password|ValidationRule|array<mixed>|string>

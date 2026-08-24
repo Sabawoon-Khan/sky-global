@@ -24,7 +24,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $manager = Role::findOrCreate('Manager');
         $manager->syncPermissions([
             'bidding.view', 'bidding.create', 'bidding.edit', 'bidding.archive', 'bidding.view_competitors',
-            'projects.view', 'projects.create', 'projects.edit', 'projects.archive',
+            'projects.view', 'projects.create', 'projects.edit', 'projects.delete', 'projects.archive',
             'finance.view', 'finance.create', 'finance.edit',
             'hr.view', 'hr.create', 'hr.edit',
             'archive.view', 'archive.create', 'archive.edit',

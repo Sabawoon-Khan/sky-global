@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -63,6 +64,44 @@ class UserAndRoleManagementTest extends TestCase
                 'password_confirmation' => 'Password123!',
             ])
             ->assertForbidden();
+    }
+
+    public function test_owner_can_update_user_password(): void
+    {
+        $user = User::factory()->create([
+            'password' => 'OldPassword123!',
+        ]);
+
+        $this->actingAs($this->owner)
+            ->put(route('settings.users.update', $user), [
+                'password' => 'NewPassword123!',
+                'password_confirmation' => 'NewPassword123!',
+            ])
+            ->assertRedirect();
+
+        $user->refresh();
+
+        $this->assertTrue(Hash::check('NewPassword123!', $user->password));
+        $this->assertFalse(Hash::check('OldPassword123!', $user->password));
+    }
+
+    public function test_updating_roles_without_password_leaves_password_unchanged(): void
+    {
+        $user = User::factory()->create([
+            'password' => 'KeepPassword123!',
+        ]);
+        $originalHash = $user->password;
+
+        $this->actingAs($this->owner)
+            ->put(route('settings.users.update', $user), [
+                'roles' => ['Staff'],
+            ])
+            ->assertRedirect();
+
+        $user->refresh();
+
+        $this->assertSame($originalHash, $user->password);
+        $this->assertTrue($user->hasRole('Staff'));
     }
 
     public function test_owner_can_view_roles_index(): void

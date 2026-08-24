@@ -61,6 +61,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/', [ProjectController::class, 'store'])->name('store');
         Route::get('{project}', [ProjectController::class, 'show'])->name('show');
         Route::put('{project}', [ProjectController::class, 'update'])->name('update');
+        Route::delete('{project}', [ProjectController::class, 'destroy'])->name('destroy');
         Route::post('{project}/status', [ProjectController::class, 'updateStatus'])->name('status');
         Route::post('{project}/archive', [ProjectController::class, 'archive'])->name('archive');
         Route::put('{project}/details', [ProjectController::class, 'updateDetails'])->name('details.update');

@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { Form, Head, usePage } from '@inertiajs/vue3';
-import { Pencil, Search, Shield, UserCog } from '@lucide/vue';
+import { KeyRound, Pencil, Search, Shield, UserCog } from '@lucide/vue';
 import { computed } from 'vue';
 import UserManagementController from '@/actions/App/Http/Controllers/Settings/UserManagementController';
 import StatusChangeHistory, {
     type StatusChangeLogRecord,
 } from '@/components/StatusChangeHistory.vue';
 import Can from '@/components/Can.vue';
+import InputError from '@/components/InputError.vue';
 import MisPagination from '@/components/MisPagination.vue';
+import PasswordInput from '@/components/PasswordInput.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import SettingsAddButton from '@/components/SettingsAddButton.vue';
 import { Badge } from '@/components/ui/badge';
@@ -71,6 +73,18 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                 document
                     .getElementById(`user-roles-${user.id}`)
                     ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            },
+        },
+        {
+            label: t('Change password'),
+            icon: KeyRound,
+            onClick: () => {
+                document
+                    .getElementById(`user-password-${user.id}`)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                document
+                    .getElementById(`password-${user.id}`)
+                    ?.focus();
             },
         },
     ];
@@ -223,6 +237,49 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                                         :disabled="processing"
                                     >
                                         {{ t('Update Roles') }}
+                                    </Button>
+                                </Form>
+                                <Form
+                                    :id="`user-password-${user.id}`"
+                                    :action="
+                                        UserManagementController.update.url(user.id)
+                                    "
+                                    method="put"
+                                    class="grid gap-2"
+                                    :options="{ preserveScroll: true }"
+                                    reset-on-success
+                                    :reset-on-error="[
+                                        'password',
+                                        'password_confirmation',
+                                    ]"
+                                    v-slot="{ errors, processing }"
+                                >
+                                    <Label :for="`password-${user.id}`">
+                                        {{ t('Change password') }}
+                                    </Label>
+                                    <PasswordInput
+                                        :id="`password-${user.id}`"
+                                        name="password"
+                                        autocomplete="new-password"
+                                        :placeholder="t('New password')"
+                                    />
+                                    <InputError :message="errors.password" />
+                                    <PasswordInput
+                                        :id="`password_confirmation-${user.id}`"
+                                        name="password_confirmation"
+                                        autocomplete="new-password"
+                                        :placeholder="t('Confirm password')"
+                                    />
+                                    <InputError
+                                        :message="errors.password_confirmation"
+                                    />
+                                    <Button
+                                        type="submit"
+                                        size="sm"
+                                        variant="outline"
+                                        :disabled="processing"
+                                    >
+                                        {{ t('Update Password') }}
                                     </Button>
                                 </Form>
                             </div>

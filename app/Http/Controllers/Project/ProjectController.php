@@ -383,6 +383,17 @@ class ProjectController extends Controller
             ->with('success', 'Project archived.');
     }
 
+    public function destroy(Request $request, Project $project): RedirectResponse
+    {
+        $this->authorizePermission($request, 'projects.delete');
+
+        $project->delete();
+
+        return redirect()
+            ->route('projects.index')
+            ->with('success', 'Project deleted.');
+    }
+
     /** @return list<array{value: string, label: string}> */
     private function allowedStatusTransitions(Project $project): array
     {

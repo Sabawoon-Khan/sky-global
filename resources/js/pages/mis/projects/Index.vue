@@ -48,7 +48,7 @@ defineProps<{
     filters?: { search?: string | null; status?: string | null };
 }>();
 
-const { t, viewAction, editAction, gateActions } = useMisPage();
+const { t, viewAction, editAction, deleteAction, gateActions } = useMisPage();
 
 defineOptions({
     layout: {
@@ -72,6 +72,17 @@ const projectActions = (project: Project): RowActionItem[] => [
     ...gateActions(
         projectStatusActions(project.id, project.status, t),
         'projects.edit',
+    ),
+    deleteAction(
+        {
+            href: `/projects/${project.id}`,
+            title: t('Delete project'),
+            description: t(
+                'Are you sure you want to delete ":name"? This cannot be undone.',
+                { name: project.name },
+            ),
+        },
+        'projects.delete',
     ),
 ];
 </script>

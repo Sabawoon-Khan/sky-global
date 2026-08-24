@@ -98,6 +98,12 @@ class UserManagementController extends Controller
             }
         }
 
+        if (! empty($validated['password'])) {
+            $user->update(['password' => $validated['password']]);
+
+            return back()->with('success', 'Password updated.');
+        }
+
         return back()->with('success', 'User updated.');
     }
 }
