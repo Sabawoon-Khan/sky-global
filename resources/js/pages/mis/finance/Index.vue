@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
 import MisPage from '@/components/MisPage.vue';
+import MisPagination from '@/components/MisPagination.vue';
 import MisTabs from '@/components/MisTabs.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
@@ -24,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useMisPage } from '@/composables/useMisPage';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatCurrency, formatDate, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import {
     approvalStatusActions,
@@ -67,10 +68,21 @@ interface Invoice {
     id: number;
     invoice_number?: string | null;
     status: string;
-    total_amount?: number | null;
+    total?: number | null;
+    subtotal?: number | null;
+    tax?: number | null;
     currency?: string | null;
+    issue_date?: string | null;
     due_date?: string | null;
+    project?: { id: number; code: string; name: string } | null;
     organization?: { id: number; name: string } | null;
+    attachments?: FinanceAttachment[];
+}
+
+interface SelectOption {
+    id: number;
+    code?: string;
+    name: string;
 }
 
 interface GeneralRecord {
@@ -110,10 +122,12 @@ interface Props {
     expenses?: Expense[];
     generalIncomes?: GeneralRecord[];
     generalExpenses?: GeneralRecord[];
-    invoices?: Invoice[];
+    invoices?: Paginated<Invoice>;
+    projects?: SelectOption[];
+    organizations?: SelectOption[];
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const { t, editAction, deleteAction, gateActions } = useMisPage();
 
@@ -135,6 +149,23 @@ const tabs = computed(() => [
 const activeTab = ref('overview');
 const showGeneralIncomeForm = ref(false);
 const showGeneralExpenseForm = ref(false);
+const showInvoiceForm = ref(false);
+
+const invoiceSubtotal = ref('');
+const invoiceTax = ref('');
+const invoiceTotal = computed(() => {
+    const subtotal = Number(invoiceSubtotal.value) || 0;
+    const tax = Number(invoiceTax.value) || 0;
+
+    return (subtotal + tax).toFixed(2);
+});
+
+watch(showInvoiceForm, (open) => {
+    if (!open) {
+        invoiceSubtotal.value = '';
+        invoiceTax.value = '';
+    }
+});
 
 const incomeActions = (item: Income): RowActionItem[] => [
     ...(item.project
@@ -707,72 +738,227 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
         </Card>
 
         <Card v-else-if="activeTab === 'invoices'">
-            <CardHeader class="pb-3">
-                <CardTitle class="text-base">{{ t('Invoices') }}</CardTitle>
+            <Collapsible v-model:open="showInvoiceForm">
+                <CardHeader class="pb-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <CardTitle class="text-base">{{ t('Invoices') }}</CardTitle>
+                        </div>
+                        <Can permission="finance.create">
+                            <CollapsibleTrigger as-child>
+                                <Button variant="outline" size="sm">
+                                    <Plus class="me-1 size-4" />
+                                    {{ t('Add') }}
+                                    <ChevronDown
+                                        class="ms-1 size-4 transition-transform"
+                                        :class="cn(showInvoiceForm && 'rotate-180')"
+                                    />
+                                </Button>
+                            </CollapsibleTrigger>
+                        </Can>
+                    </div>
                 </CardHeader>
-            <CardContent>
-                <div
-                    v-if="!invoices?.length"
-                    class="ui-empty-state"
-                >
-                    {{ t('No invoices found.') }}
-                </div>
-                <div v-else class="overflow-x-auto rounded-md border">
-                    <table class="w-full text-sm">
-                        <thead class="border-b bg-muted/40 text-start text-muted-foreground">
-                            <tr>
-                                <th class="px-3 py-2 font-medium">{{ t('Invoice #') }}</th>
-                                <th class="px-3 py-2 font-medium">{{ t('Client') }}</th>
-                                <th class="px-3 py-2 font-medium">{{ t('Due Date') }}</th>
-                                <th class="px-3 py-2 font-medium">{{ t('Status') }}</th>
-                                <th class="px-3 py-2 font-medium">{{ t('Attachment') }}</th>
-                                <th class="px-3 py-2 text-end font-medium">{{ t('Amount') }}</th>
-                                <th class="px-3 py-2 text-end font-medium">{{ t('Actions') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y">
-                            <tr
-                                v-for="invoice in invoices"
-                                :key="invoice.id"
-                                class="hover:bg-muted/30"
+                <CardContent class="space-y-4">
+                    <Can permission="finance.create">
+                        <CollapsibleContent class="rounded-md border bg-muted/20 p-4">
+                            <Form
+                                action="/finance/invoices"
+                                method="post"
+                                class="grid gap-3 sm:grid-cols-2"
+                                :options="{ preserveScroll: true, resetOnSuccess: true, forceFormData: true }"
+                                validate-files
+                                v-slot="{ errors, processing }"
+                                @success="showInvoiceForm = false"
                             >
-                                <td class="px-3 py-2 font-medium">
-                                    {{ invoice.invoice_number ?? `#${invoice.id}` }}
-                                </td>
-                                <td class="px-3 py-2 text-muted-foreground">
-                                    {{ invoice.organization?.name ?? '—' }}
-                                </td>
-                                <td class="px-3 py-2 text-muted-foreground">
-                                    {{ formatDate(invoice.due_date) }}
-                                </td>
-                                <td class="px-3 py-2">
-                                    <Badge variant="outline">{{ invoice.status }}</Badge>
-                                </td>
-                                <td class="px-3 py-2">
-                                    <a
-                                        v-if="item.attachments?.length"
-                                        :href="item.attachments[0].download_url"
-                                        class="inline-flex items-center gap-1 text-primary hover:underline"
-                                        :title="item.attachments[0].original_filename"
+                                <div class="grid gap-2">
+                                    <Label for="inv-number">{{ t('Invoice #') }} *</Label>
+                                    <Input id="inv-number" name="invoice_number" required />
+                                    <InputError :message="errors.invoice_number" />
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="inv-status">{{ t('Status') }}</Label>
+                                    <select
+                                        id="inv-status"
+                                        name="status"
+                                        class="h-9 rounded-md border border-input bg-background px-3 text-sm"
                                     >
-                                        <Paperclip class="size-3.5 shrink-0" />
-                                        <span class="max-w-[8rem] truncate text-xs">
-                                            {{ item.attachments[0].original_filename }}
-                                        </span>
-                                    </a>
-                                    <span v-else class="text-muted-foreground">—</span>
-                                </td>
-                                <td class="px-3 py-2 text-end font-medium">
-                                    {{ formatCurrency(invoice.total_amount, invoice.currency) }}
-                                </td>
-                                <td class="px-3 py-2 text-end">
-                                    <RowActionsMenu :actions="invoiceActions(invoice)" />
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </CardContent>
+                                        <option value="draft">{{ t('Draft') }}</option>
+                                        <option value="sent">{{ t('Sent') }}</option>
+                                        <option value="paid">{{ t('Paid') }}</option>
+                                        <option value="overdue">{{ t('Overdue') }}</option>
+                                    </select>
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="inv-org">{{ t('Client') }}</Label>
+                                    <select
+                                        id="inv-org"
+                                        name="organization_id"
+                                        class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                                    >
+                                        <option value="">{{ t('Select client') }}</option>
+                                        <option
+                                            v-for="org in props.organizations ?? []"
+                                            :key="org.id"
+                                            :value="org.id"
+                                        >
+                                            {{ org.name }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="inv-project">{{ t('Project') }}</Label>
+                                    <select
+                                        id="inv-project"
+                                        name="project_id"
+                                        class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                                    >
+                                        <option value="">{{ t('Optional project') }}</option>
+                                        <option
+                                            v-for="project in props.projects ?? []"
+                                            :key="project.id"
+                                            :value="project.id"
+                                        >
+                                            {{ project.code }} — {{ project.name }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="inv-issue">{{ t('Issue date') }} *</Label>
+                                    <Input id="inv-issue" name="issue_date" type="date" required />
+                                    <InputError :message="errors.issue_date" />
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="inv-due">{{ t('Due date') }}</Label>
+                                    <Input id="inv-due" name="due_date" type="date" />
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="inv-subtotal">{{ t('Subtotal') }} *</Label>
+                                    <Input
+                                        id="inv-subtotal"
+                                        name="subtotal"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        required
+                                        v-model="invoiceSubtotal"
+                                    />
+                                    <InputError :message="errors.subtotal" />
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="inv-tax">{{ t('Tax') }}</Label>
+                                    <Input
+                                        id="inv-tax"
+                                        name="tax"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        v-model="invoiceTax"
+                                    />
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="inv-total">{{ t('Total') }}</Label>
+                                    <Input
+                                        id="inv-total"
+                                        type="number"
+                                        :model-value="invoiceTotal"
+                                        readonly
+                                        class="bg-muted/40"
+                                    />
+                                    <input type="hidden" name="total" :value="invoiceTotal" />
+                                    <InputError :message="errors.total" />
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="inv-currency">{{ t('Currency') }}</Label>
+                                    <Input id="inv-currency" name="currency" maxlength="3" value="AFN" />
+                                </div>
+                                <div class="grid gap-2 sm:col-span-2">
+                                    <OptionalAttachmentField
+                                        :label="t('Attachment')"
+                                        :error="errors.attachment"
+                                    />
+                                </div>
+                                <div class="flex items-end sm:col-span-2">
+                                    <Button type="submit" size="sm" :disabled="processing">
+                                        {{ t('Save invoice') }}
+                                    </Button>
+                                </div>
+                            </Form>
+                        </CollapsibleContent>
+                    </Can>
+
+                    <div
+                        v-if="!props.invoices?.data?.length"
+                        class="ui-empty-state"
+                    >
+                        {{ t('No invoices found.') }}
+                    </div>
+                    <div v-else class="space-y-4">
+                        <div class="overflow-x-auto rounded-md border">
+                            <table class="w-full text-sm">
+                                <thead class="border-b bg-muted/40 text-start text-muted-foreground">
+                                    <tr>
+                                        <th class="px-3 py-2 font-medium">{{ t('Invoice #') }}</th>
+                                        <th class="px-3 py-2 font-medium">{{ t('Client') }}</th>
+                                        <th class="px-3 py-2 font-medium">{{ t('Project') }}</th>
+                                        <th class="px-3 py-2 font-medium">{{ t('Due Date') }}</th>
+                                        <th class="px-3 py-2 font-medium">{{ t('Status') }}</th>
+                                        <th class="px-3 py-2 font-medium">{{ t('Attachment') }}</th>
+                                        <th class="px-3 py-2 text-end font-medium">{{ t('Amount') }}</th>
+                                        <th class="px-3 py-2 text-end font-medium">{{ t('Actions') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y">
+                                    <tr
+                                        v-for="invoice in props.invoices.data"
+                                        :key="invoice.id"
+                                        class="hover:bg-muted/30"
+                                    >
+                                        <td class="px-3 py-2 font-medium">
+                                            {{ invoice.invoice_number ?? `#${invoice.id}` }}
+                                        </td>
+                                        <td class="px-3 py-2 text-muted-foreground">
+                                            {{ invoice.organization?.name ?? '—' }}
+                                        </td>
+                                        <td class="px-3 py-2 text-muted-foreground">
+                                            {{ invoice.project?.code ?? '—' }}
+                                        </td>
+                                        <td class="px-3 py-2 text-muted-foreground">
+                                            {{ formatDate(invoice.due_date) }}
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <Badge variant="outline">{{ invoice.status }}</Badge>
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <a
+                                                v-if="invoice.attachments?.length"
+                                                :href="invoice.attachments[0].download_url"
+                                                class="inline-flex items-center gap-1 text-primary hover:underline"
+                                                :title="invoice.attachments[0].original_filename"
+                                            >
+                                                <Paperclip class="size-3.5 shrink-0" />
+                                                <span class="max-w-[8rem] truncate text-xs">
+                                                    {{ invoice.attachments[0].original_filename }}
+                                                </span>
+                                            </a>
+                                            <span v-else class="text-muted-foreground">—</span>
+                                        </td>
+                                        <td class="px-3 py-2 text-end font-medium">
+                                            {{ formatCurrency(invoice.total, invoice.currency) }}
+                                        </td>
+                                        <td class="px-3 py-2 text-end">
+                                            <RowActionsMenu :actions="invoiceActions(invoice)" />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <MisPagination
+                            v-if="props.invoices"
+                            :pagination="props.invoices"
+                        />
+                    </div>
+                </CardContent>
+            </Collapsible>
         </Card>
     </MisPage>
 </template>

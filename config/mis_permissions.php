@@ -42,7 +42,13 @@ return [
         'finance' => [
             'extra' => [],
         ],
+        'inventory' => [
+            'extra' => [],
+        ],
         'hr' => [
+            'extra' => [],
+        ],
+        'archive' => [
             'extra' => [],
         ],
         'settings' => [

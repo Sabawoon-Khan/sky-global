@@ -26,7 +26,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'bidding.view', 'bidding.create', 'bidding.edit', 'bidding.archive', 'bidding.view_competitors',
             'projects.view', 'projects.create', 'projects.edit', 'projects.delete', 'projects.archive',
             'finance.view', 'finance.create', 'finance.edit',
+            'inventory.view', 'inventory.create', 'inventory.edit',
             'hr.view', 'hr.create', 'hr.edit',
+            'archive.view', 'archive.create', 'archive.edit',
         ]);
 
         $staff = Role::findOrCreate('Staff');
@@ -34,7 +36,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'bidding.view', 'bidding.create', 'bidding.edit',
             'projects.view', 'projects.create', 'projects.edit',
             'finance.view', 'finance.create',
+            'inventory.view', 'inventory.create',
             'hr.view', 'hr.create', 'hr.edit',
+            'archive.view', 'archive.create',
         ]);
 
         $viewer = Role::findOrCreate('Viewer');
@@ -42,7 +46,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'bidding.view',
             'projects.view',
             'finance.view',
+            'inventory.view',
             'hr.view',
+            'archive.view',
         ]);
     }
 }

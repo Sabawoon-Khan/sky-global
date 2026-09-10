@@ -10,6 +10,7 @@ use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Project\StoreProjectRequest;
 use App\Http\Requests\Project\UpdateProjectRequest;
+use App\Models\Equipment\EquipmentCatalog;
 use App\Models\Finance\Currency;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
@@ -125,10 +126,14 @@ class ProjectController extends Controller
             'deployments' => fn ($q) => $q->with('projectSite')->latest(),
             'incomes' => fn ($q) => $q->with('attachments')->latest('transaction_date')->limit(20),
             'expenses' => fn ($q) => $q->with('attachments')->latest('transaction_date')->limit(20),
+            'shareholders' => fn ($q) => $q->with(['transactions' => fn ($tq) => $tq->latest('transaction_date')->limit(10)]),
+            'equipmentIssues' => fn ($q) => $q->with('equipmentCatalog')->latest(),
         ]);
 
         $income = $project->incomes()->sum('amount');
         $expense = $project->expenses()->sum('amount');
+        $shareholderInvested = (float) $project->shareholders()->sum('invested_amount');
+        $shareholderReturned = (float) $project->shareholders()->sum('returned_amount');
 
         return Inertia::render('mis/projects/Show', [
             'project' => $project,
@@ -137,6 +142,9 @@ class ProjectController extends Controller
                 'expense' => (float) $expense,
                 'margin' => (float) $income - (float) $expense,
                 'currency' => 'AFN',
+                'shareholder_invested' => $shareholderInvested,
+                'shareholder_returned' => $shareholderReturned,
+                'shareholder_outstanding' => max(0, $shareholderInvested - $shareholderReturned),
             ],
             'statusOptions' => $this->allowedStatusTransitions($project),
             'organizations' => Organization::query()
@@ -154,6 +162,19 @@ class ProjectController extends Controller
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name']),
+            'stockItems' => EquipmentCatalog::query()
+                ->with('stock')
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get()
+                ->map(fn (EquipmentCatalog $item) => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'sku' => $item->sku,
+                    'category' => $item->category,
+                    'unit' => $item->unit,
+                    'quantity_on_hand' => (int) ($item->stock?->quantity_on_hand ?? 0),
+                ]),
         ]);
     }
 

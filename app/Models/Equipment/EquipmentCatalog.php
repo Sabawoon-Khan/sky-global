@@ -16,6 +16,8 @@ class EquipmentCatalog extends Model
     protected $fillable = [
         'name',
         'sku',
+        'category',
+        'unit',
         'description',
         'is_active',
     ];
@@ -35,5 +37,10 @@ class EquipmentCatalog extends Model
     public function issues(): HasMany
     {
         return $this->hasMany(PersonnelEquipmentIssue::class);
+    }
+
+    public function projectIssues(): HasMany
+    {
+        return $this->hasMany(ProjectEquipmentIssue::class);
     }
 }

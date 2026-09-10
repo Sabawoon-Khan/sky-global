@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Equipment\EquipmentCatalogController;
 use App\Http\Controllers\Equipment\PersonnelEquipmentIssueController;
 use App\Http\Controllers\Equipment\PersonnelTrainingController;
+use App\Http\Controllers\Equipment\ProjectEquipmentIssueController;
 use App\Http\Controllers\Equipment\TrainingSessionController;
 use App\Http\Controllers\Finance\GeneralExpenseController;
 use App\Http\Controllers\Finance\GeneralIncomeController;
@@ -26,6 +27,7 @@ use App\Http\Controllers\Project\ProjectActivityController;
 use App\Http\Controllers\Project\ProjectController;
 use App\Http\Controllers\Project\ProjectDeploymentController;
 use App\Http\Controllers\Project\ProjectIssueController;
+use App\Http\Controllers\Project\ProjectShareholderController;
 use App\Http\Controllers\Project\ProjectSiteController;
 use App\Http\Controllers\Settings\AuthenticationLogController;
 use App\Http\Controllers\Settings\CurrencySettingsController;
@@ -85,6 +87,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('{project}/deployments', [ProjectDeploymentController::class, 'store'])->name('deployments.store');
         Route::put('{project}/deployments/{deployment}', [ProjectDeploymentController::class, 'update'])->name('deployments.update');
         Route::delete('{project}/deployments/{deployment}', [ProjectDeploymentController::class, 'destroy'])->name('deployments.destroy');
+
+        Route::post('{project}/equipment-issues', [ProjectEquipmentIssueController::class, 'store'])->name('equipment-issues.store');
+        Route::post('{project}/equipment-issues/{issue}/return', [ProjectEquipmentIssueController::class, 'returnItems'])->name('equipment-issues.return');
+
+        Route::post('{project}/shareholders', [ProjectShareholderController::class, 'store'])->name('shareholders.store');
+        Route::put('{project}/shareholders/{shareholder}', [ProjectShareholderController::class, 'update'])->name('shareholders.update');
+        Route::delete('{project}/shareholders/{shareholder}', [ProjectShareholderController::class, 'destroy'])->name('shareholders.destroy');
+        Route::post('{project}/shareholders/{shareholder}/contribute', [ProjectShareholderController::class, 'contribute'])->name('shareholders.contribute');
+        Route::post('{project}/shareholders/{shareholder}/distribute', [ProjectShareholderController::class, 'distribute'])->name('shareholders.distribute');
     });
 
     Route::prefix('archive')->name('archive.')->group(function () {
@@ -138,6 +149,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('attendance', [PersonnelAttendanceController::class, 'index'])->name('attendance.index');
         Route::get('attendance/print', [PersonnelAttendanceController::class, 'print'])->name('attendance.print');
+        Route::post('attendance/sheets/{sheet}/approve', [PersonnelAttendanceController::class, 'approveSheet'])->name('attendance.sheets.approve');
         Route::delete('attendance/sheets/{sheet}', [PersonnelAttendanceController::class, 'destroySheet'])->name('attendance.sheets.destroy');
         Route::get('attendance/create', [PersonnelAttendanceController::class, 'create'])->name('attendance.create');
         Route::post('attendance', [PersonnelAttendanceController::class, 'store'])->name('attendance.store');
@@ -178,6 +190,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [EquipmentCatalogController::class, 'index'])->name('index');
         Route::post('/', [EquipmentCatalogController::class, 'store'])->name('store');
         Route::put('{equipmentCatalog}', [EquipmentCatalogController::class, 'update'])->name('update');
+        Route::post('{equipmentCatalog}/adjust-stock', [EquipmentCatalogController::class, 'adjustStock'])->name('adjust-stock');
 
         Route::post('issues', [PersonnelEquipmentIssueController::class, 'store'])->name('issues.store');
         Route::get('training', [TrainingSessionController::class, 'index'])->name('training.index');

@@ -8,6 +8,7 @@ use App\Models\Equipment\EquipmentStock;
 use App\Models\Equipment\PersonnelEquipmentIssue;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class PersonnelEquipmentIssueController extends Controller
 {
@@ -15,7 +16,7 @@ class PersonnelEquipmentIssueController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $this->authorizePermission($request, 'hr.create');
+        $this->authorizePermission($request, 'inventory.create');
 
         $validated = $request->validate([
             'personnel_type' => ['required', 'string'],
@@ -31,7 +32,7 @@ class PersonnelEquipmentIssueController extends Controller
             ->where('equipment_catalog_id', $validated['equipment_catalog_id'])
             ->first();
 
-        if ($stock && $stock->quantity_on_hand < $validated['quantity']) {
+        if (! $stock || $stock->quantity_on_hand < $validated['quantity']) {
             return back()->withErrors(['quantity' => 'Insufficient stock available.']);
         }
 
@@ -41,10 +42,13 @@ class PersonnelEquipmentIssueController extends Controller
             'issued_at' => $validated['issued_at'] ?? now()->toDateString(),
         ]);
 
-        if ($stock) {
-            $stock->decrement('quantity_on_hand', $validated['quantity']);
-        }
+        $stock->decrement('quantity_on_hand', $validated['quantity']);
 
-        return back()->with('success', 'Equipment issued.');
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Equipment issued to personnel.',
+        ]);
+
+        return back();
     }
 }

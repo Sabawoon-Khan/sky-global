@@ -299,18 +299,26 @@ class DemoDataSeeder extends Seeder
     private function seedEquipmentAndTraining(): void
     {
         $equipment = [
-            ['name' => 'Body Armor Vest', 'sku' => 'EQ-BAV-001', 'qty' => 45],
-            ['name' => 'Ballistic Helmet', 'sku' => 'EQ-BH-001', 'qty' => 38],
-            ['name' => 'Two-Way Radio', 'sku' => 'EQ-RAD-001', 'qty' => 60],
-            ['name' => 'Flashlight (Tactical)', 'sku' => 'EQ-FL-001', 'qty' => 80],
-            ['name' => 'Metal Detector Wand', 'sku' => 'EQ-MD-001', 'qty' => 12],
-            ['name' => 'First Aid Kit', 'sku' => 'EQ-FAK-001', 'qty' => 30],
+            ['name' => 'AK-47 Rifle', 'sku' => 'GUN-AK47-001', 'category' => 'Weapons', 'qty' => 20],
+            ['name' => '9mm Pistol', 'sku' => 'GUN-P9-001', 'category' => 'Weapons', 'qty' => 15],
+            ['name' => 'Body Armor Vest', 'sku' => 'EQ-BAV-001', 'category' => 'Protective', 'qty' => 45],
+            ['name' => 'Ballistic Helmet', 'sku' => 'EQ-BH-001', 'category' => 'Protective', 'qty' => 38],
+            ['name' => 'Two-Way Radio', 'sku' => 'EQ-RAD-001', 'category' => 'Communications', 'qty' => 60],
+            ['name' => 'Flashlight (Tactical)', 'sku' => 'EQ-FL-001', 'category' => 'Gear', 'qty' => 80],
+            ['name' => 'Metal Detector Wand', 'sku' => 'EQ-MD-001', 'category' => 'Gear', 'qty' => 12],
+            ['name' => 'First Aid Kit', 'sku' => 'EQ-FAK-001', 'category' => 'Medical', 'qty' => 30],
         ];
 
         foreach ($equipment as $item) {
             $catalog = EquipmentCatalog::query()->firstOrCreate(
                 ['sku' => $item['sku']],
-                ['name' => $item['name'], 'description' => 'Standard issue '.$item['name'], 'is_active' => true],
+                [
+                    'name' => $item['name'],
+                    'category' => $item['category'],
+                    'unit' => 'pcs',
+                    'description' => 'Standard issue '.$item['name'],
+                    'is_active' => true,
+                ],
             );
 
             EquipmentStock::query()->firstOrCreate(

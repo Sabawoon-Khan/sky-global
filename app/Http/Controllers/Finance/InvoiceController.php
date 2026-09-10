@@ -11,6 +11,8 @@ use App\Models\Finance\GeneralIncome;
 use App\Models\Finance\Invoice;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
+use App\Models\Organization;
+use App\Models\Project\Project;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -26,9 +28,24 @@ class InvoiceController extends Controller
         $this->authorizePermission($request, 'finance.view');
 
         $invoices = Invoice::query()
-            ->with(['project', 'organization'])
+            ->with(['project:id,code,name', 'organization:id,name', 'attachments'])
             ->latest('issue_date')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (Invoice $invoice) => [
+                'id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'status' => $invoice->status,
+                'total' => (float) $invoice->total,
+                'subtotal' => (float) $invoice->subtotal,
+                'tax' => (float) $invoice->tax,
+                'currency' => $invoice->currency,
+                'issue_date' => $invoice->issue_date?->toDateString(),
+                'due_date' => $invoice->due_date?->toDateString(),
+                'project' => $invoice->project?->only(['id', 'code', 'name']),
+                'organization' => $invoice->organization?->only(['id', 'name']),
+                'attachments' => $invoice->attachments,
+            ]);
 
         $totalIncome = ProjectIncome::query()->sum('amount_usd') ?: ProjectIncome::query()->sum('amount');
         $totalGeneralIncome = GeneralIncome::query()->sum('amount_usd') ?: GeneralIncome::query()->sum('amount');
@@ -54,12 +71,32 @@ class InvoiceController extends Controller
             'generalIncomes' => GeneralIncome::query()->with('attachments')->latest('transaction_date')->limit(50)->get(),
             'generalExpenses' => GeneralExpense::query()->with('attachments')->latest('transaction_date')->limit(50)->get(),
             'invoices' => $invoices,
+            'projects' => Project::query()
+                ->where('is_archived', false)
+                ->orderBy('name')
+                ->get(['id', 'code', 'name']),
+            'organizations' => Organization::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $this->authorizePermission($request, 'finance.create');
+
+        if (blank($request->input('project_id'))) {
+            $request->merge(['project_id' => null]);
+        }
+
+        if (blank($request->input('organization_id'))) {
+            $request->merge(['organization_id' => null]);
+        }
+
+        if (blank($request->input('tax'))) {
+            $request->merge(['tax' => 0]);
+        }
 
         $validated = $request->validate([
             'project_id' => ['nullable', 'exists:projects,id'],
@@ -84,6 +121,9 @@ class InvoiceController extends Controller
 
         $invoice = Invoice::query()->create([
             ...$validated,
+            'tax' => $validated['tax'] ?? 0,
+            'currency' => $validated['currency'] ?? 'AFN',
+            'status' => $validated['status'] ?? 'draft',
             'created_by' => $request->user()->id,
         ]);
 
@@ -92,7 +132,12 @@ class InvoiceController extends Controller
         }
         $this->storeOptionalAttachment($request, $invoice);
 
-        return back()->with('success', 'Invoice created.');
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Invoice created.',
+        ]);
+
+        return back();
     }
 
     public function update(Request $request, Invoice $invoice): RedirectResponse
@@ -129,7 +174,12 @@ class InvoiceController extends Controller
             }
         }
 
-        return back()->with('success', 'Invoice updated.');
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Invoice updated.',
+        ]);
+
+        return back();
     }
 
     public function destroy(Request $request, Invoice $invoice): RedirectResponse
@@ -138,7 +188,12 @@ class InvoiceController extends Controller
 
         $invoice->delete();
 
-        return back()->with('success', 'Invoice deleted.');
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Invoice deleted.',
+        ]);
+
+        return back();
     }
 
     /** @return Collection<int, array<string, float|string>> */

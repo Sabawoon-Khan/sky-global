@@ -97,6 +97,52 @@ interface ProjectDeployment {
     currency: string | null;
 }
 
+interface ShareholderTransaction {
+    id: number;
+    type: string;
+    amount: number;
+    currency: string;
+    transaction_date: string;
+    notes: string | null;
+}
+
+interface ProjectShareholder {
+    id: number;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    share_percent: number;
+    invested_amount: number;
+    returned_amount: number;
+    currency: string;
+    notes: string | null;
+    transactions?: ShareholderTransaction[];
+}
+
+interface ProjectEquipmentIssue {
+    id: number;
+    quantity: number;
+    quantity_returned: number;
+    issued_at: string;
+    notes: string | null;
+    equipment_catalog?: {
+        id: number;
+        name: string;
+        sku: string | null;
+        category: string | null;
+        unit: string | null;
+    } | null;
+}
+
+interface StockItemOption {
+    id: number;
+    name: string;
+    sku: string | null;
+    category: string | null;
+    unit: string | null;
+    quantity_on_hand: number;
+}
+
 interface PersonOption {
     id: number;
     first_name: string;
@@ -129,6 +175,8 @@ interface Project {
     activities: ProjectActivity[];
     issues: ProjectIssue[];
     deployments?: ProjectDeployment[];
+    shareholders?: ProjectShareholder[];
+    equipment_issues?: ProjectEquipmentIssue[];
     attachments: EntityAttachment[];
 }
 
@@ -144,11 +192,15 @@ const props = defineProps<{
         expense: number;
         margin: number;
         currency: string;
+        shareholder_invested?: number;
+        shareholder_returned?: number;
+        shareholder_outstanding?: number;
     };
     statusOptions: StatusOption[];
     employees?: PersonOption[];
     contractors?: PersonOption[];
     currencies?: string[];
+    stockItems?: StockItemOption[];
 }>();
 
 const { t, can, gateActions } = useMisPage();
@@ -166,21 +218,45 @@ const EMPLOYEE_TYPE = 'App\\Models\\Hr\\Employee';
 const CONTRACTOR_TYPE = 'App\\Models\\Hr\\Contractor';
 
 const deploymentPersonnelType = ref(EMPLOYEE_TYPE);
+const shareholderAction = ref<{ id: number; type: 'contribute' | 'distribute' } | null>(null);
 
 const tabs = computed(() => [
     { id: 'overview' as const, label: t('Overview') },
     { id: 'bid' as const, label: t('Our Bid') },
     { id: 'competitors' as const, label: t('Competitors') },
     { id: 'personnel' as const, label: t('Personnel') },
+    { id: 'equipment' as const, label: t('Equipment') },
+    { id: 'shareholders' as const, label: t('Shareholders') },
     { id: 'finance' as const, label: t('Finance') },
     { id: 'activity' as const, label: t('Activity') },
     { id: 'issues' as const, label: t('Reports') },
     { id: 'attachments' as const, label: t('Attachments') },
 ]);
 
-type TabId = 'overview' | 'bid' | 'competitors' | 'personnel' | 'finance' | 'activity' | 'issues' | 'attachments';
+type TabId =
+    | 'overview'
+    | 'bid'
+    | 'competitors'
+    | 'personnel'
+    | 'equipment'
+    | 'shareholders'
+    | 'finance'
+    | 'activity'
+    | 'issues'
+    | 'attachments';
 
-const tabIds: TabId[] = ['overview', 'bid', 'competitors', 'personnel', 'finance', 'activity', 'issues', 'attachments'];
+const tabIds: TabId[] = [
+    'overview',
+    'bid',
+    'competitors',
+    'personnel',
+    'equipment',
+    'shareholders',
+    'finance',
+    'activity',
+    'issues',
+    'attachments',
+];
 
 const initialTab = (): TabId => {
     const fromUrl = new URLSearchParams(window.location.search).get('tab');
@@ -793,6 +869,385 @@ const closeIssueEdit = (): void => {
                 </CardContent>
             </Card>
             </Can>
+        </div>
+
+        <!-- Equipment from stock -->
+        <div v-else-if="activeTab === 'equipment'" class="grid gap-3 lg:grid-cols-3">
+            <Card class="lg:col-span-2">
+                <CardHeader class="pb-2">
+                    <CardTitle class="text-base">{{ t('Equipment on this project') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div
+                        v-if="!project.equipment_issues?.length"
+                        class="py-6 text-center text-sm text-muted-foreground"
+                    >
+                        {{ t('No stock items issued to this project yet.') }}
+                    </div>
+                    <div v-else class="overflow-x-auto rounded-md border">
+                        <table class="w-full text-sm">
+                            <thead class="border-b bg-muted/40 text-muted-foreground">
+                                <tr>
+                                    <th class="px-3 py-2 text-start font-medium">{{ t('Item') }}</th>
+                                    <th class="px-3 py-2 text-end font-medium">{{ t('Issued') }}</th>
+                                    <th class="px-3 py-2 text-end font-medium">{{ t('Returned') }}</th>
+                                    <th class="px-3 py-2 text-end font-medium">{{ t('On site') }}</th>
+                                    <th class="px-3 py-2 text-end font-medium">{{ t('Actions') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y">
+                                <tr
+                                    v-for="issue in project.equipment_issues"
+                                    :key="issue.id"
+                                    class="hover:bg-muted/30"
+                                >
+                                    <td class="px-3 py-2">
+                                        <p class="font-medium">
+                                            {{ issue.equipment_catalog?.name ?? t('Item') }}
+                                        </p>
+                                        <p class="text-xs text-muted-foreground">
+                                            {{ formatDate(issue.issued_at) }}
+                                            <span v-if="issue.equipment_catalog?.category">
+                                                · {{ issue.equipment_catalog.category }}
+                                            </span>
+                                        </p>
+                                    </td>
+                                    <td class="px-3 py-2 text-end tabular-nums">{{ issue.quantity }}</td>
+                                    <td class="px-3 py-2 text-end tabular-nums">{{ issue.quantity_returned }}</td>
+                                    <td class="px-3 py-2 text-end font-semibold tabular-nums">
+                                        {{ issue.quantity - issue.quantity_returned }}
+                                    </td>
+                                    <td class="px-3 py-2 text-end">
+                                        <Can permission="inventory.edit">
+                                            <Form
+                                                v-if="issue.quantity - issue.quantity_returned > 0"
+                                                :action="`/projects/${project.id}/equipment-issues/${issue.id}/return`"
+                                                method="post"
+                                                class="inline-flex items-center gap-1"
+                                                :options="{ preserveScroll: true }"
+                                                v-slot="{ processing }"
+                                            >
+                                                <Input
+                                                    name="quantity"
+                                                    type="number"
+                                                    min="1"
+                                                    :max="issue.quantity - issue.quantity_returned"
+                                                    :value="issue.quantity - issue.quantity_returned"
+                                                    class="h-8 w-20"
+                                                    required
+                                                />
+                                                <Button type="submit" size="sm" variant="outline" :disabled="processing">
+                                                    {{ t('Return') }}
+                                                </Button>
+                                            </Form>
+                                        </Can>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+            <Can permission="inventory.create">
+                <Card>
+                    <CardHeader class="pb-2">
+                        <CardTitle class="text-base">{{ t('Issue from stock') }}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Form
+                            :action="`/projects/${project.id}/equipment-issues`"
+                            method="post"
+                            class="grid gap-2"
+                            :options="{ preserveScroll: true, resetOnSuccess: true }"
+                            v-slot="{ errors, processing }"
+                            @success="setActiveTab('equipment')"
+                        >
+                            <select
+                                name="equipment_catalog_id"
+                                required
+                                class="h-9 rounded-md border border-input px-3 text-sm"
+                            >
+                                <option value="" disabled selected>{{ t('Select item') }}</option>
+                                <option
+                                    v-for="item in stockItems ?? []"
+                                    :key="item.id"
+                                    :value="item.id"
+                                    :disabled="item.quantity_on_hand < 1"
+                                >
+                                    {{ item.name }}
+                                    <template v-if="item.category"> ({{ item.category }})</template>
+                                    — {{ item.quantity_on_hand }} {{ item.unit ?? 'pcs' }}
+                                </option>
+                            </select>
+                            <InputError :message="errors.equipment_catalog_id" />
+                            <Input name="quantity" type="number" min="1" required :placeholder="t('Quantity')" />
+                            <InputError :message="errors.quantity" />
+                            <Input name="issued_at" type="date" />
+                            <Textarea name="notes" rows="2" :placeholder="t('Notes')" />
+                            <Button type="submit" size="sm" :disabled="processing">
+                                {{ t('Issue to project') }}
+                            </Button>
+                            <p class="text-xs text-muted-foreground">
+                                {{ t('Stock is reduced from the depot when you issue items.') }}
+                            </p>
+                        </Form>
+                    </CardContent>
+                </Card>
+            </Can>
+        </div>
+
+        <!-- Shareholders -->
+        <div v-else-if="activeTab === 'shareholders'" class="space-y-3">
+            <div class="grid gap-3 sm:grid-cols-3">
+                <Card>
+                    <CardHeader class="pb-2">
+                        <CardTitle class="text-sm text-muted-foreground">{{ t('Capital received') }}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p class="text-2xl font-bold tabular-nums">
+                            {{ formatAfn(finance.shareholder_invested ?? 0) }}
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader class="pb-2">
+                        <CardTitle class="text-sm text-muted-foreground">{{ t('Project spent') }}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p class="text-2xl font-bold tabular-nums text-destructive">
+                            {{ formatAfn(finance.expense) }}
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader class="pb-2">
+                        <CardTitle class="text-sm text-muted-foreground">{{ t('Still owed to shareholders') }}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p class="text-2xl font-bold tabular-nums">
+                            {{ formatAfn(finance.shareholder_outstanding ?? 0) }}
+                        </p>
+                        <p class="mt-1 text-xs text-muted-foreground">
+                            {{ t('Returned') }}: {{ formatAfn(finance.shareholder_returned ?? 0) }}
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div class="grid gap-3 lg:grid-cols-3">
+                <Card class="lg:col-span-2">
+                    <CardHeader class="pb-2">
+                        <CardTitle class="text-base">{{ t('Shareholders') }}</CardTitle>
+                    </CardHeader>
+                    <CardContent class="space-y-3">
+                        <div
+                            v-if="!project.shareholders?.length"
+                            class="py-6 text-center text-sm text-muted-foreground"
+                        >
+                            {{ t('No shareholders on this project. Add partners who invest capital.') }}
+                        </div>
+                        <div
+                            v-for="shareholder in project.shareholders"
+                            :key="shareholder.id"
+                            class="rounded-md border p-3"
+                        >
+                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                    <p class="font-medium">{{ shareholder.name }}</p>
+                                    <p class="text-sm text-muted-foreground">
+                                        {{ shareholder.share_percent }}% ·
+                                        {{ shareholder.phone || shareholder.email || t('No contact') }}
+                                    </p>
+                                </div>
+                                <div class="text-end text-sm">
+                                    <p>
+                                        {{ t('Invested') }}:
+                                        <span class="font-semibold">{{ formatAfn(shareholder.invested_amount) }}</span>
+                                    </p>
+                                    <p>
+                                        {{ t('Returned') }}:
+                                        <span class="font-semibold">{{ formatAfn(shareholder.returned_amount) }}</span>
+                                    </p>
+                                    <p>
+                                        {{ t('Outstanding') }}:
+                                        <span class="font-semibold">
+                                            {{
+                                                formatAfn(
+                                                    Math.max(
+                                                        0,
+                                                        Number(shareholder.invested_amount) -
+                                                            Number(shareholder.returned_amount),
+                                                    ),
+                                                )
+                                            }}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <Can permission="projects.edit">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        @click="
+                                            shareholderAction =
+                                                shareholderAction?.id === shareholder.id &&
+                                                shareholderAction.type === 'contribute'
+                                                    ? null
+                                                    : { id: shareholder.id, type: 'contribute' }
+                                        "
+                                    >
+                                        {{ t('Add capital') }}
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        @click="
+                                            shareholderAction =
+                                                shareholderAction?.id === shareholder.id &&
+                                                shareholderAction.type === 'distribute'
+                                                    ? null
+                                                    : { id: shareholder.id, type: 'distribute' }
+                                        "
+                                    >
+                                        {{ t('Return share') }}
+                                    </Button>
+                                </Can>
+                                <Can permission="projects.delete">
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        @click="
+                                            router.delete(
+                                                `/projects/${project.id}/shareholders/${shareholder.id}`,
+                                                { preserveScroll: true },
+                                            )
+                                        "
+                                    >
+                                        <Trash2 class="size-4" />
+                                    </Button>
+                                </Can>
+                            </div>
+                            <Form
+                                v-if="
+                                    shareholderAction?.id === shareholder.id &&
+                                    shareholderAction.type === 'contribute'
+                                "
+                                :action="`/projects/${project.id}/shareholders/${shareholder.id}/contribute`"
+                                method="post"
+                                class="mt-3 grid gap-2 rounded-md bg-muted/30 p-3 sm:grid-cols-3"
+                                :options="{ preserveScroll: true, resetOnSuccess: true }"
+                                v-slot="{ errors, processing }"
+                                @success="shareholderAction = null"
+                            >
+                                <div class="grid gap-1">
+                                    <Label>{{ t('Amount') }} *</Label>
+                                    <Input name="amount" type="number" min="0.01" step="0.01" required />
+                                    <InputError :message="errors.amount" />
+                                </div>
+                                <div class="grid gap-1">
+                                    <Label>{{ t('Date') }}</Label>
+                                    <Input name="transaction_date" type="date" />
+                                </div>
+                                <div class="flex items-end">
+                                    <Button type="submit" size="sm" :disabled="processing">
+                                        {{ t('Record') }}
+                                    </Button>
+                                </div>
+                            </Form>
+                            <Form
+                                v-if="
+                                    shareholderAction?.id === shareholder.id &&
+                                    shareholderAction.type === 'distribute'
+                                "
+                                :action="`/projects/${project.id}/shareholders/${shareholder.id}/distribute`"
+                                method="post"
+                                class="mt-3 grid gap-2 rounded-md bg-muted/30 p-3 sm:grid-cols-3"
+                                :options="{ preserveScroll: true, resetOnSuccess: true }"
+                                v-slot="{ errors, processing }"
+                                @success="shareholderAction = null"
+                            >
+                                <div class="grid gap-1">
+                                    <Label>{{ t('Amount to return') }} *</Label>
+                                    <Input name="amount" type="number" min="0.01" step="0.01" required />
+                                    <InputError :message="errors.amount" />
+                                </div>
+                                <div class="grid gap-1">
+                                    <Label>{{ t('Date') }}</Label>
+                                    <Input name="transaction_date" type="date" />
+                                </div>
+                                <div class="flex items-end">
+                                    <Button type="submit" size="sm" :disabled="processing">
+                                        {{ t('Return') }}
+                                    </Button>
+                                </div>
+                            </Form>
+                            <div
+                                v-if="shareholder.transactions?.length"
+                                class="mt-3 border-t pt-2 text-xs text-muted-foreground"
+                            >
+                                <p
+                                    v-for="tx in shareholder.transactions"
+                                    :key="tx.id"
+                                    class="flex justify-between gap-2 py-0.5"
+                                >
+                                    <span>
+                                        {{ tx.type === 'contribution' ? t('In') : t('Out') }}
+                                        · {{ formatDate(tx.transaction_date) }}
+                                        <span v-if="tx.notes"> — {{ tx.notes }}</span>
+                                    </span>
+                                    <span class="font-medium tabular-nums">{{ formatAfn(tx.amount) }}</span>
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Can permission="projects.create">
+                    <Card>
+                        <CardHeader class="pb-2">
+                            <CardTitle class="text-base">{{ t('Add shareholder') }}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <Form
+                                :action="`/projects/${project.id}/shareholders`"
+                                method="post"
+                                class="grid gap-2"
+                                :options="{ preserveScroll: true, resetOnSuccess: true }"
+                                v-slot="{ errors, processing }"
+                                @success="setActiveTab('shareholders')"
+                            >
+                                <Input name="name" required :placeholder="t('Full name')" />
+                                <InputError :message="errors.name" />
+                                <Input name="phone" :placeholder="t('Phone')" />
+                                <Input name="email" type="email" :placeholder="t('Email')" />
+                                <Input
+                                    name="share_percent"
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    required
+                                    :placeholder="t('Share %')"
+                                />
+                                <InputError :message="errors.share_percent" />
+                                <Input
+                                    name="invested_amount"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    :placeholder="t('Initial capital (AFN)')"
+                                />
+                                <input type="hidden" name="currency" value="AFN" />
+                                <Input name="transaction_date" type="date" />
+                                <Textarea name="notes" rows="2" :placeholder="t('Notes')" />
+                                <Button type="submit" size="sm" :disabled="processing">
+                                    {{ t('Add shareholder') }}
+                                </Button>
+                            </Form>
+                        </CardContent>
+                    </Card>
+                </Can>
+            </div>
         </div>
 
         <!-- Finance -->

@@ -164,6 +164,16 @@ class Project extends Model
         return $this->hasMany(CompetitorBid::class);
     }
 
+    public function shareholders(): HasMany
+    {
+        return $this->hasMany(ProjectShareholder::class);
+    }
+
+    public function equipmentIssues(): HasMany
+    {
+        return $this->hasMany(\App\Models\Equipment\ProjectEquipmentIssue::class);
+    }
+
     public function isOperational(): bool
     {
         return in_array($this->status, ProjectStatus::operationalPhases(), true);
