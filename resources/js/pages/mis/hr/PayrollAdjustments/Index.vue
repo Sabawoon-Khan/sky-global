@@ -1,25 +1,31 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import { Plus, Receipt, Users } from '@lucide/vue';
+import { Plus, Users } from '@lucide/vue';
 import Can from '@/components/Can.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import InputError from '@/components/InputError.vue';
-import MisPagination from '@/components/MisPagination.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
+import TableIndexTd from '@/components/TableIndexTd.vue';
+import TableIndexTh from '@/components/TableIndexTh.vue';
+import {
+    V2FilterBar,
+    V2Hero,
+    V2ListPage,
+    V2Pager,
+    V2Panel,
+    V2TablePanel,
+} from '@/components/v2';
+import { indexTableColumn } from '@/composables/useTableColumns';
+import { useMisPage } from '@/composables/useMisPage';
+import { provideTableSort } from '@/composables/useTableSort';
+import { formatCurrency, type Paginated } from '@/lib/format';
+import type { RowActionItem } from '@/lib/row-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useMisPage } from '@/composables/useMisPage';
-import type { Paginated } from '@/lib/format';
-import type { RowActionItem } from '@/lib/row-actions';
 
 const EMPLOYEE_TYPE = 'App\\Models\\Hr\\Employee';
 const CONTRACTOR_TYPE = 'App\\Models\\Hr\\Contractor';
@@ -76,6 +82,28 @@ const props = defineProps<Props>();
 
 const { t, deleteAction } = useMisPage();
 
+const onlyKeys = [
+    'adjustments',
+    'projects',
+    'employees',
+    'contractors',
+    'adjustmentTypes',
+    'filters',
+];
+
+const { sortedRows } = provideTableSort(() => props.adjustments.data);
+
+const tableColumns = computed(() => [
+    indexTableColumn(),
+    { key: 'personnel', label: t('Personnel') },
+    { key: 'project', label: t('Project') },
+    { key: 'type', label: t('Type') },
+    { key: 'amount', label: t('Amount') },
+    { key: 'status', label: t('Status') },
+    { key: 'notes', label: t('Notes') },
+    { key: 'actions', label: t('Actions'), locked: true },
+]);
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -106,6 +134,13 @@ const monthName = (month: number): string => {
     );
 };
 
+const filterYear = computed(
+    () => props.filters?.year ?? new Date().getFullYear(),
+);
+const filterMonth = computed(
+    () => props.filters?.month ?? new Date().getMonth() + 1,
+);
+
 const personnelLabel = (record: AdjustmentRecord): string => {
     if (record.personnel?.first_name || record.personnel?.last_name) {
         return [record.personnel.first_name, record.personnel.last_name]
@@ -124,13 +159,6 @@ const personnelTypeLabel = (type: string): string => {
 
 const typeLabel = (type: string): string =>
     props.adjustmentTypes.find((option) => option.value === type)?.label ?? type;
-
-const formatCurrency = (value: number): string =>
-    new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 0,
-    }).format(value);
 
 const initBulkEntry = (id: number): void => {
     if (!bulkEntries.value[id]) {
@@ -166,22 +194,46 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
         ),
     ];
 };
+
+const amountTone = (type: string): 'positive' | 'negative' | 'neutral' =>
+    type === 'bonus' || type === 'salary' ? 'positive' : 'negative';
 </script>
 
 <template>
     <Head :title="t('Payroll Adjustments')" />
 
-    <div class="flex flex-1 flex-col gap-6 p-4">
-<div class="grid gap-6 xl:grid-cols-3">
+    <V2ListPage>
+        <V2Hero image="/images/gs-hero-people.png">
+            <template #eyebrow>{{ t('HR') }}</template>
+            <template #title>{{ t('Payroll Adjustments') }}</template>
+            <template #description>
+                {{
+                    t('Bonuses, deductions, and one-off pay changes before payroll runs.')
+                }}
+            </template>
+        </V2Hero>
+
+        <div class="grid gap-6 xl:grid-cols-3">
             <Can permission="hr.create">
-            <Card class="xl:col-span-1">
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2">
-                        <Plus class="size-5" />
-                        {{ bulkMode ? t('Bulk adjustments') : t('New adjustment') }}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
+                <V2Panel
+                    class="xl:col-span-1"
+                    :title="bulkMode ? t('Bulk adjustments') : t('New adjustment')"
+                >
+                    <template #actions>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            @click="bulkMode = !bulkMode"
+                        >
+                            {{
+                                bulkMode
+                                    ? t('Single entry')
+                                    : t('Bulk mode')
+                            }}
+                        </Button>
+                    </template>
+
                     <Form
                         v-if="bulkMode"
                         action="/hr/payroll-adjustments/bulk"
@@ -199,7 +251,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
 
                         <div class="grid gap-2">
                             <Label>{{ t('Personnel type') }}</Label>
-                            <select v-model="personnelType" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs">
+                            <select v-model="personnelType" class="mis-form-select">
                                 <option :value="EMPLOYEE_TYPE">{{ t('Employee') }}</option>
                                 <option :value="CONTRACTOR_TYPE">{{ t('Contractor') }}</option>
                             </select>
@@ -207,7 +259,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
 
                         <div class="grid gap-2">
                             <Label for="bulk_type">{{ t('Type') }} *</Label>
-                            <select id="bulk_type" name="type" required class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs">
+                            <select id="bulk_type" name="type" required class="mis-form-select">
                                 <option v-for="option in adjustmentTypes" :key="option.value" :value="option.value">{{ option.label }}</option>
                             </select>
                         </div>
@@ -215,11 +267,11 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                         <div class="grid grid-cols-2 gap-3">
                             <div class="grid gap-2">
                                 <Label for="bulk_period_year">{{ t('Year') }} *</Label>
-                                <Input id="bulk_period_year" name="period_year" type="number" required :default-value="filters?.year ?? new Date().getFullYear()" />
+                                <Input id="bulk_period_year" name="period_year" type="number" required :default-value="filterYear" />
                             </div>
                             <div class="grid gap-2">
                                 <Label for="bulk_period_month">{{ t('Month') }} *</Label>
-                                <Input id="bulk_period_month" name="period_month" type="number" min="1" max="12" required :default-value="filters?.month ?? new Date().getMonth() + 1" />
+                                <Input id="bulk_period_month" name="period_month" type="number" min="1" max="12" required :default-value="filterMonth" />
                             </div>
                         </div>
 
@@ -264,7 +316,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                             <select
                                 id="personnel_type"
                                 v-model="personnelType"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                                class="mis-form-select"
                             >
                                 <option :value="EMPLOYEE_TYPE">{{ t('Employee') }}</option>
                                 <option :value="CONTRACTOR_TYPE">{{ t('Contractor') }}</option>
@@ -277,7 +329,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                                 id="personnel_id"
                                 name="personnel_id"
                                 required
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                                class="mis-form-select"
                             >
                                 <option value="" disabled selected>{{ t('Select person') }}</option>
                                 <option
@@ -296,7 +348,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                             <select
                                 id="project_id"
                                 name="project_id"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                                class="mis-form-select"
                             >
                                 <option value="">{{ t('None') }}</option>
                                 <option
@@ -318,7 +370,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                                     name="period_year"
                                     type="number"
                                     required
-                                    :default-value="filters?.year ?? new Date().getFullYear()"
+                                    :default-value="filterYear"
                                 />
                                 <InputError :message="errors.period_year" />
                             </div>
@@ -331,7 +383,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                                     min="1"
                                     max="12"
                                     required
-                                    :default-value="filters?.month ?? new Date().getMonth() + 1"
+                                    :default-value="filterMonth"
                                 />
                                 <InputError :message="errors.period_month" />
                             </div>
@@ -343,7 +395,7 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                                 id="type"
                                 name="type"
                                 required
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                                class="mis-form-select"
                             >
                                 <option value="" disabled selected>{{ t('Select type') }}</option>
                                 <option
@@ -377,139 +429,137 @@ const adjustmentActions = (record: AdjustmentRecord): RowActionItem[] => {
                         </div>
 
                         <Button type="submit" :disabled="processing">
+                            <Plus class="size-4" />
                             {{ t('Save adjustment') }}
                         </Button>
                     </Form>
-                </CardContent>
-            </Card>
+                </V2Panel>
             </Can>
 
-            <Card class="xl:col-span-2">
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2">
-                        <Receipt class="size-5" />
-                        {{ t('Adjustments for :month :year', {
-                            month: monthName(filters?.month ?? 1),
-                            year: String(filters?.year ?? new Date().getFullYear()),
-                        }) }}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent class="space-y-4">
-                    <form
-                        method="get"
-                        action="/hr/payroll-adjustments"
-                        class="flex flex-wrap items-end gap-4"
-                    >
-                        <div class="grid gap-2">
-                            <Label for="year">{{ t('Year') }}</Label>
+            <V2TablePanel
+                class="xl:col-span-2"
+                table-id="hr-payroll-adjustments"
+                :columns="tableColumns"
+            >
+                <template #filters>
+                    <V2FilterBar>
+                        <form
+                            method="get"
+                            action="/hr/payroll-adjustments"
+                            class="flex flex-wrap items-end gap-2"
+                        >
                             <Input
                                 id="year"
                                 name="year"
                                 type="number"
-                                :default-value="filters?.year ?? new Date().getFullYear()"
-                                class="w-28"
+                                :default-value="filterYear"
+                                class="h-9 w-28"
+                                :placeholder="t('Year')"
                             />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label for="month">{{ t('Month') }}</Label>
                             <Input
                                 id="month"
                                 name="month"
                                 type="number"
                                 min="1"
                                 max="12"
-                                :default-value="filters?.month ?? new Date().getMonth() + 1"
-                                class="w-20"
+                                :default-value="filterMonth"
+                                class="h-9 w-20"
+                                :placeholder="t('Month')"
                             />
-                        </div>
-                        <Button type="submit" variant="outline">{{ t('Filter') }}</Button>
-                    </form>
+                            <Button type="submit" variant="outline" class="h-9">
+                                {{ t('Filter') }}
+                            </Button>
+                        </form>
+                    </V2FilterBar>
+                </template>
 
-                    <div
-                        v-if="adjustments.data.length === 0"
-                        class="ui-empty-state"
-                    >
-                        {{ t('No adjustments for this period.') }}
-                    </div>
-
-                    <div v-else class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b text-left text-muted-foreground">
-                                    <th class="pb-3 pr-4 font-medium">{{ t('Personnel') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ t('Project') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ t('Type') }}</th>
-                                    <th class="pb-3 pr-4 text-right font-medium">{{ t('Amount') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ t('Status') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ t('Notes') }}</th>
-                                    <th class="pb-3 text-right font-medium">{{ t('Actions') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr
-                                    v-for="record in adjustments.data"
-                                    :key="record.id"
-                                    class="border-b last:border-0"
-                                >
-                                    <td class="py-3 pr-4">
-                                        <div class="font-medium">
-                                            {{ personnelLabel(record) }}
-                                        </div>
-                                        <div class="text-xs text-muted-foreground">
-                                            {{ personnelTypeLabel(record.personnel_type) }}
-                                        </div>
-                                    </td>
-                                    <td class="py-3 pr-4 text-muted-foreground">
-                                        {{ record.project?.code ?? '—' }}
-                                    </td>
-                                    <td class="py-3 pr-4">
-                                        <Badge
+                <template #default="{ visibleColCount }">
+                    <table>
+                        <thead>
+                            <tr>
+                                <TableIndexTh />
+                                <th>{{ t('Personnel') }}</th>
+                                <th>{{ t('Project') }}</th>
+                                <th>{{ t('Type') }}</th>
+                                <th class="end">{{ t('Amount') }}</th>
+                                <th>{{ t('Status') }}</th>
+                                <th>{{ t('Notes') }}</th>
+                                <th class="end">{{ t('Actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="(record, index) in sortedRows"
+                                :key="record.id"
+                                :style="{ '--i': index }"
+                            >
+                                <TableIndexTd
+                                    :index="index"
+                                    :from="adjustments.meta?.from"
+                                />
+                                <td>
+                                    <div class="font-medium">
+                                        {{ personnelLabel(record) }}
+                                    </div>
+                                    <div class="muted text-xs">
+                                        {{ personnelTypeLabel(record.personnel_type) }}
+                                    </div>
+                                </td>
+                                <td class="muted">
+                                    {{ record.project?.code ?? '—' }}
+                                </td>
+                                <td>
+                                    <Badge
                                         :variant="
                                             record.type === 'bonus' || record.type === 'salary'
                                                 ? 'default'
                                                 : 'secondary'
                                         "
-                                        >
-                                            {{ typeLabel(record.type) }}
-                                        </Badge>
-                                    </td>
-                                    <td
-                                        class="py-3 pr-4 text-right font-medium"
-                                        :class="
-                                            record.type === 'bonus' || record.type === 'salary'
-                                                ? 'text-green-700 dark:text-green-400'
-                                                : 'text-destructive'
-                                        "
                                     >
-                                        {{ formatCurrency(record.amount) }}
-                                    </td>
-                                    <td class="py-3 pr-4">
-                                        <Badge
-                                            :variant="
-                                                record.applied_at ? 'outline' : 'secondary'
-                                            "
-                                        >
-                                            {{ record.applied_at ? t('Applied') : t('Pending') }}
-                                        </Badge>
-                                    </td>
-                                    <td class="py-3 pr-4 text-muted-foreground">
-                                        {{ record.notes ?? '—' }}
-                                    </td>
-                                    <td class="py-3 text-right">
-                                        <RowActionsMenu
-                                            v-if="adjustmentActions(record).length"
-                                            :actions="adjustmentActions(record)"
-                                        />
-                                        <span v-else class="text-xs text-muted-foreground">—</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                                        {{ typeLabel(record.type) }}
+                                    </Badge>
+                                </td>
+                                <td
+                                    class="end nums"
+                                    :class="
+                                        amountTone(record.type) === 'positive'
+                                            ? 'text-green-700 dark:text-green-400'
+                                            : 'text-destructive'
+                                    "
+                                >
+                                    {{ formatCurrency(record.amount) }}
+                                </td>
+                                <td>
+                                    <Badge
+                                        :variant="record.applied_at ? 'outline' : 'secondary'"
+                                    >
+                                        {{ record.applied_at ? t('Applied') : t('Pending') }}
+                                    </Badge>
+                                </td>
+                                <td class="muted">
+                                    {{ record.notes ?? '—' }}
+                                </td>
+                                <td class="end">
+                                    <RowActionsMenu
+                                        v-if="adjustmentActions(record).length"
+                                        :actions="adjustmentActions(record)"
+                                    />
+                                    <span v-else class="muted text-xs">—</span>
+                                </td>
+                            </tr>
+                            <EmptyState
+                                v-if="!adjustments.data.length"
+                                :colspan="visibleColCount"
+                                :title="t('No adjustments for this period.')"
+                            />
+                        </tbody>
+                    </table>
+                </template>
 
-                    <MisPagination :pagination="adjustments" />
-                </CardContent>
-            </Card>
+                <template v-if="adjustments.links?.length" #pager>
+                    <V2Pager :items="adjustments" :only="onlyKeys" />
+                </template>
+            </V2TablePanel>
         </div>
-    </div>
+    </V2ListPage>
 </template>

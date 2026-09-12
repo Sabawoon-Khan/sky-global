@@ -17,6 +17,7 @@ use App\Http\Controllers\Finance\ProjectIncomeController;
 use App\Http\Controllers\Forms\AttachmentTypeController;
 use App\Http\Controllers\Forms\FormTemplateController;
 use App\Http\Controllers\Forms\PersonnelAttachmentController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\Hr\ContractorController;
 use App\Http\Controllers\Hr\EmployeeController;
 use App\Http\Controllers\Hr\PayrollRunController;
@@ -41,6 +42,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('search', GlobalSearchController::class)->name('search');
 
     Route::get('attachments/{attachment}/download', [AttachmentController::class, 'download'])->name('attachments.download');
     Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
@@ -53,11 +55,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('organizations/{organization}', [OrganizationController::class, 'update'])->name('organizations.update');
     Route::delete('organizations/{organization}', [OrganizationController::class, 'destroy'])->name('organizations.destroy');
 
-    Route::redirect('bidding', '/projects');
-    Route::redirect('bidding/opportunities', '/projects');
-    Route::redirect('bidding/bids', '/projects');
+    Route::redirect('bidding', '/mis/projects');
+    Route::redirect('bidding/opportunities', '/mis/projects');
+    Route::redirect('bidding/bids', '/mis/projects');
 
-    Route::prefix('projects')->name('projects.')->group(function () {
+    Route::prefix('mis/projects')->name('projects.')->whereNumber('project')->group(function () {
         Route::get('/', [ProjectController::class, 'index'])->name('index');
         Route::get('create', [ProjectController::class, 'create'])->name('create');
         Route::post('/', [ProjectController::class, 'store'])->name('store');
@@ -111,6 +113,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('finance')->name('finance.')->group(function () {
         Route::get('/', [InvoiceController::class, 'index'])->name('index');
+        Route::get('tax', [InvoiceController::class, 'tax'])->name('tax');
+        Route::get('income', [ProjectIncomeController::class, 'index'])->name('income');
+        Route::get('expenses', [ProjectExpenseController::class, 'index'])->name('expenses');
+        Route::get('general-income', [GeneralIncomeController::class, 'index'])->name('general-income');
+        Route::get('general-expenses', [GeneralExpenseController::class, 'index'])->name('general-expenses');
+        Route::get('invoices', [InvoiceController::class, 'invoices'])->name('invoices');
+
         Route::post('incomes', [ProjectIncomeController::class, 'store'])->name('incomes.store');
         Route::put('incomes/{income}', [ProjectIncomeController::class, 'update'])->name('incomes.update');
         Route::delete('incomes/{income}', [ProjectIncomeController::class, 'destroy'])->name('incomes.destroy');

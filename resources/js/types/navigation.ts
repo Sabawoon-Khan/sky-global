@@ -11,6 +11,11 @@ export type NavItem = {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon;
     isActive?: boolean;
+    /** When true, only the exact path matches (no prefix children). */
+    exact?: boolean;
+    matchPrefixes?: string[];
+    createHref?: string;
+    createPermission?: string;
 };
 
 export type NavGroup = {

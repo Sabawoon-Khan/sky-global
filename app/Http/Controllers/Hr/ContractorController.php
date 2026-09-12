@@ -13,9 +13,11 @@ use App\Models\Hr\PersonnelAttendance;
 use App\Models\Hr\PersonnelPayrollAdjustment;
 use App\Models\Project\Project;
 use App\Models\Project\ProjectDeployment;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -41,13 +43,74 @@ class ContractorController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        $byStatus = Contractor::query()
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+
         return Inertia::render('mis/hr/Contractors/Index', [
             'contractors' => $contractors,
+            'stats' => [
+                'total' => Contractor::query()->count(),
+                'active' => (int) ($byStatus['active'] ?? 0),
+                'inactive' => (int) ($byStatus['inactive'] ?? 0),
+                'terminated' => (int) ($byStatus['terminated'] ?? 0),
+                'by_status' => $byStatus,
+            ],
+            'chart' => [
+                'status' => [
+                    ['key' => 'active', 'label' => 'Active', 'value' => (int) ($byStatus['active'] ?? 0)],
+                    ['key' => 'inactive', 'label' => 'Inactive', 'value' => (int) ($byStatus['inactive'] ?? 0)],
+                    ['key' => 'terminated', 'label' => 'Terminated', 'value' => (int) ($byStatus['terminated'] ?? 0)],
+                ],
+                'monthly' => $this->countCreatedByMonth(Contractor::query()),
+            ],
             'filters' => [
                 'search' => $search ?: null,
                 'status' => $status ?: null,
             ],
         ]);
+    }
+
+    /**
+     * @param  Builder<Contractor>  $query
+     * @return list<array{key: string, label: string, value: int}>
+     */
+    protected function countCreatedByMonth($query): array
+    {
+        $to = Carbon::now()->endOfMonth();
+        $from = Carbon::now()->subMonths(5)->startOfMonth();
+
+        $buckets = [];
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $key = $cursor->format('Y-m');
+            $buckets[$key] = [
+                'key' => $key,
+                'label' => $cursor->format('M'),
+                'value' => 0,
+            ];
+            $cursor = $cursor->addMonth();
+        }
+
+        $rows = $query
+            ->whereDate('created_at', '>=', $from->toDateString())
+            ->whereDate('created_at', '<=', $to->toDateString())
+            ->get(['created_at']);
+
+        foreach ($rows as $row) {
+            if (! $row->created_at) {
+                continue;
+            }
+            $key = $row->created_at->format('Y-m');
+            if (isset($buckets[$key])) {
+                $buckets[$key]['value']++;
+            }
+        }
+
+        return array_values($buckets);
     }
 
     public function create(Request $request): Response
@@ -325,7 +388,7 @@ class ContractorController extends Controller
                 'project_id' => $rateData['project_id'] ?? null,
                 'daily_rate' => $rateData['daily_rate'] ?? null,
                 'monthly_rate' => $rateData['monthly_rate'] ?? null,
-                'currency' => $rateData['currency'] ?? 'USD',
+                'currency' => $rateData['currency'] ?? 'AFN',
                 'effective_from' => $rateData['effective_from'] ?? null,
                 'effective_to' => $rateData['effective_to'] ?? null,
             ];
@@ -372,7 +435,7 @@ class ContractorController extends Controller
             ->orderByDesc('is_default')
             ->orderBy('code')
             ->pluck('code')
-            ->all() ?: ['USD'];
+            ->all() ?: ['AFN'];
     }
 
     /**

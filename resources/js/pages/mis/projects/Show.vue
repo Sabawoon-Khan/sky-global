@@ -1,13 +1,35 @@
 <script setup lang="ts">
-import { Form, Head, Link, router } from '@inertiajs/vue3';
-import { Pencil, Paperclip, Trash2 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { Form, Head, Link, router, usePage } from '@inertiajs/vue3';
+import {
+    ArrowDownRight,
+    ArrowUpRight,
+    ChevronDown,
+    MapPin,
+    Package,
+    Paperclip,
+    Pencil,
+    Shield,
+    Trash2,
+    Users,
+    Wallet,
+} from '@lucide/vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import Can from '@/components/Can.vue';
 import EntityAttachments, {
     type EntityAttachment,
 } from '@/components/EntityAttachments.vue';
 import InputError from '@/components/InputError.vue';
-import MisPage from '@/components/MisPage.vue';
+import {
+    V2DetailHero,
+    V2ListPage,
+    V2Panel,
+    V2StatCard,
+    V2StatGrid,
+} from '@/components/v2';
+import { MisChartCard, MisEmptyState } from '@/components/mis';
+import DonutChart from '@/components/charts/DonutChart.vue';
+import RingProgress from '@/components/charts/RingProgress.vue';
+import MisTabs from '@/components/MisTabs.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
 import SecurityScopeField from '@/components/SecurityScopeField.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
@@ -119,6 +141,14 @@ interface ProjectShareholder {
     transactions?: ShareholderTransaction[];
 }
 
+interface ProjectEquipmentReturn {
+    id: number;
+    quantity: number;
+    returned_at: string;
+    notes: string | null;
+    received_by?: { id: number; name: string } | null;
+}
+
 interface ProjectEquipmentIssue {
     id: number;
     quantity: number;
@@ -132,6 +162,8 @@ interface ProjectEquipmentIssue {
         category: string | null;
         unit: string | null;
     } | null;
+    issued_by?: { id: number; name: string } | null;
+    returns?: ProjectEquipmentReturn[];
 }
 
 interface StockItemOption {
@@ -208,7 +240,7 @@ const { t, can, gateActions } = useMisPage();
 defineOptions({
     layout: {
         breadcrumbs: [
-            { title: 'Projects', href: '/projects' },
+            { title: 'Projects', href: '/mis/projects' },
             { title: 'Project', href: '#' },
         ],
     },
@@ -258,21 +290,43 @@ const tabIds: TabId[] = [
     'attachments',
 ];
 
-const initialTab = (): TabId => {
-    const fromUrl = new URLSearchParams(window.location.search).get('tab');
+const page = usePage();
+
+const tabFromUrl = (url: string): TabId => {
+    const query = url.includes('?') ? (url.split('?')[1] ?? '') : '';
+    const fromUrl = new URLSearchParams(query).get('tab');
 
     return tabIds.includes(fromUrl as TabId) ? (fromUrl as TabId) : 'overview';
 };
+
+const initialTab = (): TabId => tabFromUrl(page.url);
 
 const activeTab = ref<TabId>(initialTab());
 
 const setActiveTab = (tab: TabId): void => {
     activeTab.value = tab;
+};
+
+function syncTabFromUrl(): void {
+    const fromUrl = tabFromUrl(page.url);
+    if (activeTab.value !== fromUrl) {
+        activeTab.value = fromUrl;
+    }
+}
+
+onMounted(() => {
+    syncTabFromUrl();
+});
+
+watch(activeTab, (tab) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
 
     const url = new URL(window.location.href);
     url.searchParams.set('tab', tab);
     window.history.replaceState({}, '', url.toString());
-};
+});
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -282,6 +336,56 @@ const editingFinance = ref<{
 } | null>(null);
 
 const editingIssue = ref<ProjectIssue | null>(null);
+
+const returningIssue = ref<ProjectEquipmentIssue | null>(null);
+const expandedEquipmentIds = ref<number[]>([]);
+
+const equipmentIssues = computed(() => props.project.equipment_issues ?? []);
+
+const equipmentSummary = computed(() => {
+    const issues = equipmentIssues.value;
+    const totalIssued = issues.reduce((sum, issue) => sum + issue.quantity, 0);
+    const totalReturned = issues.reduce(
+        (sum, issue) => sum + issue.quantity_returned,
+        0,
+    );
+    const onSite = Math.max(0, totalIssued - totalReturned);
+
+    return { totalIssued, totalReturned, onSite };
+});
+
+const outstandingForReturn = computed(() => {
+    if (!returningIssue.value) {
+        return 0;
+    }
+
+    return Math.max(
+        0,
+        returningIssue.value.quantity - returningIssue.value.quantity_returned,
+    );
+});
+
+const openReturnDialog = (issue: ProjectEquipmentIssue): void => {
+    returningIssue.value = issue;
+};
+
+const closeReturnDialog = (): void => {
+    returningIssue.value = null;
+};
+
+const toggleEquipmentHistory = (issueId: number): void => {
+    if (expandedEquipmentIds.value.includes(issueId)) {
+        expandedEquipmentIds.value = expandedEquipmentIds.value.filter(
+            (id) => id !== issueId,
+        );
+        return;
+    }
+
+    expandedEquipmentIds.value = [...expandedEquipmentIds.value, issueId];
+};
+
+const isEquipmentHistoryOpen = (issueId: number): boolean =>
+    expandedEquipmentIds.value.includes(issueId);
 
 const isBiddingPhase = computed(() =>
     ['draft', 'submitted', 'won', 'lost'].includes(props.project.status),
@@ -307,12 +411,12 @@ const statusVariant = (status: string) => {
 };
 
 const changeStatus = (status: string) => {
-    router.post(`/projects/${props.project.id}/status`, { status }, { preserveScroll: true });
+    router.post(`/mis/projects/${props.project.id}/status`, { status }, { preserveScroll: true });
 };
 
 const markLost = () => {
     router.post(
-        `/projects/${props.project.id}/status`,
+        `/mis/projects/${props.project.id}/status`,
         {
             status: 'lost',
             loss_reason: props.project.loss_reason ?? '',
@@ -380,7 +484,7 @@ const issueActions = (issue: ProjectIssue): RowActionItem[] => {
     if (issue.status === 'open') {
         actions.push({
             label: t('Mark in progress'),
-            href: `/projects/${props.project.id}/issues/${issue.id}`,
+            href: `/mis/projects/${props.project.id}/issues/${issue.id}`,
             method: 'put',
             data: { status: 'in_progress' },
         });
@@ -389,7 +493,7 @@ const issueActions = (issue: ProjectIssue): RowActionItem[] => {
     if (['open', 'in_progress'].includes(issue.status)) {
         actions.push({
             label: t('Resolve'),
-            href: `/projects/${props.project.id}/issues/${issue.id}`,
+            href: `/mis/projects/${props.project.id}/issues/${issue.id}`,
             method: 'put',
             data: { status: 'resolved' },
         });
@@ -398,7 +502,7 @@ const issueActions = (issue: ProjectIssue): RowActionItem[] => {
     if (issue.status === 'resolved') {
         actions.push({
             label: t('Close'),
-            href: `/projects/${props.project.id}/issues/${issue.id}`,
+            href: `/mis/projects/${props.project.id}/issues/${issue.id}`,
             method: 'put',
             data: { status: 'closed' },
         });
@@ -409,7 +513,7 @@ const issueActions = (issue: ProjectIssue): RowActionItem[] => {
         icon: Trash2,
         variant: 'destructive',
         separator: true,
-        href: `/projects/${props.project.id}/issues/${issue.id}`,
+        href: `/mis/projects/${props.project.id}/issues/${issue.id}`,
         method: 'delete',
         confirm: {
             title: t('Delete issue'),
@@ -423,6 +527,105 @@ const issueActions = (issue: ProjectIssue): RowActionItem[] => {
     return gateActions(actions, 'projects.edit');
 };
 
+
+const marginPct = computed(() => {
+    const income = Number(props.finance.income) || 0;
+    if (income <= 0) return 0;
+    return Math.round((Number(props.finance.margin) / income) * 100);
+});
+
+const financeMixLabels = computed(() => [t('Income'), t('Expenses')]);
+const financeMixData = computed(() => [
+    Math.max(0, Number(props.finance.income) || 0),
+    Math.max(0, Number(props.finance.expense) || 0),
+]);
+
+const monthlyFinanceChart = computed(() => {
+    const buckets = new Map<string, { label: string; income: number; expense: number }>();
+
+    const push = (date: string | null | undefined, amount: number, kind: 'income' | 'expense') => {
+        if (!date) return;
+        const d = new Date(date);
+        if (Number.isNaN(d.getTime())) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const label = d.toLocaleString(undefined, { month: 'short' });
+        const row = buckets.get(key) ?? { label, income: 0, expense: 0 };
+        row[kind] += Number(amount) || 0;
+        buckets.set(key, row);
+    };
+
+    for (const row of props.project.incomes ?? []) {
+        push(row.transaction_date, row.amount, 'income');
+    }
+    for (const row of props.project.expenses ?? []) {
+        push(row.transaction_date, row.amount, 'expense');
+    }
+
+    const rows = [...buckets.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(-6)
+        .map(([, row]) => row);
+
+    if (!rows.length) {
+        return {
+            labels: ['—'],
+            datasets: [
+                { label: t('Income'), data: [0], color: 'var(--chart-2)' },
+                { label: t('Expenses'), data: [0], color: 'var(--chart-3)' },
+            ],
+        };
+    }
+
+    return {
+        labels: rows.map((row) => row.label),
+        datasets: [
+            {
+                label: t('Income'),
+                data: rows.map((row) => row.income),
+                color: 'var(--chart-2)',
+            },
+            {
+                label: t('Expenses'),
+                data: rows.map((row) => row.expense),
+                color: 'var(--chart-3)',
+            },
+        ],
+    };
+});
+
+const competitorChart = computed(() => {
+    const ours = Number(props.project.our_bid_amount) || 0;
+    const rows = [
+        { label: t('Our bid'), value: ours },
+        ...props.project.competitor_bids.map((c) => ({
+            label: c.competitor_name,
+            value: Number(c.bid_amount) || 0,
+        })),
+    ].filter((row) => row.value > 0);
+
+    return {
+        labels: rows.length ? rows.map((r) => r.label) : [t('Our bid')],
+        datasets: [
+            {
+                label: t('Bid amount'),
+                data: rows.length ? rows.map((r) => r.value) : [0],
+                color: 'var(--chart-1)',
+            },
+        ],
+    };
+});
+
+const overviewCounts = computed(() => ({
+    personnel: props.project.deployments?.length ?? 0,
+    equipment: props.project.equipment_issues?.length ?? 0,
+    issues: props.project.issues?.length ?? 0,
+    attachments: props.project.attachments?.length ?? 0,
+    activities: props.project.activities?.length ?? 0,
+    competitors: props.project.competitor_bids?.length ?? 0,
+}));
+
+const recentActivity = computed(() => (props.project.activities ?? []).slice(0, 5));
+
 const closeFinanceEdit = (): void => {
     editingFinance.value = null;
 };
@@ -435,13 +638,24 @@ const closeIssueEdit = (): void => {
 <template>
     <Head :title="project.name" />
 
-    <MisPage>
-        <!-- Header -->
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div class="min-w-0">
-                <p class="font-mono text-xs text-muted-foreground">{{ project.code }}</p>
-                <div class="mt-2 flex flex-wrap gap-2">
-                    <Badge :variant="statusVariant(project.status)">{{ project.status }}</Badge>
+    <V2ListPage>
+        <V2DetailHero
+            image="/images/gs-hero-operations.png"
+            :compact="activeTab !== 'overview'"
+        >
+            <template #eyebrow>{{ t('Projects') }}</template>
+            <template #title>{{ project.name }}</template>
+            <template #description>
+                {{ project.code }}
+                <span v-if="project.organization?.name">
+                    · {{ project.organization.name }}
+                </span>
+            </template>
+            <template #actions>
+                <div class="mb-2 flex flex-wrap gap-2">
+                    <Badge :variant="statusVariant(project.status)">{{
+                        project.status
+                    }}</Badge>
                     <Badge v-if="project.organization" variant="secondary">
                         {{ project.organization.name }}
                     </Badge>
@@ -453,108 +667,237 @@ const closeIssueEdit = (): void => {
                         {{ formatScopeType(scope) }}
                     </Badge>
                 </div>
-            </div>
-            <div class="flex shrink-0 flex-wrap gap-2">
-                <Button variant="outline" size="sm" as-child>
-                    <Link href="/projects">{{ t('Back to list') }}</Link>
-                </Button>
-                <template v-if="can('projects.edit') && statusOptions.length">
-                    <Button
-                        v-for="opt in statusOptions"
-                        :key="opt.value"
-                        size="sm"
-                        :variant="opt.value === 'lost' ? 'destructive' : 'default'"
-                        @click="opt.value === 'lost' ? markLost() : changeStatus(opt.value)"
-                    >
-                        Mark {{ opt.label }}
+                <div class="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" as-child>
+                        <Link href="/mis/projects">{{ t('Back to list') }}</Link>
                     </Button>
-                </template>
-            </div>
-        </div>
+                    <template v-if="can('projects.edit') && statusOptions.length">
+                        <Button
+                            v-for="opt in statusOptions"
+                            :key="opt.value"
+                            size="sm"
+                            :variant="
+                                opt.value === 'lost' ? 'destructive' : 'default'
+                            "
+                            @click="
+                                opt.value === 'lost'
+                                    ? markLost()
+                                    : changeStatus(opt.value)
+                            "
+                        >
+                            Mark {{ opt.label }}
+                        </Button>
+                    </template>
+                </div>
+            </template>
+            <template v-if="activeTab === 'overview'" #stats>
+                <V2StatGrid>
+                    <V2StatCard
+                        :delay="0"
+                        :title="t('Our bid')"
+                        :value="formatAfn(project.our_bid_amount)"
+                    />
+                    <V2StatCard
+                        :delay="1"
+                        icon-tone="warm"
+                        :title="t('Deadline')"
+                        :value="formatDate(project.submission_deadline)"
+                    />
+                    <V2StatCard
+                        :delay="2"
+                        icon-tone="teal"
+                        :title="t('Competitors')"
+                        :value="project.competitor_bids.length"
+                    />
+                    <V2StatCard
+                        :delay="3"
+                        accent
+                        icon-tone="orange"
+                        :title="t('Margin')"
+                        :value="formatAfn(finance.margin)"
+                    />
+                </V2StatGrid>
+            </template>
+        </V2DetailHero>
 
-        <!-- Quick stats -->
-        <div class="grid gap-3 sm:grid-cols-4">
-            <Card class="py-0">
-                <CardContent class="p-3">
-                    <p class="text-xs text-muted-foreground">{{ t('Our bid') }}</p>
-                    <p class="text-lg font-semibold">
-                        {{ formatAfn(project.our_bid_amount) }}
-                    </p>
-                </CardContent>
-            </Card>
-            <Card class="py-0">
-                <CardContent class="p-3">
-                    <p class="text-xs text-muted-foreground">{{ t('Deadline') }}</p>
-                    <p class="text-lg font-semibold">
-                        {{ formatDate(project.submission_deadline) }}
-                    </p>
-                </CardContent>
-            </Card>
-            <Card class="py-0">
-                <CardContent class="p-3">
-                    <p class="text-xs text-muted-foreground">{{ t('Competitors') }}</p>
-                    <p class="text-lg font-semibold">{{ project.competitor_bids.length }}</p>
-                </CardContent>
-            </Card>
-            <Card class="py-0">
-                <CardContent class="p-3">
-                    <p class="text-xs text-muted-foreground">{{ t('Margin') }}</p>
-                    <p class="text-lg font-semibold">
-                        {{ formatAfn(finance.margin) }}
-                    </p>
-                </CardContent>
-            </Card>
-        </div>
-
-        <!-- Tabs -->
-        <div class="flex gap-1 overflow-x-auto border-b pb-0">
-            <button
-                v-for="tab in tabs"
-                :key="tab.id"
-                type="button"
-                class="shrink-0 border-b-2 px-3 py-2 text-sm transition-colors"
-                :class="
-                    activeTab === tab.id
-                        ? 'border-primary font-medium text-foreground'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'
-                "
-                @click="setActiveTab(tab.id)"
-            >
-                {{ tab.label }}
-            </button>
-        </div>
+        <MisTabs
+            :model-value="activeTab"
+            :tabs="tabs"
+            nowrap
+            @update:model-value="(id) => setActiveTab(id as TabId)"
+        />
 
         <!-- Overview -->
-        <div v-if="activeTab === 'overview'" class="grid gap-3 lg:grid-cols-2">
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-base">{{ t('Project info') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="space-y-2 text-sm">
-                    <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">{{ t('Location') }}</span>
-                        <span>{{ project.location ?? '—' }}</span>
+        <div v-if="activeTab === 'overview'" class="project-overview space-y-4">
+            <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <article class="overview-kpi">
+                    <div class="overview-kpi-top">
+                        <span>{{ t('Income') }}</span>
+                        <span class="overview-kpi-icon income"><ArrowUpRight /></span>
                     </div>
-                    <div class="flex justify-between gap-4">
-                        <span class="text-muted-foreground">{{ t('Scope') }}</span>
-                        <span class="text-right">
-                            <template v-if="projectScopeTypes.length">
-                                {{ projectScopeTypes.map(formatScopeType).join(', ') }}
-                            </template>
-                            <template v-else>—</template>
-                        </span>
+                    <strong>{{ formatAfn(finance.income) }}</strong>
+                    <small>{{ t('Project receipts') }}</small>
+                </article>
+                <article class="overview-kpi">
+                    <div class="overview-kpi-top">
+                        <span>{{ t('Expenses') }}</span>
+                        <span class="overview-kpi-icon expense"><ArrowDownRight /></span>
                     </div>
-                    <div v-if="project.scope_summary" class="pt-2">
-                        <p class="text-muted-foreground">{{ t('Summary') }}</p>
-                        <p class="mt-1">{{ project.scope_summary }}</p>
+                    <strong>{{ formatAfn(finance.expense) }}</strong>
+                    <small>{{ t('Project spend') }}</small>
+                </article>
+                <article class="overview-kpi">
+                    <div class="overview-kpi-top">
+                        <span>{{ t('Margin') }}</span>
+                        <RingProgress
+                            :value="Math.abs(marginPct)"
+                            :max="100"
+                            :size="40"
+                            :stroke-width="4"
+                            :color="finance.margin >= 0 ? '#1f4e5f' : '#8f2d3a'"
+                            track-color="rgba(12, 26, 46, 0.08)"
+                        />
                     </div>
-                </CardContent>
-            </Card>
-            <Card v-if="!isBiddingPhase || project.status === 'won'">
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-base">{{ t('Contract (when won)') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
+                    <strong :class="finance.margin >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'">
+                        {{ formatAfn(finance.margin) }}
+                    </strong>
+                    <small>{{ marginPct }}% {{ t('of income') }}</small>
+                </article>
+                <article class="overview-kpi">
+                    <div class="overview-kpi-top">
+                        <span>{{ t('Workforce') }}</span>
+                        <span class="overview-kpi-icon people"><Users /></span>
+                    </div>
+                    <strong>{{ overviewCounts.personnel }}</strong>
+                    <small>
+                        {{ overviewCounts.equipment }} {{ t('equipment') }}
+                        · {{ overviewCounts.issues }} {{ t('Reports') }}
+                    </small>
+                </article>
+            </section>
+
+            <section class="grid gap-4 xl:grid-cols-12">
+                <MisChartCard
+                    class="xl:col-span-7"
+                    :title="t('Income vs expenses')"
+                    :description="t('Recent project cash movement')"
+                    type="bar"
+                    :labels="monthlyFinanceChart.labels"
+                    :datasets="monthlyFinanceChart.datasets"
+                    :show-values="false"
+                />
+
+                <V2Panel
+                    class="xl:col-span-5"
+                    :title="t('Finance mix')"
+                    :description="t('Share of income and spend')"
+                >
+                    <div class="relative mx-auto h-[220px] w-full max-w-[260px]">
+                        <DonutChart
+                            :labels="financeMixLabels"
+                            :data="financeMixData"
+                            :colors="['#1f4e5f', '#b8956c']"
+                            :height="220"
+                            :center-label="t('Net')"
+                            :center-value="formatAfn(finance.margin)"
+                        />
+                    </div>
+                </V2Panel>
+            </section>
+
+            <section class="grid gap-4 xl:grid-cols-12">
+                <V2Panel
+                    class="xl:col-span-5"
+                    :title="t('Project info')"
+                    :description="t('Site and security scope')"
+                >
+                    <ul class="overview-meta">
+                        <li>
+                            <MapPin class="size-4" />
+                            <div>
+                                <span>{{ t('Location') }}</span>
+                                <strong>{{ project.location ?? '—' }}</strong>
+                            </div>
+                        </li>
+                        <li>
+                            <Shield class="size-4" />
+                            <div>
+                                <span>{{ t('Scope') }}</span>
+                                <strong>
+                                    <template v-if="projectScopeTypes.length">
+                                        {{ projectScopeTypes.map(formatScopeType).join(', ') }}
+                                    </template>
+                                    <template v-else>—</template>
+                                </strong>
+                            </div>
+                        </li>
+                        <li>
+                            <Wallet class="size-4" />
+                            <div>
+                                <span>{{ t('Our bid') }}</span>
+                                <strong>{{ formatAfn(project.our_bid_amount) }}</strong>
+                            </div>
+                        </li>
+                    </ul>
+                    <p
+                        v-if="project.scope_summary"
+                        class="mt-4 rounded-xl bg-muted/40 px-3 py-3 text-sm leading-relaxed text-muted-foreground"
+                    >
+                        {{ project.scope_summary }}
+                    </p>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <Badge variant="outline">
+                            {{ overviewCounts.competitors }} {{ t('Competitors') }}
+                        </Badge>
+                        <Badge variant="outline">
+                            {{ overviewCounts.attachments }} {{ t('Attachments') }}
+                        </Badge>
+                        <Badge variant="outline">
+                            {{ overviewCounts.activities }} {{ t('Activity') }}
+                        </Badge>
+                    </div>
+                </V2Panel>
+
+                <MisChartCard
+                    class="xl:col-span-7"
+                    :title="t('Bid comparison')"
+                    :description="t('Our bid against recorded competitors')"
+                    type="bar"
+                    orientation="horizontal"
+                    :labels="competitorChart.labels"
+                    :datasets="competitorChart.datasets"
+                    :show-values="true"
+                    :page-size="6"
+                />
+            </section>
+
+            <section class="grid gap-4 xl:grid-cols-12">
+                <V2Panel
+                    class="xl:col-span-5"
+                    :title="t('Recent activity')"
+                    :description="t('Latest project events')"
+                >
+                    <div v-if="!recentActivity.length" class="py-8 text-center text-sm text-muted-foreground">
+                        {{ t('No activity yet.') }}
+                    </div>
+                    <ol v-else class="overview-timeline">
+                        <li v-for="item in recentActivity" :key="item.id">
+                            <i />
+                            <div>
+                                <strong>{{ item.title }}</strong>
+                                <p v-if="item.description">{{ item.description }}</p>
+                                <small>{{ formatDate(item.created_at) }} · {{ item.activity_type }}</small>
+                            </div>
+                        </li>
+                    </ol>
+                </V2Panel>
+
+                <V2Panel
+                    v-if="!isBiddingPhase || project.status === 'won'"
+                    class="xl:col-span-7"
+                    :title="t('Contract (when won)')"
+                    :description="t('Keep contract terms up to date')"
+                >
                     <Form
                         v-if="can('projects.edit')"
                         v-bind="ProjectController.update.form(project.id)"
@@ -619,20 +962,21 @@ const closeIssueEdit = (): void => {
                             <span>{{ formatDate(project.contract_start) }} – {{ formatDate(project.contract_end) }}</span>
                         </div>
                     </div>
-                </CardContent>
-            </Card>
-            <Card v-if="project.status === 'lost'" class="lg:col-span-2">
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-base text-destructive">{{ t('Loss details') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="space-y-2 text-sm">
-                    <p v-if="project.loss_reason">{{ project.loss_reason }}</p>
-                    <p v-if="project.winning_competitor_name">
+                </V2Panel>
+
+                <V2Panel
+                    v-if="project.status === 'lost'"
+                    class="xl:col-span-7 border-destructive/20"
+                    :title="t('Loss details')"
+                    :description="t('Why this bid was lost')"
+                >
+                    <p v-if="project.loss_reason" class="text-sm">{{ project.loss_reason }}</p>
+                    <p v-if="project.winning_competitor_name" class="mt-2 text-sm text-muted-foreground">
                         {{ t('Winner:') }} {{ project.winning_competitor_name }}
                         ({{ formatAfn(project.winning_amount) }})
                     </p>
-                </CardContent>
-            </Card>
+                </V2Panel>
+            </section>
         </div>
 
         <!-- Our Bid -->
@@ -727,7 +1071,7 @@ const closeIssueEdit = (): void => {
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    @click="router.delete(`/projects/${project.id}/competitors/${comp.id}`, { preserveScroll: true })"
+                                    @click="router.delete(`/mis/projects/${project.id}/competitors/${comp.id}`, { preserveScroll: true })"
                                 >
                                     Remove
                                 </Button>
@@ -743,7 +1087,7 @@ const closeIssueEdit = (): void => {
                 </CardHeader>
                 <CardContent>
                     <Form
-                        :action="`/projects/${project.id}/competitors`"
+                        :action="`/mis/projects/${project.id}/competitors`"
                         method="post"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
@@ -803,7 +1147,7 @@ const closeIssueEdit = (): void => {
                                     size="sm"
                                     @click="
                                         router.delete(
-                                            `/projects/${project.id}/deployments/${deployment.id}`,
+                                            `/mis/projects/${project.id}/deployments/${deployment.id}`,
                                             { preserveScroll: true },
                                         )
                                     "
@@ -823,7 +1167,7 @@ const closeIssueEdit = (): void => {
                 </CardHeader>
                 <CardContent>
                     <Form
-                        :action="`/projects/${project.id}/deployments`"
+                        :action="`/mis/projects/${project.id}/deployments`"
                         method="post"
                         class="grid gap-2"
                         :options="{ preserveScroll: true }"
@@ -872,128 +1216,266 @@ const closeIssueEdit = (): void => {
         </div>
 
         <!-- Equipment from stock -->
-        <div v-else-if="activeTab === 'equipment'" class="grid gap-3 lg:grid-cols-3">
-            <Card class="lg:col-span-2">
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-base">{{ t('Equipment on this project') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div
-                        v-if="!project.equipment_issues?.length"
-                        class="py-6 text-center text-sm text-muted-foreground"
+        <div v-else-if="activeTab === 'equipment'" class="space-y-4">
+            <div class="flex flex-wrap gap-2">
+                <Badge variant="secondary" class="px-3 py-1 text-sm">
+                    {{ t('On site') }}: {{ equipmentSummary.onSite }}
+                </Badge>
+                <Badge variant="outline" class="px-3 py-1 text-sm">
+                    {{ t('Issued') }}: {{ equipmentSummary.totalIssued }}
+                </Badge>
+                <Badge variant="outline" class="px-3 py-1 text-sm">
+                    {{ t('Returned') }}: {{ equipmentSummary.totalReturned }}
+                </Badge>
+            </div>
+
+            <div class="grid gap-4 lg:grid-cols-3">
+                <V2Panel
+                    class="lg:col-span-2"
+                    :title="t('Equipment on this project')"
+                    :description="t('Track items issued from the depot and returns to stock.')"
+                >
+                    <MisEmptyState
+                        v-if="!equipmentIssues.length"
+                        :icon="Package"
+                        :title="t('No equipment on site yet')"
+                        :description="t('Issue items from depot stock to assign them to this project.')"
                     >
-                        {{ t('No stock items issued to this project yet.') }}
-                    </div>
-                    <div v-else class="overflow-x-auto rounded-md border">
+                        <template v-if="can('inventory.create')" #actions>
+                            <Button
+                                type="button"
+                                size="sm"
+                                @click="
+                                    document
+                                        .getElementById('issue-from-stock')
+                                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                                "
+                            >
+                                {{ t('Issue from stock') }}
+                            </Button>
+                        </template>
+                    </MisEmptyState>
+
+                    <div v-else class="overflow-x-auto rounded-xl border border-border/80">
                         <table class="w-full text-sm">
                             <thead class="border-b bg-muted/40 text-muted-foreground">
                                 <tr>
-                                    <th class="px-3 py-2 text-start font-medium">{{ t('Item') }}</th>
-                                    <th class="px-3 py-2 text-end font-medium">{{ t('Issued') }}</th>
-                                    <th class="px-3 py-2 text-end font-medium">{{ t('Returned') }}</th>
-                                    <th class="px-3 py-2 text-end font-medium">{{ t('On site') }}</th>
-                                    <th class="px-3 py-2 text-end font-medium">{{ t('Actions') }}</th>
+                                    <th class="px-3 py-2.5 text-start font-medium">{{ t('Item') }}</th>
+                                    <th class="px-3 py-2.5 text-end font-medium">{{ t('Issued') }}</th>
+                                    <th class="px-3 py-2.5 text-end font-medium">{{ t('Returned') }}</th>
+                                    <th class="px-3 py-2.5 text-end font-medium">{{ t('On site') }}</th>
+                                    <th class="px-3 py-2.5 text-center font-medium">{{ t('Status') }}</th>
+                                    <th class="px-3 py-2.5 text-end font-medium">{{ t('Actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y">
-                                <tr
-                                    v-for="issue in project.equipment_issues"
+                                <template
+                                    v-for="issue in equipmentIssues"
                                     :key="issue.id"
-                                    class="hover:bg-muted/30"
                                 >
-                                    <td class="px-3 py-2">
-                                        <p class="font-medium">
-                                            {{ issue.equipment_catalog?.name ?? t('Item') }}
-                                        </p>
-                                        <p class="text-xs text-muted-foreground">
-                                            {{ formatDate(issue.issued_at) }}
-                                            <span v-if="issue.equipment_catalog?.category">
-                                                · {{ issue.equipment_catalog.category }}
-                                            </span>
-                                        </p>
-                                    </td>
-                                    <td class="px-3 py-2 text-end tabular-nums">{{ issue.quantity }}</td>
-                                    <td class="px-3 py-2 text-end tabular-nums">{{ issue.quantity_returned }}</td>
-                                    <td class="px-3 py-2 text-end font-semibold tabular-nums">
-                                        {{ issue.quantity - issue.quantity_returned }}
-                                    </td>
-                                    <td class="px-3 py-2 text-end">
-                                        <Can permission="inventory.edit">
-                                            <Form
-                                                v-if="issue.quantity - issue.quantity_returned > 0"
-                                                :action="`/projects/${project.id}/equipment-issues/${issue.id}/return`"
-                                                method="post"
-                                                class="inline-flex items-center gap-1"
-                                                :options="{ preserveScroll: true }"
-                                                v-slot="{ processing }"
+                                    <tr class="hover:bg-muted/30">
+                                        <td class="px-3 py-3">
+                                            <p class="font-medium">
+                                                {{ issue.equipment_catalog?.name ?? t('Item') }}
+                                            </p>
+                                            <p class="mt-0.5 text-xs text-muted-foreground">
+                                                {{ formatDate(issue.issued_at) }}
+                                                <span v-if="issue.equipment_catalog?.category">
+                                                    · {{ issue.equipment_catalog.category }}
+                                                </span>
+                                                <span v-if="issue.issued_by?.name">
+                                                    · {{ t('by') }} {{ issue.issued_by.name }}
+                                                </span>
+                                            </p>
+                                            <p
+                                                v-if="issue.notes"
+                                                class="mt-1 text-xs text-muted-foreground"
                                             >
-                                                <Input
-                                                    name="quantity"
-                                                    type="number"
-                                                    min="1"
-                                                    :max="issue.quantity - issue.quantity_returned"
-                                                    :value="issue.quantity - issue.quantity_returned"
-                                                    class="h-8 w-20"
-                                                    required
-                                                />
-                                                <Button type="submit" size="sm" variant="outline" :disabled="processing">
-                                                    {{ t('Return') }}
+                                                {{ issue.notes }}
+                                            </p>
+                                        </td>
+                                        <td class="px-3 py-3 text-end tabular-nums">
+                                            {{ issue.quantity }}
+                                        </td>
+                                        <td class="px-3 py-3 text-end tabular-nums">
+                                            {{ issue.quantity_returned }}
+                                        </td>
+                                        <td class="px-3 py-3 text-end font-semibold tabular-nums">
+                                            {{ issue.quantity - issue.quantity_returned }}
+                                        </td>
+                                        <td class="px-3 py-3 text-center">
+                                            <Badge
+                                                :variant="
+                                                    issue.quantity - issue.quantity_returned > 0
+                                                        ? 'default'
+                                                        : 'secondary'
+                                                "
+                                            >
+                                                {{
+                                                    issue.quantity - issue.quantity_returned > 0
+                                                        ? t('On site')
+                                                        : t('Fully returned')
+                                                }}
+                                            </Badge>
+                                        </td>
+                                        <td class="px-3 py-3 text-end">
+                                            <div class="inline-flex items-center gap-1">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    :aria-expanded="isEquipmentHistoryOpen(issue.id)"
+                                                    @click="toggleEquipmentHistory(issue.id)"
+                                                >
+                                                    <ChevronDown
+                                                        class="size-4 transition"
+                                                        :class="{
+                                                            'rotate-180': isEquipmentHistoryOpen(issue.id),
+                                                        }"
+                                                    />
+                                                    <span class="sr-only">{{ t('History') }}</span>
                                                 </Button>
-                                            </Form>
-                                        </Can>
-                                    </td>
-                                </tr>
+                                                <Can permission="inventory.edit">
+                                                    <Button
+                                                        v-if="issue.quantity - issue.quantity_returned > 0"
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        @click="openReturnDialog(issue)"
+                                                    >
+                                                        {{ t('Return') }}
+                                                    </Button>
+                                                </Can>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        v-if="isEquipmentHistoryOpen(issue.id)"
+                                        class="bg-muted/20"
+                                    >
+                                        <td colspan="6" class="px-3 py-3">
+                                            <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                {{ t('Return history') }}
+                                            </p>
+                                            <div
+                                                v-if="!issue.returns?.length"
+                                                class="text-sm text-muted-foreground"
+                                            >
+                                                {{ t('No returns recorded yet.') }}
+                                            </div>
+                                            <ul v-else class="space-y-2">
+                                                <li
+                                                    v-for="ret in issue.returns"
+                                                    :key="ret.id"
+                                                    class="rounded-lg border border-border/70 bg-background px-3 py-2 text-sm"
+                                                >
+                                                    <div class="flex flex-wrap items-baseline justify-between gap-2">
+                                                        <span class="font-medium tabular-nums">
+                                                            {{ ret.quantity }}
+                                                            {{ issue.equipment_catalog?.unit ?? t('pcs') }}
+                                                        </span>
+                                                        <span class="text-xs text-muted-foreground">
+                                                            {{ formatDate(ret.returned_at) }}
+                                                        </span>
+                                                    </div>
+                                                    <p
+                                                        v-if="ret.received_by?.name"
+                                                        class="mt-0.5 text-xs text-muted-foreground"
+                                                    >
+                                                        {{ t('Received by') }}:
+                                                        {{ ret.received_by.name }}
+                                                    </p>
+                                                    <p
+                                                        v-if="ret.notes"
+                                                        class="mt-1 text-xs text-muted-foreground"
+                                                    >
+                                                        {{ ret.notes }}
+                                                    </p>
+                                                </li>
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                </template>
                             </tbody>
                         </table>
                     </div>
-                </CardContent>
-            </Card>
-            <Can permission="inventory.create">
-                <Card>
-                    <CardHeader class="pb-2">
-                        <CardTitle class="text-base">{{ t('Issue from stock') }}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                </V2Panel>
+
+                <Can permission="inventory.create">
+                    <V2Panel
+                        id="issue-from-stock"
+                        :title="t('Issue from stock')"
+                        :description="t('Stock is reduced from the depot when you issue items.')"
+                    >
                         <Form
-                            :action="`/projects/${project.id}/equipment-issues`"
+                            :action="`/mis/projects/${project.id}/equipment-issues`"
                             method="post"
-                            class="grid gap-2"
+                            class="grid gap-3"
                             :options="{ preserveScroll: true, resetOnSuccess: true }"
                             v-slot="{ errors, processing }"
                             @success="setActiveTab('equipment')"
                         >
-                            <select
-                                name="equipment_catalog_id"
-                                required
-                                class="h-9 rounded-md border border-input px-3 text-sm"
-                            >
-                                <option value="" disabled selected>{{ t('Select item') }}</option>
-                                <option
-                                    v-for="item in stockItems ?? []"
-                                    :key="item.id"
-                                    :value="item.id"
-                                    :disabled="item.quantity_on_hand < 1"
+                            <div class="grid gap-2">
+                                <Label for="issue-equipment-catalog">{{ t('Item') }}</Label>
+                                <select
+                                    id="issue-equipment-catalog"
+                                    name="equipment_catalog_id"
+                                    required
+                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                                 >
-                                    {{ item.name }}
-                                    <template v-if="item.category"> ({{ item.category }})</template>
-                                    — {{ item.quantity_on_hand }} {{ item.unit ?? 'pcs' }}
-                                </option>
-                            </select>
-                            <InputError :message="errors.equipment_catalog_id" />
-                            <Input name="quantity" type="number" min="1" required :placeholder="t('Quantity')" />
-                            <InputError :message="errors.quantity" />
-                            <Input name="issued_at" type="date" />
-                            <Textarea name="notes" rows="2" :placeholder="t('Notes')" />
-                            <Button type="submit" size="sm" :disabled="processing">
+                                    <option value="" disabled selected>{{ t('Select item') }}</option>
+                                    <option
+                                        v-for="item in stockItems ?? []"
+                                        :key="item.id"
+                                        :value="item.id"
+                                        :disabled="item.quantity_on_hand < 1"
+                                    >
+                                        {{ item.name }}
+                                        <template v-if="item.category"> ({{ item.category }})</template>
+                                        — {{ item.quantity_on_hand }} {{ item.unit ?? 'pcs' }}
+                                    </option>
+                                </select>
+                                <InputError :message="errors.equipment_catalog_id" />
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="issue-quantity">{{ t('Quantity') }}</Label>
+                                <Input
+                                    id="issue-quantity"
+                                    name="quantity"
+                                    type="number"
+                                    min="1"
+                                    required
+                                    :placeholder="t('Quantity')"
+                                />
+                                <InputError :message="errors.quantity" />
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="issue-issued-at">{{ t('Issued at') }}</Label>
+                                <Input
+                                    id="issue-issued-at"
+                                    name="issued_at"
+                                    type="date"
+                                    :default-value="today"
+                                />
+                                <InputError :message="errors.issued_at" />
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="issue-notes">{{ t('Notes') }}</Label>
+                                <Textarea
+                                    id="issue-notes"
+                                    name="notes"
+                                    rows="2"
+                                    :placeholder="t('Notes')"
+                                />
+                                <InputError :message="errors.notes" />
+                            </div>
+                            <Button type="submit" :disabled="processing">
                                 {{ t('Issue to project') }}
                             </Button>
-                            <p class="text-xs text-muted-foreground">
-                                {{ t('Stock is reduced from the depot when you issue items.') }}
-                            </p>
                         </Form>
-                    </CardContent>
-                </Card>
-            </Can>
+                    </V2Panel>
+                </Can>
+            </div>
         </div>
 
         <!-- Shareholders -->
@@ -1119,7 +1601,7 @@ const closeIssueEdit = (): void => {
                                         variant="ghost"
                                         @click="
                                             router.delete(
-                                                `/projects/${project.id}/shareholders/${shareholder.id}`,
+                                                `/mis/projects/${project.id}/shareholders/${shareholder.id}`,
                                                 { preserveScroll: true },
                                             )
                                         "
@@ -1133,7 +1615,7 @@ const closeIssueEdit = (): void => {
                                     shareholderAction?.id === shareholder.id &&
                                     shareholderAction.type === 'contribute'
                                 "
-                                :action="`/projects/${project.id}/shareholders/${shareholder.id}/contribute`"
+                                :action="`/mis/projects/${project.id}/shareholders/${shareholder.id}/contribute`"
                                 method="post"
                                 class="mt-3 grid gap-2 rounded-md bg-muted/30 p-3 sm:grid-cols-3"
                                 :options="{ preserveScroll: true, resetOnSuccess: true }"
@@ -1160,7 +1642,7 @@ const closeIssueEdit = (): void => {
                                     shareholderAction?.id === shareholder.id &&
                                     shareholderAction.type === 'distribute'
                                 "
-                                :action="`/projects/${project.id}/shareholders/${shareholder.id}/distribute`"
+                                :action="`/mis/projects/${project.id}/shareholders/${shareholder.id}/distribute`"
                                 method="post"
                                 class="mt-3 grid gap-2 rounded-md bg-muted/30 p-3 sm:grid-cols-3"
                                 :options="{ preserveScroll: true, resetOnSuccess: true }"
@@ -1209,7 +1691,7 @@ const closeIssueEdit = (): void => {
                         </CardHeader>
                         <CardContent>
                             <Form
-                                :action="`/projects/${project.id}/shareholders`"
+                                :action="`/mis/projects/${project.id}/shareholders`"
                                 method="post"
                                 class="grid gap-2"
                                 :options="{ preserveScroll: true, resetOnSuccess: true }"
@@ -1279,7 +1761,7 @@ const closeIssueEdit = (): void => {
                 </CardHeader>
                 <CardContent>
                     <Form
-                        :action="`/projects/${project.id}/incomes`"
+                        :action="`/mis/projects/${project.id}/incomes`"
                         method="post"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
@@ -1322,7 +1804,7 @@ const closeIssueEdit = (): void => {
                 </CardHeader>
                 <CardContent>
                     <Form
-                        :action="`/projects/${project.id}/expenses`"
+                        :action="`/mis/projects/${project.id}/expenses`"
                         method="post"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
@@ -1525,7 +2007,7 @@ const closeIssueEdit = (): void => {
                 </CardHeader>
                 <CardContent>
                     <Form
-                        :action="`/projects/${project.id}/issues`"
+                        :action="`/mis/projects/${project.id}/issues`"
                         method="post"
                         class="grid gap-2"
                         :options="{ preserveScroll: true, forceFormData: true }"
@@ -1597,6 +2079,83 @@ const closeIssueEdit = (): void => {
             </Card>
             </Can>
         </div>
+
+        <Dialog
+            :open="returningIssue !== null"
+            @update:open="(open) => !open && closeReturnDialog()"
+        >
+            <DialogContent v-if="returningIssue">
+                <Form
+                    :action="`/mis/projects/${project.id}/equipment-issues/${returningIssue.id}/return`"
+                    method="post"
+                    :options="{ preserveScroll: true }"
+                    @success="
+                        () => {
+                            closeReturnDialog();
+                            setActiveTab('equipment');
+                        }
+                    "
+                    v-slot="{ errors, processing }"
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Return to stock') }}</DialogTitle>
+                        <DialogDescription>
+                            {{ returningIssue.equipment_catalog?.name ?? t('Item') }}
+                            · {{ outstandingForReturn }} {{ t('on site') }}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div class="grid gap-3 py-4">
+                        <div class="grid gap-2">
+                            <Label for="return-quantity">{{ t('Quantity') }}</Label>
+                            <Input
+                                id="return-quantity"
+                                name="quantity"
+                                type="number"
+                                min="1"
+                                :max="outstandingForReturn"
+                                :default-value="outstandingForReturn"
+                                required
+                            />
+                            <InputError :message="errors.quantity" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="return-returned-at">{{ t('Returned at') }}</Label>
+                            <Input
+                                id="return-returned-at"
+                                name="returned_at"
+                                type="date"
+                                :default-value="today"
+                            />
+                            <InputError :message="errors.returned_at" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="return-notes">{{ t('Notes') }}</Label>
+                            <Textarea
+                                id="return-notes"
+                                name="notes"
+                                rows="2"
+                                :placeholder="t('Notes')"
+                            />
+                            <InputError :message="errors.notes" />
+                        </div>
+                    </div>
+
+                    <DialogFooter class="gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="closeReturnDialog"
+                        >
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">
+                            {{ t('Submit Return') }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
 
         <Dialog
             :open="editingFinance !== null"
@@ -1691,7 +2250,7 @@ const closeIssueEdit = (): void => {
         >
             <DialogContent v-if="editingIssue">
                 <Form
-                    :action="`/projects/${project.id}/issues/${editingIssue.id}`"
+                    :action="`/mis/projects/${project.id}/issues/${editingIssue.id}`"
                     method="put"
                     @success="
                         () => {
@@ -1822,5 +2381,5 @@ const closeIssueEdit = (): void => {
                 </Form>
             </DialogContent>
         </Dialog>
-    </MisPage>
+    </V2ListPage>
 </template>

@@ -24,16 +24,33 @@ class ProjectExpenseController extends Controller
 
         $projectId = $request->integer('project_id') ?: null;
 
-        $expenses = ProjectExpense::query()
-            ->with(['project', 'account'])
-            ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+        $query = ProjectExpense::query()
+            ->with(['project', 'account', 'attachments'])
+            ->when($projectId, fn ($q) => $q->where('project_id', $projectId));
+
+        $expenses = (clone $query)
             ->latest('transaction_date')
             ->paginate(20)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(fn (ProjectExpense $expense) => [
+                'id' => $expense->id,
+                'description' => $expense->description,
+                'amount' => (float) $expense->amount,
+                'amount_usd' => $expense->amount_usd !== null ? (float) $expense->amount_usd : null,
+                'currency' => $expense->currency,
+                'transaction_date' => $expense->transaction_date?->toDateString(),
+                'status' => $expense->status,
+                'project' => $expense->project?->only(['id', 'code', 'name']),
+                'attachments' => $expense->attachments,
+            ]);
 
         return Inertia::render('mis/finance/Expenses/Index', [
             'expenses' => $expenses,
             'filters' => ['project_id' => $projectId],
+            'stats' => [
+                'total' => (float) (clone $query)->sum('amount'),
+                'count' => (clone $query)->count(),
+            ],
         ]);
     }
 

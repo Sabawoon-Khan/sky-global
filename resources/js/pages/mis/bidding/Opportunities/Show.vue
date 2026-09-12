@@ -8,6 +8,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { V2DetailHero, V2ListPage } from '@/components/v2';
 import { useMisPage } from '@/composables/useMisPage';
 import { formatCurrency, formatDate } from '@/lib/format';
 
@@ -62,27 +63,30 @@ defineOptions({
 <template>
     <Head :title="opportunity.title" />
 
-    <div class="flex flex-1 flex-col gap-6 p-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-<div class="mt-2 flex flex-wrap gap-2">
-                    <Badge>{{ opportunity.status }}</Badge>
-                    <Badge v-if="opportunity.organization" variant="secondary">
-                        {{ opportunity.organization.name }}
-                    </Badge>
-                </div>
-            </div>
-            <div class="flex shrink-0 flex-wrap gap-2">
+    <V2ListPage>
+        <V2DetailHero image="/images/gs-hero-operations.png">
+            <template #eyebrow>{{ t('Opportunities') }}</template>
+            <template #title>{{ opportunity.title }}</template>
+            <template #description>
+                {{ opportunity.reference_number ?? '—' }}
+            </template>
+            <template #actions>
+                <Badge>{{ opportunity.status }}</Badge>
+                <Badge v-if="opportunity.organization" variant="secondary">
+                    {{ opportunity.organization.name }}
+                </Badge>
                 <Button as-child variant="outline">
-                    <Link href="/bidding/opportunities">{{ t('Back to list') }}</Link>
+                    <Link href="/bidding/opportunities">{{
+                        t('Back to list')
+                    }}</Link>
                 </Button>
                 <Button v-if="can('bidding.edit')" as-child>
                     <Link :href="`/bidding/opportunities/${opportunity.id}/edit`">{{
                         t('Edit')
                     }}</Link>
                 </Button>
-            </div>
-        </div>
+            </template>
+        </V2DetailHero>
 
         <div class="grid gap-4 md:grid-cols-2">
             <Card>
@@ -145,7 +149,7 @@ defineOptions({
         <Card>
             <CardHeader>
                 <CardTitle>{{ t('Bids') }}</CardTitle>
-                </CardHeader>
+            </CardHeader>
             <CardContent>
                 <div
                     v-if="opportunity.bids.length === 0"
@@ -176,5 +180,5 @@ defineOptions({
                 </div>
             </CardContent>
         </Card>
-    </div>
+    </V2ListPage>
 </template>

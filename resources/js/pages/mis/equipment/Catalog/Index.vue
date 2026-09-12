@@ -1,20 +1,33 @@
 <script setup lang="ts">
 import { Form, Head, router } from '@inertiajs/vue3';
-import { ChevronDown, Package, Plus, Search } from '@lucide/vue';
+import {
+    AlertTriangle,
+    ChevronDown,
+    Package,
+    PackageCheck,
+    PackageMinus,
+    Plus,
+    Search,
+} from '@lucide/vue';
 import { computed, ref } from 'vue';
 import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
-import MisPage from '@/components/MisPage.vue';
-import MisPagination from '@/components/MisPagination.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import TableIndexTd from '@/components/TableIndexTd.vue';
+import TableIndexTh from '@/components/TableIndexTh.vue';
+import {
+    V2FilterBar,
+    V2Hero,
+    V2IndicatorCard,
+    V2ListPage,
+    V2Pager,
+    V2StatCard,
+    V2StatGrid,
+    V2TablePanel,
+} from '@/components/v2';
+import { indexTableColumn } from '@/composables/useTableColumns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardAction,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import {
     Collapsible,
     CollapsibleContent,
@@ -24,7 +37,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useMisPage } from '@/composables/useMisPage';
-import { type Paginated } from '@/lib/format';
+import { formatNumber, type Paginated } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 interface StockItem {
@@ -51,19 +64,57 @@ interface ProjectOption {
     name: string;
 }
 
+interface ChartPoint {
+    key: string;
+    label: string;
+    value: number;
+}
+
 const props = defineProps<{
     equipment: Paginated<StockItem>;
     categories: string[];
     projects: ProjectOption[];
     employees: PersonOption[];
     contractors: PersonOption[];
+    stats: {
+        total: number;
+        active: number;
+        inactive: number;
+        low_stock: number;
+        in_stock?: number;
+        empty?: number;
+    };
+    chart: {
+        status: ChartPoint[];
+        monthly: ChartPoint[];
+    };
     filters?: {
         search?: string | null;
         category?: string | null;
     };
 }>();
 
-const { t } = useMisPage();
+const { t, can } = useMisPage();
+
+const onlyKeys = [
+    'equipment',
+    'categories',
+    'projects',
+    'employees',
+    'contractors',
+    'stats',
+    'chart',
+    'filters',
+];
+
+const tableColumns = computed(() => [
+    indexTableColumn(),
+    { key: 'item', label: t('Item') },
+    { key: 'category', label: t('Category') },
+    { key: 'sku', label: t('SKU') },
+    { key: 'on_hand', label: t('On hand') },
+    { key: 'actions', label: t('Actions'), locked: true },
+]);
 
 defineOptions({
     layout: {
@@ -97,9 +148,59 @@ const applyFilters = (): void => {
     );
 };
 
-const lowStockCount = computed(
-    () => props.equipment.data.filter((item) => item.quantity_on_hand <= 5).length,
-);
+const statusPalette = [
+    'var(--school-navy)',
+    'var(--brand-accent)',
+    'var(--school-gold)',
+    'var(--muted-foreground)',
+    '#3d5a80',
+    '#8b9bb4',
+];
+
+const pipeline = computed(() => {
+    const rows = (props.chart?.status ?? []).filter((row) => row.value > 0);
+    const total = Math.max(
+        rows.reduce((sum, row) => sum + row.value, 0),
+        props.stats.total,
+        1,
+    );
+    const activeShare =
+        total > 0 ? Math.round((props.stats.active / total) * 100) : 0;
+
+    return {
+        activeShare,
+        segments: rows.slice(0, 4).map((row, index) => ({
+            key: row.key,
+            label: row.label,
+            value: row.value,
+            color: statusPalette[index % statusPalette.length],
+            width: Math.max(row.value > 0 ? 6 : 0, (row.value / total) * 100),
+        })),
+    };
+});
+
+const monthlyBars = computed(() => {
+    const rows =
+        props.chart?.monthly?.length > 0
+            ? props.chart.monthly
+            : Array.from({ length: 6 }, (_, index) => ({
+                  key: `m-${index}`,
+                  label: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'][index],
+                  value: 0,
+              }));
+    const max = Math.max(...rows.map((row) => Number(row.value) || 0), 1);
+
+    return rows.map((row) => {
+        const value = Number(row.value) || 0;
+        return {
+            key: row.key,
+            label: row.label,
+            value,
+            height: Math.max(value > 0 ? 6 : 3, Math.round((value / max) * 44)),
+            peak: value === max && value > 0,
+        };
+    });
+});
 
 const issueToProject = (itemId: number, form: HTMLFormElement): void => {
     if (!issueProjectId.value) {
@@ -109,7 +210,7 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
     const data = new FormData(form);
 
     router.post(
-        `/projects/${issueProjectId.value}/equipment-issues`,
+        `/mis/projects/${issueProjectId.value}/equipment-issues`,
         {
             equipment_catalog_id: itemId,
             quantity: data.get('quantity'),
@@ -130,67 +231,166 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
 <template>
     <Head :title="t('Stock / Inventory')" />
 
-    <MisPage>
-        <div class="grid gap-4 sm:grid-cols-3">
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm font-medium text-muted-foreground">
-                        {{ t('Items in depot') }}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p class="text-3xl font-bold tabular-nums">
-                        {{ equipment.meta?.total ?? equipment.data.length }}
-                    </p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm font-medium text-muted-foreground">
-                        {{ t('Categories') }}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p class="text-3xl font-bold tabular-nums">{{ categories.length }}</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm font-medium text-muted-foreground">
-                        {{ t('Low stock') }}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p class="text-3xl font-bold tabular-nums">{{ lowStockCount }}</p>
-                </CardContent>
-            </Card>
-        </div>
+    <V2ListPage>
+        <V2Hero image="/images/gs-hero-operations.png">
+            <template #eyebrow>{{ t('Operations') }}</template>
+            <template #title>{{ t('Stock / Inventory') }}</template>
+            <template #description>
+                {{ t('Depot stock, issues, and adjustments.') }}
+            </template>
+            <template #side>
+                <button
+                    v-if="can('inventory.create')"
+                    type="button"
+                    class="create-btn"
+                    @click="showCreateForm = !showCreateForm"
+                >
+                    <Plus />
+                    {{ t('Add item') }}
+                </button>
 
-        <Card>
-            <Collapsible v-model:open="showCreateForm">
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2">
-                        <Package class="size-5" />
-                        {{ t('Depot stock') }}
-                    </CardTitle>
-                    <CardAction>
-                        <Can permission="inventory.create">
+                <div class="hero-cards">
+                    <V2IndicatorCard card-class="inventory-card">
+                        <template #head>{{ t('Catalog') }}</template>
+                        <template #meta
+                            >{{ pipeline.activeShare }}%
+                            {{ t('Active') }}</template
+                        >
+
+                        <div class="inventory-hero">
+                            <div class="inventory-hero-copy">
+                                <strong>{{
+                                    formatNumber(stats.active)
+                                }}</strong>
+                                <small>{{ t('Active') }}</small>
+                            </div>
+                        </div>
+
+                        <div class="inventory-bar" aria-hidden="true">
+                            <i
+                                v-for="seg in pipeline.segments"
+                                :key="seg.key"
+                                :style="{
+                                    width: `${seg.width}%`,
+                                    background: seg.color,
+                                }"
+                            />
+                        </div>
+
+                        <ul class="indicator-list compact">
+                            <li
+                                v-for="seg in pipeline.segments"
+                                :key="seg.key"
+                            >
+                                <i :style="{ background: seg.color }" />
+                                <span>{{ seg.label }}</span>
+                                <b>{{ formatNumber(seg.value) }}</b>
+                            </li>
+                        </ul>
+                    </V2IndicatorCard>
+
+                    <V2IndicatorCard card-class="money-card">
+                        <template #head>{{ t('Created by month') }}</template>
+                        <template #meta
+                            >{{ formatNumber(stats.total) }}
+                            {{ t('Total') }}</template
+                        >
+
+                        <div class="money-chart">
+                            <div
+                                v-for="bar in monthlyBars"
+                                :key="bar.key"
+                                class="money-col"
+                                :class="{ peak: bar.peak }"
+                                :title="`${bar.label}: ${bar.value}`"
+                            >
+                                <div class="money-pair">
+                                    <i
+                                        class="usd"
+                                        :style="{ height: `${bar.height}px` }"
+                                    />
+                                </div>
+                                <span>{{ bar.label }}</span>
+                            </div>
+                        </div>
+                    </V2IndicatorCard>
+                </div>
+            </template>
+
+            <template #stats>
+                <V2StatGrid>
+                    <V2StatCard
+                        :delay="0"
+                        :title="t('Items')"
+                        :value="formatNumber(stats.total)"
+                    >
+                        <template #icon><Package /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="1"
+                        icon-tone="warm"
+                        :title="t('Active')"
+                        :value="formatNumber(stats.active)"
+                    >
+                        <template #icon><PackageCheck /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="2"
+                        icon-tone="teal"
+                        :title="t('Inactive')"
+                        :value="formatNumber(stats.inactive)"
+                    >
+                        <template #icon><PackageMinus /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="3"
+                        accent
+                        icon-tone="orange"
+                        :title="t('Low stock')"
+                        :value="formatNumber(stats.low_stock)"
+                    >
+                        <template #icon><AlertTriangle /></template>
+                    </V2StatCard>
+                </V2StatGrid>
+            </template>
+        </V2Hero>
+
+        <V2TablePanel table-id="equipment-catalog" :columns="tableColumns">
+            <template #filters>
+                <V2FilterBar>
+                    <form class="flex flex-col gap-2 sm:flex-row sm:flex-1 sm:items-center" @submit.prevent="applyFilters">
+                        <div class="relative flex-1">
+                            <Search class="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                v-model="search"
+                                class="h-9 ps-9"
+                                :placeholder="t('Search name or SKU')"
+                            />
+                        </div>
+                        <select
+                            v-model="category"
+                            class="mis-form-select h-9 min-w-[8rem]"
+                        >
+                            <option value="">{{ t('All categories') }}</option>
+                            <option v-for="cat in categories" :key="cat" :value="cat">
+                                {{ cat }}
+                            </option>
+                        </select>
+                        <Button type="submit" variant="outline" class="h-9">{{ t('Filter') }}</Button>
+                    </form>
+                    <Can permission="inventory.create">
+                        <Collapsible v-model:open="showCreateForm">
                             <CollapsibleTrigger as-child>
-                                <Button variant="outline" size="sm">
-                                    <Plus class="me-1 size-4" />
+                                <Button type="button" variant="secondary" class="h-9 gap-1">
+                                    <Plus class="size-4" />
                                     {{ t('Add item') }}
                                     <ChevronDown
-                                        class="ms-1 size-4 transition-transform"
+                                        class="size-4 transition-transform"
                                         :class="cn(showCreateForm && 'rotate-180')"
                                     />
                                 </Button>
                             </CollapsibleTrigger>
-                        </Can>
-                    </CardAction>
-                </CardHeader>
-                <CardContent class="space-y-4">
-                    <Can permission="inventory.create">
-                        <CollapsibleContent class="rounded-md border bg-muted/20 p-4">
+                            <CollapsibleContent class="mt-3 rounded-md border bg-muted/20 p-4">
                             <Form
                                 action="/equipment"
                                 method="post"
@@ -230,74 +430,55 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                                     </Button>
                                 </div>
                             </Form>
-                        </CollapsibleContent>
+                            </CollapsibleContent>
+                        </Collapsible>
                     </Can>
+                </V2FilterBar>
+            </template>
 
-                    <form class="flex flex-col gap-2 sm:flex-row" @submit.prevent="applyFilters">
-                        <div class="relative flex-1">
-                            <Search class="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                v-model="search"
-                                class="ps-9"
-                                :placeholder="t('Search name or SKU')"
-                            />
-                        </div>
-                        <select
-                            v-model="category"
-                            class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            <template #default="{ visibleColCount }">
+                <table>
+                    <thead>
+                        <tr>
+                            <TableIndexTh />
+                            <th>{{ t('Item') }}</th>
+                            <th>{{ t('Category') }}</th>
+                            <th>{{ t('SKU') }}</th>
+                            <th class="end">{{ t('On hand') }}</th>
+                            <th class="end">{{ t('Actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            v-for="(item, index) in equipment.data"
+                            :key="item.id"
+                            :style="{ '--i': index }"
                         >
-                            <option value="">{{ t('All categories') }}</option>
-                            <option v-for="cat in categories" :key="cat" :value="cat">
-                                {{ cat }}
-                            </option>
-                        </select>
-                        <Button type="submit" variant="secondary" size="sm">{{ t('Filter') }}</Button>
-                    </form>
-
-                    <div v-if="!equipment.data.length" class="ui-empty-state">
-                        {{ t('No stock items yet. Add guns, radios, and other goods to the depot.') }}
-                    </div>
-                    <div v-else class="space-y-4">
-                        <div class="overflow-x-auto rounded-md border">
-                            <table class="w-full text-sm">
-                                <thead class="border-b bg-muted/40 text-start text-muted-foreground">
-                                    <tr>
-                                        <th class="px-3 py-2 font-medium">{{ t('Item') }}</th>
-                                        <th class="px-3 py-2 font-medium">{{ t('Category') }}</th>
-                                        <th class="px-3 py-2 font-medium">{{ t('SKU') }}</th>
-                                        <th class="px-3 py-2 text-end font-medium">{{ t('On hand') }}</th>
-                                        <th class="px-3 py-2 text-end font-medium">{{ t('Actions') }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y">
-                                    <tr
-                                        v-for="item in equipment.data"
-                                        :key="item.id"
-                                        class="hover:bg-muted/30"
-                                    >
-                                        <td class="px-3 py-2">
-                                            <p class="font-medium">{{ item.name }}</p>
-                                            <p v-if="item.description" class="text-xs text-muted-foreground">
-                                                {{ item.description }}
-                                            </p>
-                                        </td>
-                                        <td class="px-3 py-2">
-                                            <Badge v-if="item.category" variant="outline">
-                                                {{ item.category }}
-                                            </Badge>
-                                            <span v-else class="text-muted-foreground">—</span>
-                                        </td>
-                                        <td class="px-3 py-2 text-muted-foreground">
-                                            {{ item.sku ?? '—' }}
-                                        </td>
-                                        <td class="px-3 py-2 text-end font-semibold tabular-nums">
-                                            {{ item.quantity_on_hand }}
-                                            <span class="text-xs font-normal text-muted-foreground">
-                                                {{ item.unit ?? 'pcs' }}
-                                            </span>
-                                        </td>
-                                        <td class="px-3 py-2">
-                                            <div class="flex justify-end gap-1">
+                            <TableIndexTd
+                                :index="index"
+                                :from="equipment.meta?.from"
+                            />
+                            <td>
+                                <p class="font-medium">{{ item.name }}</p>
+                                <p v-if="item.description" class="muted text-xs">
+                                    {{ item.description }}
+                                </p>
+                            </td>
+                            <td>
+                                <Badge v-if="item.category" variant="outline">
+                                    {{ item.category }}
+                                </Badge>
+                                <span v-else class="muted">—</span>
+                            </td>
+                            <td class="muted">{{ item.sku ?? '—' }}</td>
+                            <td class="end nums">
+                                {{ item.quantity_on_hand }}
+                                <span class="muted text-xs">
+                                    {{ item.unit ?? 'pcs' }}
+                                </span>
+                            </td>
+                            <td class="end">
+                                <div class="flex justify-end gap-1">
                                                 <Can permission="inventory.edit">
                                                     <Button
                                                         variant="ghost"
@@ -324,15 +505,14 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                                                         {{ t('Issue') }}
                                                     </Button>
                                                 </Can>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr
-                                        v-if="adjustingId"
-                                        :key="`adjust-${adjustingId}`"
-                                        class="bg-muted/20"
-                                    >
-                                        <td colspan="5" class="px-3 py-3">
+                                </div>
+                            </td>
+                        </tr>
+                        <tr
+                            v-if="adjustingId"
+                            :key="`adjust-${adjustingId}`"
+                        >
+                            <td :colspan="visibleColCount" class="bg-muted/20 py-3">
                                             <Form
                                                 v-for="item in equipment.data.filter((i) => i.id === adjustingId)"
                                                 :key="item.id"
@@ -362,14 +542,13 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                                                     {{ t('Update stock') }}
                                                 </Button>
                                             </Form>
-                                        </td>
-                                    </tr>
-                                    <tr
-                                        v-if="issuingId"
-                                        :key="`issue-${issuingId}`"
-                                        class="bg-muted/20"
-                                    >
-                                        <td colspan="5" class="px-3 py-3">
+                            </td>
+                        </tr>
+                        <tr
+                            v-if="issuingId"
+                            :key="`issue-${issuingId}`"
+                        >
+                            <td :colspan="visibleColCount" class="bg-muted/20 py-3">
                                             <div class="mb-3 flex gap-2">
                                                 <Button
                                                     type="button"
@@ -512,15 +691,24 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                                                     </Button>
                                                 </Form>
                                             </template>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <MisPagination :pagination="equipment" />
-                    </div>
-                </CardContent>
-            </Collapsible>
-        </Card>
-    </MisPage>
+                            </td>
+                        </tr>
+                        <EmptyState
+                            v-if="!equipment.data.length"
+                            :colspan="visibleColCount"
+                            :title="
+                                t(
+                                    'No stock items yet. Add guns, radios, and other goods to the depot.',
+                                )
+                            "
+                        />
+                    </tbody>
+                </table>
+            </template>
+
+            <template v-if="equipment.links?.length" #pager>
+                <V2Pager :items="equipment" :only="onlyKeys" />
+            </template>
+        </V2TablePanel>
+    </V2ListPage>
 </template>

@@ -34,4 +34,13 @@ export default defineConfig({
             formVariants: true,
         }),
     ],
+    build: {
+        // reka-ui ships a nested @vueuse/core with misplaced /* #__PURE__ */ comments
+        // that Rolldown (Vite 8) warns about; the build is fine, suppress the noise.
+        rolldownOptions: {
+            checks: {
+                invalidAnnotation: false,
+            },
+        },
+    },
 });

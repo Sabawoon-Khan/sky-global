@@ -35,7 +35,9 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { V2DetailHero, V2ListPage, V2Panel } from '@/components/v2';
 import { useMisPage } from '@/composables/useMisPage';
+import { formatCurrency } from '@/lib/format';
 
 interface Department {
     id: number;
@@ -200,12 +202,6 @@ const formatDate = (value?: string | null): string => {
     );
 };
 
-const formatCurrency = (value: number, currency = 'USD'): string =>
-    new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 0,
-    }).format(value);
 
 const monthName = (month: number): string =>
     new Intl.DateTimeFormat('en-US', { month: 'short' }).format(
@@ -218,95 +214,36 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
 <template>
     <Head :title="fullName" />
 
-    <div class="flex w-full flex-1 flex-col gap-6 p-4 sm:p-6">
-        <Card class="overflow-hidden border-0 bg-gradient-to-br from-muted/60 via-background to-background shadow-sm">
-            <CardContent class="p-6">
-                <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                    <div class="flex items-start gap-4">
-                        <Avatar class="size-16 border-2 border-background shadow-md">
-                            <AvatarFallback class="bg-primary/10 text-lg font-semibold text-primary">
-                                {{ initials }}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div class="space-y-2">
-                            <div>
-                                <h1 class="text-2xl font-bold tracking-tight">
-                                    {{ fullName }}
-                                </h1>
-                                <p
-                                    v-if="employee.job_detail?.designation"
-                                    class="text-muted-foreground"
-                                >
-                                    {{ employee.job_detail.designation }}
-                                    <span v-if="employee.job_detail?.department?.name">
-                                        · {{ employee.job_detail.department.name }}
-                                    </span>
-                                </p>
-                            </div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <Badge :variant="statusVariant(employee.status)">
-                                    {{ statusLabel(employee.status) }}
-                                </Badge>
-                                <Badge
-                                    :variant="employee.is_permanent ? 'default' : 'outline'"
-                                    class="gap-1"
-                                >
-                                    <Building2 class="size-3" />
-                                    {{
-                                        employee.is_permanent
-                                            ? t('Permanent staff')
-                                            : t('Project-based')
-                                    }}
-                                </Badge>
-                            </div>
-                            <div class="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                <span v-if="employee.phone" class="inline-flex items-center gap-1.5">
-                                    <Phone class="size-3.5" />
-                                    {{ employee.phone }}
-                                </span>
-                                <span v-if="employee.email" class="inline-flex items-center gap-1.5">
-                                    <Mail class="size-3.5" />
-                                    {{ employee.email }}
-                                </span>
-                                <span
-                                    v-if="employee.job_detail?.hire_date"
-                                    class="inline-flex items-center gap-1.5"
-                                >
-                                    <Calendar class="size-3.5" />
-                                    {{ t('Hired') }} {{ formatDate(employee.job_detail.hire_date) }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex shrink-0 flex-wrap gap-2">
-                        <PersonnelStatusButtons
-                            :url="`/hr/employees/${employee.id}`"
-                            :name="fullName"
-                            :status="employee.status"
-                        />
-                        <Button variant="outline" as-child>
-                            <Link href="/hr/employees">{{ t('Back to list') }}</Link>
-                        </Button>
-                        <Button v-if="can('hr.edit')" as-child>
-                            <Link :href="`/hr/employees/${employee.id}/edit`">
-                                {{ t('Edit') }}
-                            </Link>
-                        </Button>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
+    <V2ListPage>
+        <V2DetailHero image="/images/gs-hero-people.png">
+            <template #eyebrow>{{ t('HR') }}</template>
+            <template #title>{{ fullName }}</template>
+            <template #description>
+                {{ employee.job_detail?.designation ?? '—' }}
+                ·
+                {{ employee.job_detail?.department?.name ?? '—' }}
+            </template>
+            <template #actions>
+                <PersonnelStatusButtons
+                    :url="`/hr/employees/${employee.id}`"
+                    :name="fullName"
+                    :status="employee.status"
+                />
+                <Button variant="outline" as-child>
+                    <Link href="/hr/employees">{{ t('Back to list') }}</Link>
+                </Button>
+                <Button v-if="can('hr.edit')" as-child>
+                    <Link :href="`/hr/employees/${employee.id}/edit`">
+                        {{ t('Edit') }}
+                    </Link>
+                </Button>
+            </template>
+        </V2DetailHero>
 
-        <MisTabs v-model="activeTab" :tabs="tabs" />
+        <MisTabs v-model="activeTab" :tabs="tabs" nowrap />
 
-        <Card v-if="activeTab === 'personal'">
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2">
-                    <User class="size-5" />
-                    {{ t('Personal Information') }}
-                </CardTitle>
-            </CardHeader>
-            <CardContent class="grid gap-4 sm:grid-cols-2">
+        <V2Panel v-if="activeTab === 'personal'" :title="t('Personal Information')">
+            <div class="grid gap-4 sm:grid-cols-2">
                 <div class="rounded-lg border bg-muted/20 px-4 py-3">
                     <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         {{ t("Father's name") }}
@@ -341,8 +278,8 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
                     </p>
                     <p class="mt-1 whitespace-pre-wrap text-sm">{{ employee.current_address }}</p>
                 </div>
-            </CardContent>
-        </Card>
+            </div>
+        </V2Panel>
 
         <div v-else-if="activeTab === 'employment'" class="grid gap-4 lg:grid-cols-2">
             <Card>
@@ -401,7 +338,7 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
                     </div>
                     <div v-else class="space-y-1">
                         <p class="text-3xl font-bold tracking-tight">
-                            {{ formatCurrency(currentSalary.amount, currentSalary.currency ?? 'USD') }}
+                            {{ formatCurrency(currentSalary.amount, currentSalary.currency ?? 'AFN') }}
                         </p>
                         <p class="text-sm text-muted-foreground">
                             {{ t('Effective from') }} {{ formatDate(currentSalary.effective_from) }}
@@ -421,7 +358,7 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
                                 <span v-if="salary.effective_to"> — {{ formatDate(salary.effective_to) }}</span>
                             </span>
                             <span class="font-medium">
-                                {{ formatCurrency(salary.amount, salary.currency ?? 'USD') }}
+                                {{ formatCurrency(salary.amount, salary.currency ?? 'AFN') }}
                             </span>
                         </div>
                     </div>
@@ -455,7 +392,7 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
                             <p class="font-medium">
                                 <Link
                                     v-if="deployment.project"
-                                    :href="`/projects/${deployment.project.id}`"
+                                    :href="`/mis/projects/${deployment.project.id}`"
                                     class="hover:underline"
                                 >
                                     {{ deployment.project.code }} — {{ deployment.project.name }}
@@ -510,24 +447,19 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
             </div>
         </div>
 
-        <Card v-else-if="activeTab === 'projects'">
-            <CardHeader><CardTitle>{{ t('Project Assignments') }}</CardTitle></CardHeader>
-            <CardContent>
+        <V2Panel v-else-if="activeTab === 'projects'" :title="t('Project Assignments')">
                 <div v-if="!deployments?.length" class="text-sm text-muted-foreground">{{ t('Not assigned to any project.') }}</div>
                 <ul v-else class="divide-y">
                     <li v-for="d in deployments" :key="d.id" class="flex items-center justify-between py-3">
                         <div>
-                            <Link v-if="d.project" :href="`/projects/${d.project.id}`" class="font-medium hover:underline">{{ d.project.code }} — {{ d.project.name }}</Link>
+                            <Link v-if="d.project" :href="`/mis/projects/${d.project.id}`" class="font-medium hover:underline">{{ d.project.code }} — {{ d.project.name }}</Link>
                             <p v-if="d.role" class="text-sm text-muted-foreground">{{ d.role }}</p>
                         </div>
                     </li>
                 </ul>
-            </CardContent>
-        </Card>
+        </V2Panel>
 
-        <Card v-else-if="activeTab === 'attendance'">
-            <CardHeader><CardTitle>{{ t('Attendance History') }}</CardTitle></CardHeader>
-            <CardContent>
+        <V2Panel v-else-if="activeTab === 'attendance'" :title="t('Attendance History')">
                 <div v-if="!attendances?.length" class="text-sm text-muted-foreground">{{ t('No attendance records.') }}</div>
                 <table v-else class="w-full text-sm">
                     <thead><tr class="border-b text-muted-foreground"><th class="pb-2 text-start">{{ t('Period') }}</th><th class="pb-2 text-start">{{ t('Project') }}</th><th class="pb-2 text-start">{{ t('Present') }}</th><th class="pb-2 text-start">{{ t('Status') }}</th></tr></thead>
@@ -540,12 +472,9 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
                         </tr>
                     </tbody>
                 </table>
-            </CardContent>
-        </Card>
+        </V2Panel>
 
-        <Card v-else-if="activeTab === 'payroll'">
-            <CardHeader><CardTitle>{{ t('Payroll Adjustments') }}</CardTitle></CardHeader>
-            <CardContent>
+        <V2Panel v-else-if="activeTab === 'payroll'" :title="t('Payroll Adjustments')">
                 <div v-if="!payrollAdjustments?.length" class="text-sm text-muted-foreground">{{ t('No payroll adjustments.') }}</div>
                 <table v-else class="w-full text-sm">
                     <thead><tr class="border-b text-muted-foreground"><th class="pb-2 text-start">{{ t('Period') }}</th><th class="pb-2 text-start">{{ t('Type') }}</th><th class="pb-2 text-start">{{ t('Project') }}</th><th class="pb-2 text-end">{{ t('Amount') }}</th></tr></thead>
@@ -558,8 +487,7 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
                         </tr>
                     </tbody>
                 </table>
-            </CardContent>
-        </Card>
+        </V2Panel>
 
         <div v-else class="grid gap-4">
             <PersonnelFormsCard
@@ -571,5 +499,5 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
             />
             <EntityAttachments :attachments="employee.attachments ?? []" />
         </div>
-    </div>
+    </V2ListPage>
 </template>

@@ -8,6 +8,7 @@ use App\Models\Project\Project;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class MisSystemTest extends TestCase
@@ -31,6 +32,25 @@ class MisSystemTest extends TestCase
         $this->actingAs($this->owner)
             ->get(route('organizations.index'))
             ->assertOk();
+    }
+
+    public function test_mis_projects_live_under_mis_prefix(): void
+    {
+        $this->assertSame(url('/mis/projects'), route('projects.index'));
+
+        $this->actingAs($this->owner)
+            ->get(route('projects.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('mis/projects/Index')
+            );
+
+        $this->actingAs($this->owner)
+            ->get('/projects')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('website/Projects/Index')
+            );
     }
 
     public function test_owner_can_create_organization(): void

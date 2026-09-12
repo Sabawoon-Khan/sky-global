@@ -11,8 +11,10 @@ use App\Http\Requests\Procurement\UpdateBidRequest;
 use App\Models\Procurement\Bid;
 use App\Models\Procurement\CompetitorBid;
 use App\Services\BidToProjectService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -38,13 +40,77 @@ class BidController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        $byStatus = Bid::query()
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+
         return Inertia::render('mis/bidding/Bids/Index', [
             'bids' => $bids,
+            'stats' => [
+                'total' => Bid::query()->count(),
+                'draft' => (int) ($byStatus[BidStatus::Draft->value] ?? 0),
+                'submitted' => (int) ($byStatus[BidStatus::Submitted->value] ?? 0)
+                    + (int) ($byStatus[BidStatus::UnderReview->value] ?? 0),
+                'won' => (int) ($byStatus[BidStatus::Won->value] ?? 0),
+                'lost' => (int) ($byStatus[BidStatus::Lost->value] ?? 0),
+                'cancelled' => (int) ($byStatus[BidStatus::Cancelled->value] ?? 0),
+                'by_status' => $byStatus,
+            ],
+            'chart' => [
+                'status' => collect(BidStatus::cases())->map(fn (BidStatus $case) => [
+                    'key' => $case->value,
+                    'label' => ucfirst(str_replace('_', ' ', $case->value)),
+                    'value' => (int) ($byStatus[$case->value] ?? 0),
+                ])->values()->all(),
+                'monthly' => $this->countCreatedByMonth(Bid::query()),
+            ],
             'filters' => [
                 'search' => $search ?: null,
                 'status' => $status ?: null,
             ],
         ]);
+    }
+
+    /**
+     * @param  Builder<Bid>  $query
+     * @return list<array{key: string, label: string, value: int}>
+     */
+    protected function countCreatedByMonth($query): array
+    {
+        $to = Carbon::now()->endOfMonth();
+        $from = Carbon::now()->subMonths(5)->startOfMonth();
+
+        $buckets = [];
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $key = $cursor->format('Y-m');
+            $buckets[$key] = [
+                'key' => $key,
+                'label' => $cursor->format('M'),
+                'value' => 0,
+            ];
+            $cursor = $cursor->addMonth();
+        }
+
+        $rows = $query
+            ->whereDate('created_at', '>=', $from->toDateString())
+            ->whereDate('created_at', '<=', $to->toDateString())
+            ->get(['created_at']);
+
+        foreach ($rows as $row) {
+            if (! $row->created_at) {
+                continue;
+            }
+            $key = $row->created_at->format('Y-m');
+            if (isset($buckets[$key])) {
+                $buckets[$key]['value']++;
+            }
+        }
+
+        return array_values($buckets);
     }
 
     public function store(StoreBidRequest $request): RedirectResponse

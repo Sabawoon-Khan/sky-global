@@ -5,6 +5,7 @@ namespace App\Models\Hr;
 use App\Concerns\HasAttachments;
 use App\Concerns\HasPersonnelAttachments;
 use App\Concerns\HasStatusChangeLogs;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -33,6 +34,13 @@ class Contractor extends Model
         return [
             'date_of_birth' => 'date',
         ];
+    }
+
+    protected function name(): Attribute
+    {
+        return Attribute::get(
+            fn (): string => trim("{$this->first_name} {$this->last_name}"),
+        );
     }
 
     public function agreements(): HasMany

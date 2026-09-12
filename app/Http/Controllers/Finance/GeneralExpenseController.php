@@ -19,13 +19,29 @@ class GeneralExpenseController extends Controller
     {
         $this->authorizePermission($request, 'finance.view');
 
-        $expenses = GeneralExpense::query()
-            ->with('account')
+        $generalExpenses = GeneralExpense::query()
+            ->with(['account', 'attachments'])
             ->latest('transaction_date')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (GeneralExpense $expense) => [
+                'id' => $expense->id,
+                'description' => $expense->description,
+                'category' => $expense->category,
+                'amount' => (float) $expense->amount,
+                'amount_usd' => $expense->amount_usd !== null ? (float) $expense->amount_usd : null,
+                'currency' => $expense->currency,
+                'transaction_date' => $expense->transaction_date?->toDateString(),
+                'status' => $expense->status,
+                'attachments' => $expense->attachments,
+            ]);
 
         return Inertia::render('mis/finance/GeneralExpenses/Index', [
-            'expenses' => $expenses,
+            'generalExpenses' => $generalExpenses,
+            'stats' => [
+                'total' => (float) GeneralExpense::query()->sum('amount'),
+                'count' => GeneralExpense::query()->count(),
+            ],
         ]);
     }
 
@@ -56,7 +72,7 @@ class GeneralExpenseController extends Controller
         return back()->with('success', 'General expense recorded.');
     }
 
-    public function update(Request $request, GeneralExpense $expense): RedirectResponse
+    public function update(Request $request, GeneralExpense $generalExpense): RedirectResponse
     {
         $this->authorizePermission($request, 'finance.edit');
 
@@ -74,16 +90,16 @@ class GeneralExpenseController extends Controller
             'status' => ['nullable', 'string', 'in:pending,approved,rejected'],
         ]);
 
-        $expense->update($validated);
+        $generalExpense->update($validated);
 
         return back()->with('success', 'General expense updated.');
     }
 
-    public function destroy(Request $request, GeneralExpense $expense): RedirectResponse
+    public function destroy(Request $request, GeneralExpense $generalExpense): RedirectResponse
     {
         $this->authorizePermission($request, 'finance.delete');
 
-        $expense->delete();
+        $generalExpense->delete();
 
         return back()->with('success', 'General expense deleted.');
     }

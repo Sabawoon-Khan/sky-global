@@ -1,17 +1,39 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import { FileText, Search } from '@lucide/vue';
-import MisCreateButton from '@/components/MisCreateButton.vue';
-import { Badge } from '@/components/ui/badge';
+import EmptyState from '@/components/EmptyState.vue';
+import MisSearchInput from '@/components/mis/MisSearchInput.vue';
+import StatusBadge from '@/components/StatusBadge.vue';
+import TableIndexTd from '@/components/TableIndexTd.vue';
+import TableIndexTh from '@/components/TableIndexTh.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
 import {
-    Card,
-    CardAction,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+    V2FilterBar,
+    V2Hero,
+    V2IndicatorCard,
+    V2ListPage,
+    V2Pager,
+    V2StatCard,
+    V2StatGrid,
+    V2TablePanel,
+} from '@/components/v2';
+import { indexTableColumn } from '@/composables/useTableColumns';
+import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
+import { provideTableSort } from '@/composables/useTableSort';
+import {
+    formatCurrency,
+    formatDate,
+    formatNumber,
+    type Paginated,
+} from '@/lib/format';
+import {
+    FileText,
+    Plus,
+    Send,
+    Trophy,
+    XCircle,
+} from '@lucide/vue';
+import { computed } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
 
 interface OpportunitySummary {
     id: number;
@@ -30,19 +52,41 @@ interface Bid {
     procurement_opportunity?: OpportunitySummary | null;
 }
 
-interface PaginatedBids {
-    data: Bid[];
-    meta?: { total: number };
+interface ChartPoint {
+    key: string;
+    label: string;
+    value: number;
 }
 
-interface Props {
-    bids: PaginatedBids;
+const props = defineProps<{
+    bids: Paginated<Bid>;
+    stats: {
+        total: number;
+        draft?: number;
+        submitted: number;
+        won: number;
+        lost: number;
+        cancelled?: number;
+        by_status?: Record<string, number>;
+    };
+    chart: {
+        status: ChartPoint[];
+        monthly: ChartPoint[];
+    };
     filters?: { search?: string; status?: string };
-}
+}>();
 
-defineProps<Props>();
+const onlyKeys = ['bids', 'stats', 'chart', 'filters'];
 
-const { t } = useMisPage();
+const { filters, pending, apply, clear } = useMisFilters(
+    '/bidding/bids',
+    { search: props.filters?.search ?? '' },
+    { search: '' },
+    { only: onlyKeys, liveKeys: ['search'] },
+);
+
+const { sortedRows } = provideTableSort(() => props.bids.data);
+const { t, can } = useMisPage();
 
 defineOptions({
     layout: {
@@ -53,152 +97,294 @@ defineOptions({
     },
 });
 
-const formatCurrency = (value?: number | null, currency = 'USD'): string => {
-    if (value == null) {
-        return '—';
-    }
+const tableColumns = computed(() => [
+    indexTableColumn(),
+    { key: 'bid_number', label: t('Bid #') },
+    { key: 'opportunity', label: t('Opportunity') },
+    { key: 'submitted', label: t('Submitted') },
+    { key: 'amount', label: t('Our Amount') },
+    { key: 'status', label: t('Status') },
+]);
 
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 0,
-    }).format(value);
-};
+const statusPalette = [
+    'var(--school-navy)',
+    'var(--brand-accent)',
+    'var(--school-gold)',
+    'var(--muted-foreground)',
+    '#3d5a80',
+    '#8b9bb4',
+];
 
-const formatDate = (value?: string | null): string => {
-    if (!value) {
-        return '—';
-    }
-
-    return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(
-        new Date(value),
+const pipeline = computed(() => {
+    const rows = (props.chart?.status ?? []).filter((row) => row.value > 0);
+    const total = Math.max(
+        rows.reduce((sum, row) => sum + row.value, 0),
+        props.stats.total,
+        1,
     );
-};
+    const submittedShare =
+        total > 0 ? Math.round((props.stats.submitted / total) * 100) : 0;
 
-const statusVariant = (
-    status: string,
-): 'default' | 'secondary' | 'destructive' | 'outline' => {
-    if (status === 'won') {
-        return 'default';
-    }
+    return {
+        submittedShare,
+        segments: rows.map((row, index) => ({
+            key: row.key,
+            label: row.label,
+            value: row.value,
+            color: statusPalette[index % statusPalette.length],
+            width: Math.max(row.value > 0 ? 6 : 0, (row.value / total) * 100),
+        })),
+    };
+});
 
-    if (status === 'lost') {
-        return 'destructive';
-    }
+const monthlyBars = computed(() => {
+    const rows =
+        props.chart?.monthly?.length > 0
+            ? props.chart.monthly
+            : Array.from({ length: 6 }, (_, index) => ({
+                  key: `m-${index}`,
+                  label: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'][index],
+                  value: 0,
+              }));
+    const max = Math.max(...rows.map((row) => Number(row.value) || 0), 1);
 
-    return 'secondary';
-};
-
-const statusLabel = (status: string) => {
-    if (status === 'won') return t('won');
-    if (status === 'lost') return t('lost');
-    if (status === 'pending') return t('pending');
-    return status;
-};
+    return rows.map((row) => {
+        const value = Number(row.value) || 0;
+        return {
+            key: row.key,
+            label: row.label,
+            value,
+            height: Math.max(value > 0 ? 6 : 3, Math.round((value / max) * 44)),
+            peak: value === max && value > 0,
+        };
+    });
+});
 </script>
 
 <template>
     <Head :title="t('Bids')" />
 
-    <div class="flex flex-1 flex-col gap-6 p-4">
-        <Card>
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2">
-                    <FileText class="size-5" />
-                    {{ t('All Bids') }}
-                </CardTitle>
-                <CardAction>
-                    <MisCreateButton href="/bidding/bids/create" permission="bidding.create">
-                        {{ t('New Bid') }}
-                    </MisCreateButton>
-                </CardAction>
-            </CardHeader>
-            <CardContent class="space-y-4">
-                <form method="get" action="/bidding/bids" class="relative max-w-sm">
-                    <Search
-                        class="absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <Input
-                        name="search"
-                        :default-value="filters?.search"
-                        :placeholder="t('Search bids...')"
-                        class="ps-9"
-                    />
-                </form>
-
-                <div
-                    v-if="bids.data.length === 0"
-                    class="ui-empty-state"
+    <V2ListPage>
+        <V2Hero image="/images/gs-hero-operations.png">
+            <template #eyebrow>{{ t('Bidding') }}</template>
+            <template #title>{{ t('Bids') }}</template>
+            <template #description>
+                {{ t('Submitted proposals linked to opportunities.') }}
+            </template>
+            <template #side>
+                <Link
+                    v-if="can('bidding.create')"
+                    href="/bidding/bids/create"
+                    class="create-btn"
                 >
-                    {{ t('No bids found.') }}
-                </div>
+                    <Plus />
+                    {{ t('New Bid') }}
+                </Link>
 
-                <div v-else class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b text-start text-muted-foreground">
-                                <th class="pb-3 pe-4 font-medium">{{ t('Bid #') }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{
-                                    t('Opportunity')
-                                }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{
-                                    t('Submitted')
-                                }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{
-                                    t('Our Amount')
-                                }}</th>
-                                <th class="pb-3 font-medium">{{ t('Status') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr
-                                v-for="bid in bids.data"
-                                :key="bid.id"
-                                class="border-b last:border-0"
+                <div class="hero-cards">
+                    <V2IndicatorCard card-class="inventory-card">
+                        <template #head>{{ t('Pipeline') }}</template>
+                        <template #meta
+                            >{{ pipeline.submittedShare }}%
+                            {{ t('Submitted') }}</template
+                        >
+
+                        <div class="inventory-hero">
+                            <div class="inventory-hero-copy">
+                                <strong>{{
+                                    formatNumber(stats.submitted)
+                                }}</strong>
+                                <small>{{ t('Submitted') }}</small>
+                            </div>
+                        </div>
+
+                        <div class="inventory-bar" aria-hidden="true">
+                            <i
+                                v-for="seg in pipeline.segments"
+                                :key="seg.key"
+                                :style="{
+                                    width: `${seg.width}%`,
+                                    background: seg.color,
+                                }"
+                            />
+                        </div>
+
+                        <ul class="indicator-list compact">
+                            <li
+                                v-for="seg in pipeline.segments.slice(0, 4)"
+                                :key="seg.key"
                             >
-                                <td class="py-3 pe-4">
-                                    <Link
-                                        :href="`/bidding/bids/${bid.id}`"
-                                        class="font-medium hover:underline"
-                                    >
-                                        {{ bid.bid_number ?? `#${bid.id}` }}
-                                    </Link>
-                                </td>
-                                <td class="py-3 pe-4">
-                                    <div class="font-medium">
-                                        {{
-                                            bid.procurement_opportunity?.title ??
-                                            '—'
-                                        }}
-                                    </div>
-                                    <div class="text-xs text-muted-foreground">
-                                        {{
-                                            bid.procurement_opportunity?.organization
-                                                ?.name ?? ''
-                                        }}
-                                    </div>
-                                </td>
-                                <td class="py-3 pe-4 text-muted-foreground">
-                                    {{ formatDate(bid.submitted_at) }}
-                                </td>
-                                <td class="py-3 pe-4">
-                                    {{
-                                        formatCurrency(
-                                            bid.our_total_amount,
-                                            bid.currency ?? 'USD',
-                                        )
-                                    }}
-                                </td>
-                                <td class="py-3">
-                                    <Badge :variant="statusVariant(bid.status)">
-                                        {{ statusLabel(bid.status) }}
-                                    </Badge>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                <i :style="{ background: seg.color }" />
+                                <span>{{ seg.label }}</span>
+                                <b>{{ formatNumber(seg.value) }}</b>
+                            </li>
+                        </ul>
+                    </V2IndicatorCard>
+
+                    <V2IndicatorCard card-class="money-card">
+                        <template #head>{{ t('Created by month') }}</template>
+                        <template #meta
+                            >{{ formatNumber(stats.total) }}
+                            {{ t('Total') }}</template
+                        >
+
+                        <div class="money-chart">
+                            <div
+                                v-for="bar in monthlyBars"
+                                :key="bar.key"
+                                class="money-col"
+                                :class="{ peak: bar.peak }"
+                                :title="`${bar.label}: ${bar.value}`"
+                            >
+                                <div class="money-pair">
+                                    <i
+                                        class="usd"
+                                        :style="{ height: `${bar.height}px` }"
+                                    />
+                                </div>
+                                <span>{{ bar.label }}</span>
+                            </div>
+                        </div>
+                    </V2IndicatorCard>
                 </div>
-            </CardContent>
-        </Card>
-    </div>
+            </template>
+
+            <template #stats>
+                <V2StatGrid>
+                    <V2StatCard
+                        :delay="0"
+                        :title="t('Bids')"
+                        :value="formatNumber(stats.total)"
+                    >
+                        <template #icon><FileText /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="1"
+                        icon-tone="warm"
+                        :title="t('Submitted')"
+                        :value="formatNumber(stats.submitted)"
+                    >
+                        <template #icon><Send /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="2"
+                        icon-tone="teal"
+                        :title="t('Won')"
+                        :value="formatNumber(stats.won)"
+                    >
+                        <template #icon><Trophy /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="3"
+                        accent
+                        icon-tone="orange"
+                        :title="t('Lost')"
+                        :value="formatNumber(stats.lost)"
+                    >
+                        <template #icon><XCircle /></template>
+                    </V2StatCard>
+                </V2StatGrid>
+            </template>
+        </V2Hero>
+
+        <V2TablePanel
+            table-id="bidding-bids"
+            :columns="tableColumns"
+            :pending="pending && bids.data.length > 0"
+        >
+            <template #filters>
+                <V2FilterBar>
+                    <div class="filter-search">
+                        <MisSearchInput
+                            v-model="filters.search"
+                            :placeholder="t('Search bids...')"
+                            @submit="apply()"
+                            @clear="clear"
+                        />
+                    </div>
+                    <template #columns>
+                        <TableToolbar />
+                    </template>
+                </V2FilterBar>
+            </template>
+
+            <template #default="{ visibleColCount }">
+                <table>
+                    <thead>
+                        <tr>
+                            <TableIndexTh />
+                            <th>{{ t('Bid #') }}</th>
+                            <th>{{ t('Opportunity') }}</th>
+                            <th>{{ t('Submitted') }}</th>
+                            <th>{{ t('Our Amount') }}</th>
+                            <th>{{ t('Status') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            v-for="(bid, index) in sortedRows"
+                            :key="bid.id"
+                            :style="{ '--i': index }"
+                        >
+                            <TableIndexTd
+                                :index="index"
+                                :from="bids.meta?.from"
+                            />
+                            <td>
+                                <Link
+                                    :href="`/bidding/bids/${bid.id}`"
+                                    class="code-chip"
+                                >
+                                    {{ bid.bid_number ?? `#${bid.id}` }}
+                                </Link>
+                            </td>
+                            <td>
+                                <div>
+                                    {{
+                                        bid.procurement_opportunity?.title ??
+                                        '—'
+                                    }}
+                                </div>
+                                <div
+                                    v-if="
+                                        bid.procurement_opportunity?.organization
+                                            ?.name
+                                    "
+                                    class="muted text-xs"
+                                >
+                                    {{
+                                        bid.procurement_opportunity.organization
+                                            .name
+                                    }}
+                                </div>
+                            </td>
+                            <td class="muted nowrap">
+                                {{ formatDate(bid.submitted_at) }}
+                            </td>
+                            <td class="nums">
+                                {{
+                                    formatCurrency(
+                                        bid.our_total_amount,
+                                        bid.currency ?? 'AFN',
+                                    )
+                                }}
+                            </td>
+                            <td>
+                                <StatusBadge :status="bid.status" />
+                            </td>
+                        </tr>
+                        <EmptyState
+                            v-if="!bids.data.length"
+                            :colspan="visibleColCount"
+                            :title="t('No bids found.')"
+                        />
+                    </tbody>
+                </table>
+            </template>
+
+            <template v-if="bids.links?.length" #pager>
+                <V2Pager :items="bids" :only="onlyKeys" />
+            </template>
+        </V2TablePanel>
+    </V2ListPage>
 </template>

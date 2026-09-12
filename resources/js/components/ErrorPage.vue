@@ -6,7 +6,8 @@ import AppLogoImage from '@/components/AppLogoImage.vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import { Button } from '@/components/ui/button';
 import { useTranslations } from '@/composables/useTranslations';
-import { dashboard, home } from '@/routes';
+import { dashboard } from '@/routes';
+import { home } from '@/routes/website';
 
 const { code, title, icon } = defineProps<{
     code: number;

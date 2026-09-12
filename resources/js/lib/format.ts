@@ -69,10 +69,16 @@ export function formatCurrency(
         return '—';
     }
 
+    const code = normalizeCurrency(currency);
+
+    if (code === 'AFN') {
+        return formatAfn(value);
+    }
+
     return new Intl.NumberFormat('en-US', {
         ...LATIN_NUMERALS,
         style: 'currency',
-        currency: normalizeCurrency(currency),
+        currency: code,
         maximumFractionDigits: 0,
     }).format(value);
 }

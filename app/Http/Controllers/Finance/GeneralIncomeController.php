@@ -8,10 +8,42 @@ use App\Http\Controllers\Controller;
 use App\Models\Finance\GeneralIncome;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class GeneralIncomeController extends Controller
 {
     use AuthorizesMisPermissions, StoresOptionalAttachments;
+
+    public function index(Request $request): Response
+    {
+        $this->authorizePermission($request, 'finance.view');
+
+        $generalIncomes = GeneralIncome::query()
+            ->with('attachments')
+            ->latest('transaction_date')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (GeneralIncome $income) => [
+                'id' => $income->id,
+                'description' => $income->description,
+                'category' => $income->category,
+                'amount' => (float) $income->amount,
+                'amount_usd' => $income->amount_usd !== null ? (float) $income->amount_usd : null,
+                'currency' => $income->currency,
+                'transaction_date' => $income->transaction_date?->toDateString(),
+                'status' => $income->status,
+                'attachments' => $income->attachments,
+            ]);
+
+        return Inertia::render('mis/finance/GeneralIncome/Index', [
+            'generalIncomes' => $generalIncomes,
+            'stats' => [
+                'total' => (float) GeneralIncome::query()->sum('amount'),
+                'count' => GeneralIncome::query()->count(),
+            ],
+        ]);
+    }
 
     public function store(Request $request): RedirectResponse
     {

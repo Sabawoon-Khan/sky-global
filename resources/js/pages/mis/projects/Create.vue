@@ -1,16 +1,10 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
 import InputError from '@/components/InputError.vue';
-import MisPage from '@/components/MisPage.vue';
+import { V2FormPage, V2FormSection } from '@/components/v2';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
 import SecurityScopeField from '@/components/SecurityScopeField.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ProjectController from '@/actions/App/Http/Controllers/Project/ProjectController';
@@ -38,8 +32,8 @@ const { t } = useMisPage();
 defineOptions({
     layout: {
         breadcrumbs: [
-            { title: 'Projects', href: '/projects' },
-            { title: 'New', href: '/projects/create' },
+            { title: 'Projects', href: '/mis/projects' },
+            { title: 'New', href: '/mis/projects/create' },
         ],
     },
 });
@@ -48,7 +42,11 @@ defineOptions({
 <template>
     <Head :title="t('New Project')" />
 
-    <MisPage>
+    <V2FormPage
+        :title="t('New Project')"
+        :eyebrow="t('Projects')"
+        back-href="/mis/projects"
+    >
         <Form
             v-bind="ProjectController.store.form()"
             class="space-y-6"
@@ -56,11 +54,8 @@ defineOptions({
             validate-files
             v-slot="{ errors, processing }"
         >
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Client & project') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="grid gap-4">
+            <V2FormSection :title="t('Client & project')">
+                <div class="grid gap-4">
                     <div class="grid gap-2">
                         <Label for="organization_id">{{ t('Organization') }} *</Label>
                         <select
@@ -105,14 +100,11 @@ defineOptions({
                             class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                         />
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </V2FormSection>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Initial bid (optional now)') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="grid gap-4">
+            <V2FormSection :title="t('Initial bid (optional now)')">
+                <div class="grid gap-4">
                     <div class="grid gap-2">
                         <Label for="our_bid_amount">{{ t('Our bid amount (AFN)') }}</Label>
                         <Input id="our_bid_amount" name="our_bid_amount" type="number" min="0" step="0.01" />
@@ -127,24 +119,19 @@ defineOptions({
                         <Label for="source">{{ t('Source') }}</Label>
                         <Input id="source" name="source" />
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </V2FormSection>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Attachment') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <OptionalAttachmentField :error="errors.attachment" />
-                </CardContent>
-            </Card>
+            <V2FormSection :title="t('Attachment')">
+                <OptionalAttachmentField :error="errors.attachment" />
+            </V2FormSection>
 
             <div class="flex justify-end gap-3">
                 <Button variant="outline" as-child>
-                    <Link href="/projects">{{ t('Cancel') }}</Link>
+                    <Link href="/mis/projects">{{ t('Cancel') }}</Link>
                 </Button>
                 <Button type="submit" :disabled="processing">{{ t('Create project') }}</Button>
             </div>
         </Form>
-    </MisPage>
+    </V2FormPage>
 </template>

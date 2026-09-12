@@ -20,6 +20,7 @@ interface PayrollRow {
     base_amount: number;
     bonus: number;
     deductions: number;
+    tax: number;
     advance: number;
     net_amount: number;
     currency: string;
@@ -29,6 +30,7 @@ interface Totals {
     base: number;
     bonus: number;
     deductions: number;
+    tax: number;
     advance: number;
     net: number;
 }
@@ -137,6 +139,7 @@ onMounted(() => {
                                     <th>{{ t('Base') }}</th>
                                     <th>{{ t('Bonus') }}</th>
                                     <th>{{ t('Deductions') }}</th>
+                                    <th>{{ t('Tax') }}</th>
                                     <th>{{ t('Advance') }}</th>
                                     <th class="col-net">{{ t('Net Pay') }}</th>
                                 </tr>
@@ -154,6 +157,7 @@ onMounted(() => {
                                     <td class="col-amount">{{ amount(row.base_amount) }}</td>
                                     <td class="col-amount">{{ amount(row.bonus) }}</td>
                                     <td class="col-amount">{{ amount(row.deductions) }}</td>
+                                    <td class="col-amount">{{ amount(row.tax) }}</td>
                                     <td class="col-amount">{{ amount(row.advance) }}</td>
                                     <td class="col-amount col-net">{{ amount(row.net_amount) }}</td>
                                 </tr>
@@ -164,6 +168,7 @@ onMounted(() => {
                                     <td class="col-amount font-bold">{{ amount(employee_totals.base) }}</td>
                                     <td class="col-amount font-bold">{{ amount(employee_totals.bonus) }}</td>
                                     <td class="col-amount font-bold">{{ amount(employee_totals.deductions) }}</td>
+                                    <td class="col-amount font-bold">{{ amount(employee_totals.tax) }}</td>
                                     <td class="col-amount font-bold">{{ amount(employee_totals.advance) }}</td>
                                     <td class="col-amount col-net font-bold">{{ amount(employee_totals.net) }}</td>
                                 </tr>
@@ -189,6 +194,7 @@ onMounted(() => {
                                     <th>{{ t('Base') }}</th>
                                     <th>{{ t('Bonus') }}</th>
                                     <th>{{ t('Deductions') }}</th>
+                                    <th>{{ t('Tax') }}</th>
                                     <th>{{ t('Advance') }}</th>
                                     <th class="col-net">{{ t('Net Pay') }}</th>
                                 </tr>
@@ -206,6 +212,7 @@ onMounted(() => {
                                     <td class="col-amount">{{ amount(row.base_amount) }}</td>
                                     <td class="col-amount">{{ amount(row.bonus) }}</td>
                                     <td class="col-amount">{{ amount(row.deductions) }}</td>
+                                    <td class="col-amount">{{ amount(row.tax) }}</td>
                                     <td class="col-amount">{{ amount(row.advance) }}</td>
                                     <td class="col-amount col-net">{{ amount(row.net_amount) }}</td>
                                 </tr>
@@ -216,6 +223,7 @@ onMounted(() => {
                                     <td class="col-amount font-bold">{{ amount(contractor_totals.base) }}</td>
                                     <td class="col-amount font-bold">{{ amount(contractor_totals.bonus) }}</td>
                                     <td class="col-amount font-bold">{{ amount(contractor_totals.deductions) }}</td>
+                                    <td class="col-amount font-bold">{{ amount(contractor_totals.tax) }}</td>
                                     <td class="col-amount font-bold">{{ amount(contractor_totals.advance) }}</td>
                                     <td class="col-amount col-net font-bold">{{ amount(contractor_totals.net) }}</td>
                                 </tr>
@@ -232,6 +240,7 @@ onMounted(() => {
                                 <td class="col-amount font-bold">{{ amount(totals.base) }}</td>
                                 <td class="col-amount font-bold">{{ amount(totals.bonus) }}</td>
                                 <td class="col-amount font-bold">{{ amount(totals.deductions) }}</td>
+                                <td class="col-amount font-bold">{{ amount(totals.tax) }}</td>
                                 <td class="col-amount font-bold">{{ amount(totals.advance) }}</td>
                                 <td class="col-amount col-net font-bold">{{ amount(totals.net) }}</td>
                             </tr>

@@ -1,19 +1,36 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import { Archive, Paperclip, Search } from '@lucide/vue';
-import MisCreateButton from '@/components/MisCreateButton.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import MisSearchInput from '@/components/mis/MisSearchInput.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
-import { Badge } from '@/components/ui/badge';
+import TableIndexTd from '@/components/TableIndexTd.vue';
+import TableIndexTh from '@/components/TableIndexTh.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
 import {
-    Card,
-    CardAction,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+    V2FilterBar,
+    V2Hero,
+    V2IndicatorCard,
+    V2ListPage,
+    V2Pager,
+    V2StatCard,
+    V2StatGrid,
+    V2TablePanel,
+} from '@/components/v2';
+import { indexTableColumn } from '@/composables/useTableColumns';
+import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
+import { provideTableSort } from '@/composables/useTableSort';
+import { formatDate, formatNumber, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
+import {
+    Archive,
+    Inbox,
+    Paperclip,
+    Plus,
+    Send,
+    Share2,
+} from '@lucide/vue';
+import { computed } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
 
 interface ArchivedDocument {
     id: number;
@@ -28,19 +45,39 @@ interface ArchivedDocument {
     project?: { id: number; code: string; name: string } | null;
 }
 
-interface PaginatedDocuments {
-    data: ArchivedDocument[];
-    meta?: { total: number };
+interface ChartPoint {
+    key: string;
+    label: string;
+    value: number;
 }
 
-interface Props {
-    documents: PaginatedDocuments;
+const props = defineProps<{
+    documents: Paginated<ArchivedDocument>;
+    stats: {
+        total: number;
+        incoming: number;
+        outgoing: number;
+        internal: number;
+        archived?: number;
+    };
+    chart: {
+        status: ChartPoint[];
+        monthly: ChartPoint[];
+    };
     filters?: { search?: string; direction?: string };
-}
+}>();
 
-defineProps<Props>();
+const onlyKeys = ['documents', 'stats', 'chart', 'filters'];
 
-const { t, viewAction, editAction, deleteAction } = useMisPage();
+const { filters, pending, apply, clear } = useMisFilters(
+    '/archive',
+    { search: props.filters?.search ?? '' },
+    { search: '' },
+    { only: onlyKeys, liveKeys: ['search'] },
+);
+
+const { sortedRows } = provideTableSort(() => props.documents.data);
+const { t, viewAction, editAction, deleteAction, can } = useMisPage();
 
 defineOptions({
     layout: {
@@ -48,15 +85,75 @@ defineOptions({
     },
 });
 
-const formatDate = (value?: string | null): string => {
-    if (!value) {
-        return '—';
-    }
+const tableColumns = computed(() => [
+    indexTableColumn(),
+    { key: 'reference', label: t('Reference') },
+    { key: 'title', label: t('Title') },
+    { key: 'category', label: t('Category') },
+    { key: 'linked', label: t('Linked To') },
+    { key: 'date', label: t('Date') },
+    { key: 'attachment', label: t('Attachment') },
+    { key: 'direction', label: t('Direction') },
+    { key: 'actions', label: t('Actions'), locked: true },
+]);
 
-    return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(
-        new Date(value),
+const statusPalette = [
+    'var(--school-navy)',
+    'var(--brand-accent)',
+    'var(--school-gold)',
+    'var(--muted-foreground)',
+    '#3d5a80',
+    '#8b9bb4',
+];
+
+const pipeline = computed(() => {
+    const rows = (props.chart?.status ?? []).filter((row) => row.value > 0);
+    const total = Math.max(
+        rows.reduce((sum, row) => sum + row.value, 0),
+        props.stats.total,
+        1,
     );
-};
+    const incomingShare =
+        total > 0 ? Math.round((props.stats.incoming / total) * 100) : 0;
+
+    return {
+        incomingShare,
+        segments: rows.map((row, index) => ({
+            key: row.key,
+            label: row.label,
+            value: row.value,
+            color: statusPalette[index % statusPalette.length],
+            width: Math.max(row.value > 0 ? 6 : 0, (row.value / total) * 100),
+        })),
+    };
+});
+
+const monthlyBars = computed(() => {
+    const rows =
+        props.chart?.monthly?.length > 0
+            ? props.chart.monthly
+            : Array.from({ length: 6 }, (_, index) => ({
+                  key: `m-${index}`,
+                  label: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'][index],
+                  value: 0,
+              }));
+    const max = Math.max(...rows.map((row) => Number(row.value) || 0), 1);
+
+    return rows.map((row) => {
+        const value = Number(row.value) || 0;
+        return {
+            key: row.key,
+            label: row.label,
+            value,
+            height: Math.max(value > 0 ? 6 : 3, Math.round((value / max) * 44)),
+            peak: value === max && value > 0,
+        };
+    });
+});
+
+const totalCount = computed(
+    () => props.documents.meta?.total ?? props.documents.data.length,
+);
 
 const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
     viewAction(`/archive/${doc.id}`),
@@ -78,117 +175,231 @@ const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
 <template>
     <Head :title="t('Document Archive')" />
 
-    <div class="flex flex-1 flex-col gap-6 p-4">
-        <Card>
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2">
-                    <Archive class="size-5" />
-                    {{ t('Archived Documents') }}
-                </CardTitle>
-                <CardAction>
-                    <MisCreateButton href="/archive/create" permission="archive.create">
-                        {{ t('Register new document') }}
-                    </MisCreateButton>
-                </CardAction>
-            </CardHeader>
-            <CardContent class="space-y-4">
-                <form method="get" action="/archive" class="relative max-w-sm">
-                    <Search
-                        class="absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <Input
-                        name="search"
-                        :default-value="filters?.search"
-                        :placeholder="t('Search archive...')"
-                        class="ps-9"
-                    />
-                </form>
-
-                <div
-                    v-if="documents.data.length === 0"
-                    class="ui-empty-state"
+    <V2ListPage>
+        <V2Hero image="/images/gs-hero-operations.png">
+            <template #eyebrow>{{ t('Records') }}</template>
+            <template #title>{{ t('Document Archive') }}</template>
+            <template #description>
+                {{ t('Registered correspondence and files.') }}
+            </template>
+            <template #side>
+                <Link
+                    v-if="can('archive.create')"
+                    href="/archive/create"
+                    class="create-btn"
                 >
-                    {{ t('No documents in archive.') }}
-                </div>
+                    <Plus />
+                    {{ t('Register new document') }}
+                </Link>
 
-                <div v-else class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b text-start text-muted-foreground">
-                                <th class="pb-3 pe-4 font-medium">{{ t('Reference') }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{ t('Title') }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{ t('Category') }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{ t('Linked To') }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{ t('Date') }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{ t('Attachment') }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{ t('Direction') }}</th>
-                                <th class="pb-3 text-end font-medium">{{ t('Actions') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr
-                                v-for="doc in documents.data"
-                                :key="doc.id"
-                                class="border-b last:border-0"
+                <div class="hero-cards">
+                    <V2IndicatorCard card-class="inventory-card">
+                        <template #head>{{ t('Direction') }}</template>
+                        <template #meta
+                            >{{ pipeline.incomingShare }}%
+                            {{ t('Incoming') }}</template
+                        >
+
+                        <div class="inventory-hero">
+                            <div class="inventory-hero-copy">
+                                <strong>{{
+                                    formatNumber(stats.incoming)
+                                }}</strong>
+                                <small>{{ t('Incoming') }}</small>
+                            </div>
+                        </div>
+
+                        <div class="inventory-bar" aria-hidden="true">
+                            <i
+                                v-for="seg in pipeline.segments"
+                                :key="seg.key"
+                                :style="{
+                                    width: `${seg.width}%`,
+                                    background: seg.color,
+                                }"
+                            />
+                        </div>
+
+                        <ul class="indicator-list compact">
+                            <li
+                                v-for="seg in pipeline.segments.slice(0, 4)"
+                                :key="seg.key"
                             >
-                                <td class="py-3 pe-4 font-mono text-xs">
-                                    {{ doc.reference_number ?? '—' }}
-                                </td>
-                                <td class="py-3 pe-4 font-medium">
-                                    {{ doc.title }}
-                                </td>
-                                <td class="py-3 pe-4 text-muted-foreground">
-                                    {{ doc.document_category?.name ?? '—' }}
-                                </td>
-                                <td class="py-3 pe-4 text-muted-foreground">
-                                    <Link
-                                        v-if="doc.project"
-                                        :href="`/projects/${doc.project.id}`"
-                                        class="hover:underline"
-                                    >
-                                        {{ doc.project.code }}
-                                    </Link>
-                                    <span v-else-if="doc.organization">
-                                        {{ doc.organization.name }}
-                                    </span>
-                                    <span v-else>—</span>
-                                </td>
-                                <td class="py-3 pe-4 text-muted-foreground">
-                                    {{ formatDate(doc.document_date) }}
-                                </td>
-                                <td class="py-3 pe-4">
-                                    <a
-                                        v-if="doc.download_url"
-                                        :href="doc.download_url"
-                                        class="inline-flex items-center gap-1 text-primary hover:underline"
-                                        :title="doc.original_filename ?? undefined"
-                                    >
-                                        <Paperclip class="size-3.5 shrink-0" />
-                                        <span class="max-w-[8rem] truncate text-xs">
-                                            {{ doc.original_filename ?? t('Download') }}
-                                        </span>
-                                    </a>
-                                    <span v-else class="text-muted-foreground">—</span>
-                                </td>
-                                <td class="py-3 pe-4">
-                                    <Badge
-                                        v-if="doc.direction"
-                                        variant="outline"
-                                    >
-                                        {{ doc.direction }}
-                                    </Badge>
-                                    <span v-else>—</span>
-                                </td>
-                                <td class="py-3 text-end">
-                                    <RowActionsMenu
-                                        :actions="documentActions(doc)"
+                                <i :style="{ background: seg.color }" />
+                                <span>{{ seg.label }}</span>
+                                <b>{{ formatNumber(seg.value) }}</b>
+                            </li>
+                        </ul>
+                    </V2IndicatorCard>
+
+                    <V2IndicatorCard card-class="money-card">
+                        <template #head>{{ t('Created by month') }}</template>
+                        <template #meta
+                            >{{ formatNumber(stats.total) }}
+                            {{ t('Total') }}</template
+                        >
+
+                        <div class="money-chart">
+                            <div
+                                v-for="bar in monthlyBars"
+                                :key="bar.key"
+                                class="money-col"
+                                :class="{ peak: bar.peak }"
+                                :title="`${bar.label}: ${bar.value}`"
+                            >
+                                <div class="money-pair">
+                                    <i
+                                        class="usd"
+                                        :style="{ height: `${bar.height}px` }"
                                     />
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                </div>
+                                <span>{{ bar.label }}</span>
+                            </div>
+                        </div>
+                    </V2IndicatorCard>
                 </div>
-            </CardContent>
-        </Card>
-    </div>
+            </template>
+
+            <template #stats>
+                <V2StatGrid>
+                    <V2StatCard
+                        :delay="0"
+                        :title="t('Documents')"
+                        :value="formatNumber(stats.total)"
+                    >
+                        <template #icon><Archive /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="1"
+                        icon-tone="warm"
+                        :title="t('Incoming')"
+                        :value="formatNumber(stats.incoming)"
+                    >
+                        <template #icon><Inbox /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="2"
+                        icon-tone="teal"
+                        :title="t('Outgoing')"
+                        :value="formatNumber(stats.outgoing)"
+                    >
+                        <template #icon><Send /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="3"
+                        accent
+                        icon-tone="orange"
+                        :title="t('Internal')"
+                        :value="formatNumber(stats.internal)"
+                    >
+                        <template #icon><Share2 /></template>
+                    </V2StatCard>
+                </V2StatGrid>
+            </template>
+        </V2Hero>
+
+        <V2TablePanel
+            table-id="archive-documents"
+            :columns="tableColumns"
+            :pending="pending && documents.data.length > 0"
+        >
+            <template #filters>
+                <V2FilterBar>
+                    <div class="filter-search">
+                        <MisSearchInput
+                            v-model="filters.search"
+                            :placeholder="t('Search archive...')"
+                            @submit="apply()"
+                            @clear="clear"
+                        />
+                    </div>
+                    <template #columns>
+                        <TableToolbar />
+                    </template>
+                </V2FilterBar>
+            </template>
+
+            <template #default="{ visibleColCount }">
+                <table>
+                    <thead>
+                        <tr>
+                            <TableIndexTh />
+                            <th>{{ t('Reference') }}</th>
+                            <th>{{ t('Title') }}</th>
+                            <th>{{ t('Category') }}</th>
+                            <th>{{ t('Linked To') }}</th>
+                            <th>{{ t('Date') }}</th>
+                            <th>{{ t('Attachment') }}</th>
+                            <th>{{ t('Direction') }}</th>
+                            <th class="end">{{ t('Actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            v-for="(doc, index) in sortedRows"
+                            :key="doc.id"
+                            :style="{ '--i': index }"
+                        >
+                            <TableIndexTd
+                                :index="index"
+                                :from="documents.meta?.from"
+                            />
+                            <td class="muted nowrap">
+                                {{ doc.reference_number ?? '—' }}
+                            </td>
+                            <td>{{ doc.title }}</td>
+                            <td class="muted">
+                                {{ doc.document_category?.name ?? '—' }}
+                            </td>
+                            <td class="muted">
+                                <Link
+                                    v-if="doc.project"
+                                    :href="`/mis/projects/${doc.project.id}`"
+                                    class="code-chip"
+                                >
+                                    {{ doc.project.code }}
+                                </Link>
+                                <span v-else-if="doc.organization">
+                                    {{ doc.organization.name }}
+                                </span>
+                                <span v-else>—</span>
+                            </td>
+                            <td class="muted nowrap">
+                                {{ formatDate(doc.document_date) }}
+                            </td>
+                            <td>
+                                <a
+                                    v-if="doc.download_url"
+                                    :href="doc.download_url"
+                                    class="code-chip"
+                                    :title="doc.original_filename ?? undefined"
+                                >
+                                    <Paperclip class="inline size-3.5" />
+                                    {{
+                                        doc.original_filename ?? t('Download')
+                                    }}
+                                </a>
+                                <span v-else class="muted">—</span>
+                            </td>
+                            <td>{{ doc.direction ?? '—' }}</td>
+                            <td class="end">
+                                <RowActionsMenu
+                                    :actions="documentActions(doc)"
+                                />
+                            </td>
+                        </tr>
+                        <EmptyState
+                            v-if="!documents.data.length"
+                            :colspan="visibleColCount"
+                            :title="t('No documents in archive.')"
+                        />
+                    </tbody>
+                </table>
+            </template>
+
+            <template v-if="documents.links?.length" #pager>
+                <V2Pager :items="documents" :only="onlyKeys" />
+            </template>
+        </V2TablePanel>
+    </V2ListPage>
 </template>

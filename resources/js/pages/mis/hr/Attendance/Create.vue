@@ -4,7 +4,7 @@ import { computed, ref, watch } from 'vue';
 import { ArrowLeft, CalendarDays, CheckCircle2, ClipboardList, Printer, Save, Send, Users, Wand2 } from '@lucide/vue';
 import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
-import MisPage from '@/components/MisPage.vue';
+import { V2FormPage } from '@/components/v2';
 import MisPagination from '@/components/MisPagination.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -765,7 +765,11 @@ const bulkPersonnelType = computed(() =>
 <template>
     <Head :title="t('Manage attendance')" />
 
-    <MisPage>
+    <V2FormPage
+        :title="t('Attendance sheet')"
+        :eyebrow="t('HR')"
+        back-href="/hr/attendance"
+    >
         <!-- Header -->
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div class="space-y-1">
@@ -1375,5 +1379,5 @@ const bulkPersonnelType = computed(() =>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    </MisPage>
+    </V2FormPage>
 </template>

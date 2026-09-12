@@ -5,8 +5,8 @@ import EmployeeSalariesField, {
     type SalaryRecord,
 } from '@/components/EmployeeSalariesField.vue';
 import InputError from '@/components/InputError.vue';
-import MisPage from '@/components/MisPage.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
+import { V2FormPage, V2FormSection } from '@/components/v2';
 import PersonnelFormsField, {
     type AttachmentTypeOption,
 } from '@/components/PersonnelFormsField.vue';
@@ -14,12 +14,6 @@ import PersonnelFormsCard, {
     type PersonnelFormRecord,
 } from '@/components/PersonnelFormsCard.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import EmployeeController from '@/actions/App/Http/Controllers/Hr/EmployeeController';
@@ -87,13 +81,11 @@ defineOptions({
         "
     />
 
-    <MisPage narrow>
-        <div class="flex justify-end">
-            <Button variant="outline" as-child>
-                <Link :href="`/hr/employees/${employee.id}`">{{ t('Cancel') }}</Link>
-            </Button>
-        </div>
-
+    <V2FormPage
+        :title="t('Edit employee')"
+        :eyebrow="t('HR')"
+        :back-href="`/hr/employees/${employee.id}`"
+    >
         <Form
             v-bind="EmployeeController.update.form(employee.id)"
             class="space-y-6"
@@ -102,11 +94,8 @@ defineOptions({
             v-slot="{ errors, processing }"
         >
             <input type="hidden" name="salaries_synced" value="1" />
-            <Card>
-                <CardHeader>
-                    <CardTitle>Personal details</CardTitle>
-                </CardHeader>
-                <CardContent class="grid gap-4 md:grid-cols-2">
+            <V2FormSection :title="t('Personal details')">
+                <div class="grid gap-4 md:grid-cols-2">
                     <div class="grid gap-2">
                         <Label for="first_name">First name *</Label>
                         <Input
@@ -238,14 +227,11 @@ defineOptions({
                             class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                         >{{ employee.current_address ?? '' }}</textarea>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </V2FormSection>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Job details</CardTitle>
-                </CardHeader>
-                <CardContent class="grid gap-4 md:grid-cols-2">
+            <V2FormSection :title="t('Job details')">
+                <div class="grid gap-4 md:grid-cols-2">
                     <div class="grid gap-2">
                         <Label for="job_detail_department_id">Department</Label>
                         <select
@@ -314,27 +300,18 @@ defineOptions({
                             </div>
                         </div>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </V2FormSection>
 
-            <Card v-if="isPermanent">
-                <CardHeader>
-                    <CardTitle>{{ t('Salary') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
+            <V2FormSection v-if="isPermanent" :title="t('Salary')">
                     <EmployeeSalariesField
                         :currencies="currencies"
                         :initial-salaries="employee.salaries"
                         :errors="errors"
                     />
-                </CardContent>
-            </Card>
+            </V2FormSection>
 
-            <Card v-else>
-                <CardHeader>
-                    <CardTitle>{{ t('Project pay') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
+            <V2FormSection v-else :title="t('Project pay')">
                     <p class="text-sm text-muted-foreground">
                         {{
                             t(
@@ -342,8 +319,7 @@ defineOptions({
                             )
                         }}
                     </p>
-                </CardContent>
-            </Card>
+            </V2FormSection>
 
             <PersonnelFormsCard
                 personnel-type="employee"
@@ -353,26 +329,16 @@ defineOptions({
                 :can-manage="true"
             />
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Employee forms</CardTitle>
-                </CardHeader>
-                <CardContent>
+            <V2FormSection :title="t('Employee forms')">
                     <PersonnelFormsField
                         :attachment-types="attachmentTypes"
                         :errors="errors"
                     />
-                </CardContent>
-            </Card>
+            </V2FormSection>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Documents</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <OptionalAttachmentField :error="errors.attachment" />
-                </CardContent>
-            </Card>
+            <V2FormSection :title="t('Documents')">
+                <OptionalAttachmentField :error="errors.attachment" />
+            </V2FormSection>
 
             <div class="flex justify-end gap-3">
                 <Button variant="outline" as-child>
@@ -381,5 +347,5 @@ defineOptions({
                 <Button type="submit" :disabled="processing">Save changes</Button>
             </div>
         </Form>
-    </MisPage>
+    </V2FormPage>
 </template>

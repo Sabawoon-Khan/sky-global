@@ -32,7 +32,9 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { V2DetailHero, V2ListPage } from '@/components/v2';
 import { useMisPage } from '@/composables/useMisPage';
+import { formatCurrency } from '@/lib/format';
 
 interface Agreement {
     id: number;
@@ -173,17 +175,6 @@ const formatDate = (value?: string | null): string => {
     );
 };
 
-const formatCurrency = (value?: number | null, currency = 'USD'): string => {
-    if (value == null) {
-        return '—';
-    }
-
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 0,
-    }).format(value);
-};
 
 const monthName = (month: number): string =>
     new Intl.DateTimeFormat('en-US', { month: 'short' }).format(
@@ -200,8 +191,20 @@ const agreementStartDate = computed(
 <template>
     <Head :title="fullName" />
 
-    <div class="flex w-full flex-1 flex-col gap-6 p-4 sm:p-6">
-        <Card class="overflow-hidden border-0 bg-gradient-to-br from-muted/60 via-background to-background shadow-sm">
+    <V2ListPage>
+        <V2DetailHero image="/images/gs-hero-people.png">
+            <template #eyebrow>{{ t('HR') }}</template>
+            <template #title>{{ fullName }}</template>
+            <template #description>{{ t('Contractor') }}</template>
+            <template #actions>
+                <Badge :variant="statusVariant(contractor.status)">
+                    {{ statusLabel(contractor.status) }}
+                </Badge>
+            </template>
+        </V2DetailHero>
+
+        <div class="flex w-full flex-col gap-6">
+        <Card class="overflow-hidden border-0 shadow-sm">
             <CardContent class="p-6">
                 <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div class="flex items-start gap-4">
@@ -266,7 +269,7 @@ const agreementStartDate = computed(
             </CardContent>
         </Card>
 
-        <MisTabs v-model="activeTab" :tabs="tabs" />
+        <MisTabs v-model="activeTab" :tabs="tabs" nowrap />
 
         <Card v-if="activeTab === 'personal'">
             <CardHeader>
@@ -331,7 +334,7 @@ const agreementStartDate = computed(
                                 {{ t('Daily') }}
                             </p>
                             <p class="text-2xl font-bold tracking-tight">
-                                {{ formatCurrency(currentRate.daily_rate, currentRate.currency ?? 'USD') }}
+                                {{ formatCurrency(currentRate.daily_rate, currentRate.currency ?? 'AFN') }}
                             </p>
                         </div>
                         <div>
@@ -339,7 +342,7 @@ const agreementStartDate = computed(
                                 {{ t('Monthly') }}
                             </p>
                             <p class="text-2xl font-bold tracking-tight">
-                                {{ formatCurrency(currentRate.monthly_rate, currentRate.currency ?? 'USD') }}
+                                {{ formatCurrency(currentRate.monthly_rate, currentRate.currency ?? 'AFN') }}
                             </p>
                         </div>
                         <p class="text-sm text-muted-foreground">
@@ -358,8 +361,8 @@ const agreementStartDate = computed(
                         >
                             <p class="font-medium">{{ rate.project?.code ?? t('General') }}</p>
                             <p class="text-muted-foreground">
-                                {{ formatCurrency(rate.daily_rate, rate.currency ?? 'USD') }}
-                                / {{ formatCurrency(rate.monthly_rate, rate.currency ?? 'USD') }}
+                                {{ formatCurrency(rate.daily_rate, rate.currency ?? 'AFN') }}
+                                / {{ formatCurrency(rate.monthly_rate, rate.currency ?? 'AFN') }}
                             </p>
                         </div>
                     </div>
@@ -422,7 +425,7 @@ const agreementStartDate = computed(
                         <div>
                             <Link
                                 v-if="d.project"
-                                :href="`/projects/${d.project.id}`"
+                                :href="`/mis/projects/${d.project.id}`"
                                 class="font-medium hover:underline"
                             >
                                 {{ d.project.code }} — {{ d.project.name }}
@@ -507,5 +510,6 @@ const agreementStartDate = computed(
             />
             <EntityAttachments :attachments="contractor.attachments ?? []" />
         </div>
-    </div>
+        </div>
+    </V2ListPage>
 </template>

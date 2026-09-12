@@ -8,7 +8,14 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    V2DetailHero,
+    V2ListPage,
+    V2StatCard,
+    V2StatGrid,
+} from '@/components/v2';
 import { useMisPage } from '@/composables/useMisPage';
+import { formatCurrency } from '@/lib/format';
 
 interface Organization {
     id: number;
@@ -74,17 +81,6 @@ defineOptions({
 
 const bidTitle = (bid: Bid): string => bid.bid_number ?? `${t('Bid #')}${bid.id}`;
 
-const formatCurrency = (value?: number | null, currency = 'USD'): string => {
-    if (value == null) {
-        return '—';
-    }
-
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 0,
-    }).format(value);
-};
 
 const formatDate = (value?: string | null): string => {
     if (!value) {
@@ -115,54 +111,59 @@ const statusVariant = (
 <template>
     <Head :title="bidTitle(bid)" />
 
-    <div class="flex flex-1 flex-col gap-6 p-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-<Badge class="mt-2" :variant="statusVariant(bid.status)">
+    <V2ListPage>
+        <V2DetailHero image="/images/gs-hero-operations.png">
+            <template #eyebrow>{{ t('Bidding') }}</template>
+            <template #title>{{ bidTitle(bid) }}</template>
+            <template #description>
+                {{ bid.procurement_opportunity?.title ?? '—' }}
+            </template>
+            <template #actions>
+                <Badge :variant="statusVariant(bid.status)">
                     {{ bid.status }}
                 </Badge>
-            </div>
-            <div class="flex shrink-0 flex-wrap gap-2">
                 <Button variant="outline" as-child>
                     <Link href="/bidding/bids">{{ t('Back to list') }}</Link>
                 </Button>
-            </div>
-        </div>
-
-        <div class="grid gap-4 md:grid-cols-4">
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">{{ t('Our Amount') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="text-lg font-semibold">
-                    {{ formatCurrency(bid.our_total_amount, bid.currency ?? 'USD') }}
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">{{ t('Winning Amount') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="text-lg font-semibold">
-                    {{ formatCurrency(bid.winning_amount, bid.currency ?? 'USD') }}
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">{{ t('Submitted') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="text-sm">
-                    {{ formatDate(bid.submitted_at) }}
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">{{ t('Organization') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="text-sm">
-                    {{ bid.procurement_opportunity?.organization?.name ?? '—' }}
-                </CardContent>
-            </Card>
-        </div>
+            </template>
+            <template #stats>
+                <V2StatGrid>
+                    <V2StatCard
+                        :delay="0"
+                        :title="t('Our Amount')"
+                        :value="
+                            formatCurrency(
+                                bid.our_total_amount,
+                                bid.currency ?? 'AFN',
+                            )
+                        "
+                    />
+                    <V2StatCard
+                        :delay="1"
+                        :title="t('Winning Amount')"
+                        :value="
+                            formatCurrency(
+                                bid.winning_amount,
+                                bid.currency ?? 'AFN',
+                            )
+                        "
+                    />
+                    <V2StatCard
+                        :delay="2"
+                        :title="t('Submitted')"
+                        :value="formatDate(bid.submitted_at)"
+                    />
+                    <V2StatCard
+                        :delay="3"
+                        :title="t('Organization')"
+                        :value="
+                            bid.procurement_opportunity?.organization?.name ??
+                            '—'
+                        "
+                    />
+                </V2StatGrid>
+            </template>
+        </V2DetailHero>
 
         <div class="grid gap-4 lg:grid-cols-2">
             <Card>
@@ -205,7 +206,7 @@ const statusVariant = (
                                         {{
                                             formatCurrency(
                                                 item.total,
-                                                bid.currency ?? 'USD',
+                                                bid.currency ?? 'AFN',
                                             )
                                         }}
                                     </td>
@@ -248,7 +249,7 @@ const statusVariant = (
                             {{
                                 formatCurrency(
                                     competitor.bid_amount,
-                                    competitor.currency ?? bid.currency ?? 'USD',
+                                    competitor.currency ?? bid.currency ?? 'AFN',
                                 )
                             }}
                         </span>
@@ -275,5 +276,5 @@ const statusVariant = (
                 </CardContent>
             </Card>
         </div>
-    </div>
+    </V2ListPage>
 </template>

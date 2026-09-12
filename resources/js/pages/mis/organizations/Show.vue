@@ -18,11 +18,12 @@ import MisTabs from '@/components/MisTabs.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+    V2DetailHero,
+    V2ListPage,
+    V2Panel,
+    V2StatCard,
+    V2StatGrid,
+} from '@/components/v2';
 import { useMisPage } from '@/composables/useMisPage';
 import { formatCurrency } from '@/lib/format';
 
@@ -134,10 +135,12 @@ const completedProjects = computed(() =>
 <template>
     <Head :title="organization.name" />
 
-    <div class="flex w-full flex-1 flex-col gap-6 p-4 sm:p-6">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-<div class="mt-3 flex flex-wrap gap-2">
+    <V2ListPage>
+        <V2DetailHero image="/images/gs-hero-operations.png">
+            <template #eyebrow>{{ t('Organizations') }}</template>
+            <template #title>{{ organization.name }}</template>
+            <template #description>
+                <span class="flex flex-wrap gap-2">
                     <Badge :variant="organization.is_active ? 'default' : 'outline'">
                         {{ organization.is_active ? t('Active') : t('Inactive') }}
                     </Badge>
@@ -154,9 +157,9 @@ const completedProjects = computed(() =>
                     >
                         {{ organization.organization_type.name }}
                     </Badge>
-                </div>
-            </div>
-            <div class="flex shrink-0 flex-wrap gap-2">
+                </span>
+            </template>
+            <template #actions>
                 <Button variant="outline" as-child>
                     <Link href="/organizations">{{ t('Back to list') }}</Link>
                 </Button>
@@ -165,55 +168,42 @@ const completedProjects = computed(() =>
                         t('Edit')
                     }}</Link>
                 </Button>
-            </div>
-        </div>
+            </template>
+            <template #stats>
+                <V2StatGrid>
+                    <V2StatCard
+                        :delay="0"
+                        :title="t('Projects Done')"
+                        :value="`${stats.projects_completed} / ${stats.projects_total}`"
+                    />
+                    <V2StatCard
+                        :delay="1"
+                        icon-tone="teal"
+                        :title="t('Bids Submitted')"
+                        :value="stats.bids_submitted"
+                    />
+                    <V2StatCard
+                        :delay="2"
+                        :title="t('Contract Value')"
+                        :value="formatCurrency(stats.total_contract_value)"
+                    />
+                    <V2StatCard
+                        :delay="3"
+                        icon-tone="teal"
+                        :title="t('Total Income')"
+                        :value="formatCurrency(stats.total_income)"
+                    />
+                </V2StatGrid>
+            </template>
+        </V2DetailHero>
 
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">{{ t('Projects Done') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="text-2xl font-bold">
-                    {{ stats.projects_completed }} / {{ stats.projects_total }}
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">{{ t('Bids Submitted') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="text-2xl font-bold">
-                    {{ stats.bids_submitted }}
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">{{ t('Contract Value') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="text-2xl font-bold">
-                    {{ formatCurrency(stats.total_contract_value) }}
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">{{ t('Total Income') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {{ formatCurrency(stats.total_income) }}
-                </CardContent>
-            </Card>
-        </div>
+        <MisTabs v-model="activeTab" :tabs="tabs" nowrap />
 
-        <MisTabs v-model="activeTab" :tabs="tabs" />
-
-        <!-- Overview -->
-        <Card v-if="activeTab === 'overview'">
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2">
-                    <Building2 class="size-5" />
-                    {{ t('Organization profile') }}
-                </CardTitle>
-            </CardHeader>
-            <CardContent class="grid gap-4 sm:grid-cols-2">
+        <V2Panel
+            v-if="activeTab === 'overview'"
+            :title="t('Organization profile')"
+        >
+            <div class="grid gap-4 sm:grid-cols-2">
                 <div v-if="organization.phone" class="flex gap-3">
                     <Phone class="mt-0.5 size-4 text-muted-foreground" />
                     <div>
@@ -247,18 +237,10 @@ const completedProjects = computed(() =>
                     <p class="text-xs text-muted-foreground">{{ t('Notes') }}</p>
                     <p class="mt-1 whitespace-pre-wrap text-sm">{{ organization.notes }}</p>
                 </div>
-            </CardContent>
-        </Card>
+            </div>
+        </V2Panel>
 
-        <!-- Projects -->
-        <Card v-else-if="activeTab === 'projects'">
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2">
-                    <FolderKanban class="size-5" />
-                    {{ t('Projects') }}
-                </CardTitle>
-                </CardHeader>
-            <CardContent>
+        <V2Panel v-else-if="activeTab === 'projects'" :title="t('Projects')">
                 <ul v-if="organization.projects.length" class="divide-y">
                     <li
                         v-for="project in organization.projects"
@@ -267,7 +249,7 @@ const completedProjects = computed(() =>
                     >
                         <div>
                             <Link
-                                :href="`/projects/${project.id}`"
+                                :href="`/mis/projects/${project.id}`"
                                 class="font-medium hover:underline"
                             >
                                 {{ project.code }} — {{ project.name }}
@@ -289,18 +271,9 @@ const completedProjects = computed(() =>
                 <p v-else class="text-sm text-muted-foreground">
                     {{ t('No projects linked yet.') }}
                 </p>
-            </CardContent>
-        </Card>
+        </V2Panel>
 
-        <!-- Bids -->
-        <Card v-else-if="activeTab === 'bids'">
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2">
-                    <Send class="size-5" />
-                    {{ t('Bids Submitted') }}
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
+        <V2Panel v-else-if="activeTab === 'bids'" :title="t('Bids Submitted')">
                 <ul v-if="submittedProjects.length" class="divide-y">
                     <li
                         v-for="project in submittedProjects"
@@ -308,7 +281,7 @@ const completedProjects = computed(() =>
                         class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                         <Link
-                            :href="`/projects/${project.id}?tab=bid`"
+                            :href="`/mis/projects/${project.id}?tab=bid`"
                             class="font-medium hover:underline"
                         >
                             {{ project.code }} — {{ project.name }}
@@ -319,18 +292,12 @@ const completedProjects = computed(() =>
                 <p v-else class="text-sm text-muted-foreground">
                     {{ t('No bids submitted yet.') }}
                 </p>
-            </CardContent>
-        </Card>
+        </V2Panel>
 
-        <!-- Opportunities -->
-        <Card v-else-if="activeTab === 'opportunities'">
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2">
-                    <FileText class="size-5" />
-                    {{ t('Procurement opportunities') }}
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
+        <V2Panel
+            v-else-if="activeTab === 'opportunities'"
+            :title="t('Procurement opportunities')"
+        >
                 <ul v-if="organization.procurement_opportunities.length" class="divide-y">
                     <li
                         v-for="item in organization.procurement_opportunities"
@@ -355,15 +322,9 @@ const completedProjects = computed(() =>
                 <p v-else class="text-sm text-muted-foreground">
                     {{ t('No opportunities recorded yet.') }}
                 </p>
-            </CardContent>
-        </Card>
+        </V2Panel>
 
-        <!-- Contacts -->
-        <Card v-else-if="activeTab === 'contacts'">
-            <CardHeader>
-                <CardTitle>{{ t('Contacts') }}</CardTitle>
-            </CardHeader>
-            <CardContent>
+        <V2Panel v-else-if="activeTab === 'contacts'" :title="t('Contacts')">
                 <div
                     v-if="organization.contacts.length"
                     class="grid gap-3 md:grid-cols-2 lg:grid-cols-3"
@@ -389,13 +350,12 @@ const completedProjects = computed(() =>
                 <p v-else class="text-sm text-muted-foreground">
                     {{ t('No contacts on file.') }}
                 </p>
-            </CardContent>
-        </Card>
+        </V2Panel>
 
         <!-- Attachments -->
         <EntityAttachments
-            v-else
+            v-else-if="activeTab === 'attachments'"
             :attachments="organization.attachments"
         />
-    </div>
+    </V2ListPage>
 </template>

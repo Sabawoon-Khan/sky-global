@@ -10,8 +10,10 @@ use App\Models\Equipment\EquipmentStock;
 use App\Models\Hr\Contractor;
 use App\Models\Hr\Employee;
 use App\Models\Project\Project;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -55,6 +57,22 @@ class EquipmentCatalogController extends Controller
             ->orderBy('category')
             ->pluck('category');
 
+        $total = EquipmentCatalog::query()->count();
+        $active = EquipmentCatalog::query()->where('is_active', true)->count();
+        $inactive = EquipmentCatalog::query()->where('is_active', false)->count();
+        $lowStock = EquipmentCatalog::query()
+            ->whereHas('stock', fn ($q) => $q->where('quantity_on_hand', '<=', 5))
+            ->count();
+        $inStock = EquipmentCatalog::query()
+            ->whereHas('stock', fn ($q) => $q->where('quantity_on_hand', '>', 0))
+            ->count();
+        $empty = EquipmentCatalog::query()
+            ->where(function ($q) {
+                $q->whereDoesntHave('stock')
+                    ->orWhereHas('stock', fn ($stock) => $stock->where('quantity_on_hand', '<=', 0));
+            })
+            ->count();
+
         return Inertia::render('mis/equipment/Catalog/Index', [
             'equipment' => $equipment,
             'categories' => $categories,
@@ -74,11 +92,68 @@ class EquipmentCatalogController extends Controller
                 ->orderBy('last_name')
                 ->limit(200)
                 ->get(['id', 'first_name', 'last_name']),
+            'stats' => [
+                'total' => $total,
+                'active' => $active,
+                'inactive' => $inactive,
+                'low_stock' => $lowStock,
+                'in_stock' => $inStock,
+                'empty' => $empty,
+            ],
+            'chart' => [
+                'status' => [
+                    ['key' => 'active', 'label' => 'Active', 'value' => $active],
+                    ['key' => 'inactive', 'label' => 'Inactive', 'value' => $inactive],
+                    ['key' => 'in_stock', 'label' => 'In stock', 'value' => $inStock],
+                    ['key' => 'low_stock', 'label' => 'Low stock', 'value' => $lowStock],
+                    ['key' => 'empty', 'label' => 'Empty', 'value' => $empty],
+                ],
+                'monthly' => $this->countCreatedByMonth(EquipmentCatalog::query()),
+            ],
             'filters' => [
                 'search' => $search ?: null,
                 'category' => $category ?: null,
             ],
         ]);
+    }
+
+    /**
+     * @param  Builder<EquipmentCatalog>  $query
+     * @return list<array{key: string, label: string, value: int}>
+     */
+    protected function countCreatedByMonth($query): array
+    {
+        $to = Carbon::now()->endOfMonth();
+        $from = Carbon::now()->subMonths(5)->startOfMonth();
+
+        $buckets = [];
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $key = $cursor->format('Y-m');
+            $buckets[$key] = [
+                'key' => $key,
+                'label' => $cursor->format('M'),
+                'value' => 0,
+            ];
+            $cursor = $cursor->addMonth();
+        }
+
+        $rows = $query
+            ->whereDate('created_at', '>=', $from->toDateString())
+            ->whereDate('created_at', '<=', $to->toDateString())
+            ->get(['created_at']);
+
+        foreach ($rows as $row) {
+            if (! $row->created_at) {
+                continue;
+            }
+            $key = $row->created_at->format('Y-m');
+            if (isset($buckets[$key])) {
+                $buckets[$key]['value']++;
+            }
+        }
+
+        return array_values($buckets);
     }
 
     public function store(Request $request): RedirectResponse

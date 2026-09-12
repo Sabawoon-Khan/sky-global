@@ -9,8 +9,10 @@ use App\Http\Requests\UpdateOrganizationRequest;
 use App\Models\Finance\ProjectIncome;
 use App\Models\Organization;
 use App\Models\OrganizationType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -49,11 +51,76 @@ class OrganizationController extends Controller
                 'with_projects' => Organization::query()->has('projects')->count(),
                 'with_opportunities' => Organization::query()->has('procurementOpportunities')->count(),
             ],
+            'chart' => [
+                'status' => [
+                    [
+                        'key' => 'active',
+                        'label' => 'Active',
+                        'value' => Organization::query()->where('is_active', true)->count(),
+                    ],
+                    [
+                        'key' => 'inactive',
+                        'label' => 'Inactive',
+                        'value' => Organization::query()->where('is_active', false)->count(),
+                    ],
+                ],
+                'by_type' => OrganizationType::query()
+                    ->withCount('organizations')
+                    ->orderBy('name')
+                    ->get()
+                    ->map(fn (OrganizationType $type) => [
+                        'key' => (string) $type->id,
+                        'label' => $type->name,
+                        'value' => (int) $type->organizations_count,
+                    ])
+                    ->values()
+                    ->all(),
+                'monthly' => $this->countCreatedByMonth(Organization::query()),
+            ],
             'filters' => [
                 'search' => $search ?: null,
                 'organization_type_id' => $typeId ?: null,
             ],
         ]);
+    }
+
+    /**
+     * @param  Builder<Organization>  $query
+     * @return list<array{key: string, label: string, value: int}>
+     */
+    protected function countCreatedByMonth($query): array
+    {
+        $to = Carbon::now()->endOfMonth();
+        $from = Carbon::now()->subMonths(5)->startOfMonth();
+
+        $buckets = [];
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $key = $cursor->format('Y-m');
+            $buckets[$key] = [
+                'key' => $key,
+                'label' => $cursor->format('M'),
+                'value' => 0,
+            ];
+            $cursor = $cursor->addMonth();
+        }
+
+        $rows = $query
+            ->whereDate('created_at', '>=', $from->toDateString())
+            ->whereDate('created_at', '<=', $to->toDateString())
+            ->get(['created_at']);
+
+        foreach ($rows as $row) {
+            if (! $row->created_at) {
+                continue;
+            }
+            $key = $row->created_at->format('Y-m');
+            if (isset($buckets[$key])) {
+                $buckets[$key]['value']++;
+            }
+        }
+
+        return array_values($buckets);
     }
 
     public function create(Request $request): Response

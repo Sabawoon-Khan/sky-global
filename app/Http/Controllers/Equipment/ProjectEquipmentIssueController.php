@@ -7,10 +7,12 @@ use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\Equipment\EquipmentStock;
 use App\Models\Equipment\ProjectEquipmentIssue;
+use App\Models\Equipment\ProjectEquipmentReturn;
 use App\Models\Project\Project;
 use App\Services\ProjectActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ProjectEquipmentIssueController extends Controller
@@ -71,6 +73,8 @@ class ProjectEquipmentIssueController extends Controller
 
         $validated = $request->validate([
             'quantity' => ['required', 'integer', 'min:1'],
+            'returned_at' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string'],
         ]);
 
         $outstanding = $issue->quantityOutstanding();
@@ -79,13 +83,33 @@ class ProjectEquipmentIssueController extends Controller
             return back()->withErrors(['quantity' => 'Cannot return more than outstanding quantity.']);
         }
 
-        $issue->increment('quantity_returned', $validated['quantity']);
+        $returnedAt = $validated['returned_at'] ?? now()->toDateString();
 
-        $stock = EquipmentStock::query()->firstOrCreate(
-            ['equipment_catalog_id' => $issue->equipment_catalog_id],
-            ['quantity_on_hand' => 0, 'quantity_reserved' => 0],
-        );
-        $stock->increment('quantity_on_hand', $validated['quantity']);
+        DB::transaction(function () use ($request, $project, $issue, $validated, $returnedAt) {
+            ProjectEquipmentReturn::query()->create([
+                'project_equipment_issue_id' => $issue->id,
+                'quantity' => $validated['quantity'],
+                'returned_at' => $returnedAt,
+                'notes' => $validated['notes'] ?? null,
+                'received_by' => $request->user()->id,
+            ]);
+
+            $issue->increment('quantity_returned', $validated['quantity']);
+
+            $stock = EquipmentStock::query()->firstOrCreate(
+                ['equipment_catalog_id' => $issue->equipment_catalog_id],
+                ['quantity_on_hand' => 0, 'quantity_reserved' => 0],
+            );
+            $stock->increment('quantity_on_hand', $validated['quantity']);
+
+            ProjectActivityLogger::log(
+                $project,
+                ProjectActivityType::NoteAdded,
+                'Equipment returned to stock',
+                "Returned {$validated['quantity']} unit(s) from project.",
+                ['project_equipment_issue_id' => $issue->id],
+            );
+        });
 
         Inertia::flash('toast', [
             'type' => 'success',

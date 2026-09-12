@@ -6,6 +6,7 @@ use App\Concerns\HasAttachments;
 use App\Concerns\HasPersonnelAttachments;
 use App\Concerns\HasStatusChangeLogs;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -38,6 +39,13 @@ class Employee extends Model
             'date_of_birth' => 'date',
             'is_permanent' => 'boolean',
         ];
+    }
+
+    protected function name(): Attribute
+    {
+        return Attribute::get(
+            fn (): string => trim("{$this->first_name} {$this->last_name}"),
+        );
     }
 
     public function scopePermanent($query)

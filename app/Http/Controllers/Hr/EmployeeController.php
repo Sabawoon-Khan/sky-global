@@ -13,8 +13,11 @@ use App\Models\Hr\Employee;
 use App\Models\Hr\PersonnelAttendance;
 use App\Models\Hr\PersonnelPayrollAdjustment;
 use App\Models\Project\ProjectDeployment;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -50,13 +53,74 @@ class EmployeeController extends Controller
             return $employee;
         });
 
+        $byStatus = Employee::query()
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+
         return Inertia::render('mis/hr/Employees/Index', [
             'employees' => $employees,
+            'stats' => [
+                'total' => Employee::query()->count(),
+                'active' => (int) ($byStatus['active'] ?? 0),
+                'inactive' => (int) ($byStatus['inactive'] ?? 0),
+                'terminated' => (int) ($byStatus['terminated'] ?? 0),
+                'by_status' => $byStatus,
+            ],
+            'chart' => [
+                'status' => [
+                    ['key' => 'active', 'label' => 'Active', 'value' => (int) ($byStatus['active'] ?? 0)],
+                    ['key' => 'inactive', 'label' => 'Inactive', 'value' => (int) ($byStatus['inactive'] ?? 0)],
+                    ['key' => 'terminated', 'label' => 'Terminated', 'value' => (int) ($byStatus['terminated'] ?? 0)],
+                ],
+                'monthly' => $this->countCreatedByMonth(Employee::query()),
+            ],
             'filters' => [
                 'search' => $search ?: null,
                 'status' => $status ?: null,
             ],
         ]);
+    }
+
+    /**
+     * @param  Builder<Employee>  $query
+     * @return list<array{key: string, label: string, value: int}>
+     */
+    protected function countCreatedByMonth($query): array
+    {
+        $to = Carbon::now()->endOfMonth();
+        $from = Carbon::now()->subMonths(5)->startOfMonth();
+
+        $buckets = [];
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $key = $cursor->format('Y-m');
+            $buckets[$key] = [
+                'key' => $key,
+                'label' => $cursor->format('M'),
+                'value' => 0,
+            ];
+            $cursor = $cursor->addMonth();
+        }
+
+        $rows = $query
+            ->whereDate('created_at', '>=', $from->toDateString())
+            ->whereDate('created_at', '<=', $to->toDateString())
+            ->get(['created_at']);
+
+        foreach ($rows as $row) {
+            if (! $row->created_at) {
+                continue;
+            }
+            $key = $row->created_at->format('Y-m');
+            if (isset($buckets[$key])) {
+                $buckets[$key]['value']++;
+            }
+        }
+
+        return array_values($buckets);
     }
 
     public function create(Request $request): Response
@@ -340,7 +404,7 @@ class EmployeeController extends Controller
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, AttachmentType>
+     * @return Collection<int, AttachmentType>
      */
     private function activeAttachmentTypes()
     {

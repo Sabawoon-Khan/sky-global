@@ -27,9 +27,9 @@ class AnalyticsService
         $wonBids = Bid::query()->where('status', 'won')->count();
         $lostBids = Bid::query()->where('status', 'lost')->count();
         $ourBidByCurrency = Project::query()
-            ->selectRaw("UPPER(COALESCE(currency, 'USD')) as currency, SUM(COALESCE(our_bid_amount, 0)) as total")
+            ->selectRaw("UPPER(COALESCE(currency, 'AFN')) as currency, SUM(COALESCE(our_bid_amount, 0)) as total")
             ->whereNotNull('our_bid_amount')
-            ->groupByRaw("UPPER(COALESCE(currency, 'USD'))")
+            ->groupByRaw("UPPER(COALESCE(currency, 'AFN'))")
             ->orderBy('currency')
             ->get()
             ->map(fn ($row) => [
@@ -38,11 +38,11 @@ class AnalyticsService
             ])
             ->values()
             ->all();
-        $projectIncomeUsd = (float) (ProjectIncome::query()->sum('amount_usd') ?: ProjectIncome::query()->sum('amount'));
-        $generalIncomeUsd = (float) (GeneralIncome::query()->sum('amount_usd') ?: GeneralIncome::query()->sum('amount'));
+        $projectIncomeUsd = (float) ProjectIncome::query()->sum('amount');
+        $generalIncomeUsd = (float) GeneralIncome::query()->sum('amount');
         $totalIncomeUsd = $projectIncomeUsd + $generalIncomeUsd;
-        $totalExpenseUsd = (float) (ProjectExpense::query()->sum('amount_usd') ?: ProjectExpense::query()->sum('amount'));
-        $overheadUsd = (float) (GeneralExpense::query()->sum('amount_usd') ?: GeneralExpense::query()->sum('amount'));
+        $totalExpenseUsd = (float) ProjectExpense::query()->sum('amount');
+        $overheadUsd = (float) GeneralExpense::query()->sum('amount');
         $netByCurrency = $this->netFinanceByCurrency();
 
         return [
@@ -114,8 +114,8 @@ class AnalyticsService
             ->with('organization')
             ->get()
             ->map(function (Project $project) {
-                $income = $project->incomes()->sum('amount_usd') ?: $project->incomes()->sum('amount');
-                $expense = $project->expenses()->sum('amount_usd') ?: $project->expenses()->sum('amount');
+                $income = $project->incomes()->sum('amount');
+                $expense = $project->expenses()->sum('amount');
 
                 return [
                     'id' => $project->id,
@@ -203,7 +203,7 @@ class AnalyticsService
             ->pluck('count', 'status');
 
         $expenseByCategory = GeneralExpense::query()
-            ->selectRaw("COALESCE(category, 'other') as category, sum(COALESCE(amount_usd, amount)) as total")
+            ->selectRaw("COALESCE(category, 'other') as category, sum(amount) as total")
             ->groupBy('category')
             ->pluck('total', 'category');
 
@@ -211,7 +211,7 @@ class AnalyticsService
             ->with('organization')
             ->get()
             ->map(function (Project $project) {
-                $income = $project->incomes()->sum('amount_usd') ?: $project->incomes()->sum('amount');
+                $income = $project->incomes()->sum('amount');
 
                 return [
                     'code' => $project->code,
@@ -260,10 +260,10 @@ class AnalyticsService
             'total_contract_value' => $type['total_contract_value'],
         ])->values()->all();
 
-        $totalProjectIncome = (float) (ProjectIncome::query()->sum('amount_usd') ?: ProjectIncome::query()->sum('amount'));
-        $totalGeneralIncome = (float) (GeneralIncome::query()->sum('amount_usd') ?: GeneralIncome::query()->sum('amount'));
-        $totalProjectExpense = (float) (ProjectExpense::query()->sum('amount_usd') ?: ProjectExpense::query()->sum('amount'));
-        $totalOverhead = (float) (GeneralExpense::query()->sum('amount_usd') ?: GeneralExpense::query()->sum('amount'));
+        $totalProjectIncome = (float) ProjectIncome::query()->sum('amount');
+        $totalGeneralIncome = (float) GeneralIncome::query()->sum('amount');
+        $totalProjectExpense = (float) ProjectExpense::query()->sum('amount');
+        $totalOverhead = (float) GeneralExpense::query()->sum('amount');
 
         return [
             'monthly_finance' => $monthlyFinance->values()->all(),
@@ -302,14 +302,6 @@ class AnalyticsService
 
     private function sumInRange(string $modelClass, string $dateColumn, $start, $end): float
     {
-        $usd = (float) $modelClass::query()
-            ->whereBetween($dateColumn, [$start, $end])
-            ->sum('amount_usd');
-
-        if ($usd > 0) {
-            return $usd;
-        }
-
         return (float) $modelClass::query()
             ->whereBetween($dateColumn, [$start, $end])
             ->sum('amount');
@@ -347,8 +339,8 @@ class AnalyticsService
 
         foreach ($modelClasses as $modelClass) {
             $sums = $modelClass::query()
-                ->selectRaw("UPPER(COALESCE(currency, 'USD')) as currency, SUM(amount) as total")
-                ->groupByRaw("UPPER(COALESCE(currency, 'USD'))")
+                ->selectRaw("UPPER(COALESCE(currency, 'AFN')) as currency, SUM(amount) as total")
+                ->groupByRaw("UPPER(COALESCE(currency, 'AFN'))")
                 ->pluck('total', 'currency');
 
             foreach ($sums as $currency => $total) {

@@ -5,6 +5,7 @@ import { initializeThemeColors } from '@/lib/theme-colors';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
+import WebsiteLayout from '@/layouts/website/WebsiteLayout.vue';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Sun Sky Global Security';
 
@@ -18,6 +19,8 @@ createInertiaApp({
             case name.startsWith('errors/'):
             case name === 'mis/hr/Payroll/Print':
                 return null;
+            case name.startsWith('website/'):
+                return WebsiteLayout;
             case name.startsWith('auth/'):
                 return AuthLayout;
             case name.startsWith('settings/'):

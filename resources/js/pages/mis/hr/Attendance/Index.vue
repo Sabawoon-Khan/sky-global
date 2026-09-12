@@ -1,26 +1,39 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-import { CalendarDays, ClipboardList, Plus, Printer, CheckCircle } from '@lucide/vue';
-import Can from '@/components/Can.vue';
-import MisPage from '@/components/MisPage.vue';
-import MisPagination from '@/components/MisPagination.vue';
-import RowActionsMenu from '@/components/RowActionsMenu.vue';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+    CheckCircle,
+    ClipboardList,
+    FileCheck,
+    FilePen,
+    Plus,
+    Printer,
+    Send,
+} from '@lucide/vue';
+import Can from '@/components/Can.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
+import TableIndexTd from '@/components/TableIndexTd.vue';
+import TableIndexTh from '@/components/TableIndexTh.vue';
+import {
+    V2FilterBar,
+    V2Hero,
+    V2IndicatorCard,
+    V2ListPage,
+    V2Pager,
+    V2StatCard,
+    V2StatGrid,
+    V2TablePanel,
+} from '@/components/v2';
+import { indexTableColumn } from '@/composables/useTableColumns';
 import { useMisPage } from '@/composables/useMisPage';
+import { provideTableSort } from '@/composables/useTableSort';
 import type { Paginated } from '@/lib/format';
 import { formatNumber } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
-import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface ProjectOption {
     id: number;
@@ -44,9 +57,27 @@ interface AttendanceSheet {
     updated_at?: string | null;
 }
 
+interface ChartPoint {
+    key: string;
+    label: string;
+    value: number;
+}
+
 interface Props {
     sheets: Paginated<AttendanceSheet>;
     projects: ProjectOption[];
+    stats: {
+        total: number;
+        draft: number;
+        submitted: number;
+        approved: number;
+        partial: number;
+        by_status?: Record<string, number>;
+    };
+    chart: {
+        status: ChartPoint[];
+        monthly: ChartPoint[];
+    };
     filters?: {
         date_from?: string;
         date_to?: string;
@@ -59,6 +90,74 @@ interface Props {
 const props = defineProps<Props>();
 
 const { t, editAction, deleteAction, can } = useMisPage();
+
+const onlyKeys = ['sheets', 'projects', 'stats', 'chart', 'filters'];
+const { sortedRows } = provideTableSort(() => props.sheets.data);
+
+const statusPalette = [
+    'var(--school-navy)',
+    'var(--brand-accent)',
+    'var(--school-gold)',
+    'var(--muted-foreground)',
+    '#3d5a80',
+    '#8b9bb4',
+];
+
+const pipeline = computed(() => {
+    const rows = (props.chart?.status ?? []).filter((row) => row.value > 0);
+    const total = Math.max(
+        rows.reduce((sum, row) => sum + row.value, 0),
+        props.stats.total,
+        1,
+    );
+    const approvedShare =
+        total > 0 ? Math.round((props.stats.approved / total) * 100) : 0;
+
+    return {
+        approvedShare,
+        segments: rows.map((row, index) => ({
+            key: row.key,
+            label: row.label,
+            value: row.value,
+            color: statusPalette[index % statusPalette.length],
+            width: Math.max(row.value > 0 ? 6 : 0, (row.value / total) * 100),
+        })),
+    };
+});
+
+const monthlyBars = computed(() => {
+    const rows =
+        props.chart?.monthly?.length > 0
+            ? props.chart.monthly
+            : Array.from({ length: 6 }, (_, index) => ({
+                  key: `m-${index}`,
+                  label: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'][index],
+                  value: 0,
+              }));
+    const max = Math.max(...rows.map((row) => Number(row.value) || 0), 1);
+
+    return rows.map((row) => {
+        const value = Number(row.value) || 0;
+        return {
+            key: row.key,
+            label: row.label,
+            value,
+            height: Math.max(value > 0 ? 6 : 3, Math.round((value / max) * 44)),
+            peak: value === max && value > 0,
+        };
+    });
+});
+
+const tableColumns = computed(() => [
+    indexTableColumn(),
+    { key: 'title', label: t('Sheet') },
+    { key: 'type', label: t('Type') },
+    { key: 'range', label: t('Date range') },
+    { key: 'project', label: t('Project') },
+    { key: 'staff', label: t('Staff') },
+    { key: 'status', label: t('Status') },
+    { key: 'actions', label: t('Actions'), locked: true },
+]);
 
 const newSheetType = ref<'general' | 'project'>('general');
 const newSheetProjectId = ref<string>('');
@@ -140,20 +239,9 @@ const listTitle = computed(() => {
     return t('All attendance sheets');
 });
 
-const sheetStats = computed(() => [
-    {
-        label: t('Total sheets'),
-        value: formatNumber(props.sheets.meta?.total ?? props.sheets.data.length),
-        icon: ClipboardList,
-        accent: 'bg-primary/10 text-primary',
-    },
-    {
-        label: t('On this page'),
-        value: formatNumber(props.sheets.data.length),
-        icon: CalendarDays,
-        accent: 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
-    },
-]);
+const totalSheets = computed(
+    () => props.sheets.meta?.total ?? props.sheets.data.length,
+);
 
 const openSheetUrl = (sheet: AttendanceSheet): string =>
     `/hr/attendance/create?sheet_id=${sheet.id}`;
@@ -186,11 +274,13 @@ const sheetActions = (sheet: AttendanceSheet): RowActionItem[] => [
         label: t('Print'),
         icon: Printer,
         onClick: () => {
-            window.open(
-                `${printSheetUrl(sheet)}&autoprint=1`,
-                '_blank',
-                'noopener,noreferrer',
-            );
+            if (typeof window !== 'undefined') {
+                window.open(
+                    `${printSheetUrl(sheet)}&autoprint=1`,
+                    '_blank',
+                    'noopener,noreferrer',
+                );
+            }
         },
     },
     {
@@ -212,21 +302,14 @@ const sheetActions = (sheet: AttendanceSheet): RowActionItem[] => [
 <template>
     <Head :title="t('Attendance')" />
 
-    <MisPage>
-        <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <div class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <ClipboardList class="size-5" />
-                </div>
-                <div>
-                    <h1 class="text-xl font-semibold tracking-tight">
-                        {{ t('Attendance') }}
-                    </h1>
-                    <p class="text-sm text-muted-foreground">
-                        {{ t('Open a sheet to record or update daily marks.') }}
-                    </p>
-                </div>
-            </div>
+    <V2ListPage>
+        <V2Hero image="/images/gs-hero-people.png">
+            <template #eyebrow>{{ t('HR') }}</template>
+            <template #title>{{ t('Attendance') }}</template>
+            <template #description>
+                {{ t('Open a sheet to record or update daily marks.') }}
+            </template>
+            <template #side>
             <Can permission="hr.create">
                 <form
                     method="get"
@@ -301,39 +384,119 @@ const sheetActions = (sheet: AttendanceSheet): RowActionItem[] => [
                     </Button>
                 </form>
             </Can>
-        </div>
 
-        <div class="grid gap-3 sm:grid-cols-2">
-            <div
-                v-for="stat in sheetStats"
-                :key="stat.label"
-                class="flex items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm"
-            >
-                <div
-                    :class="
-                        cn(
-                            'flex size-9 items-center justify-center rounded-lg',
-                            stat.accent,
-                        )
-                    "
-                >
-                    <component :is="stat.icon" class="size-4" />
-                </div>
-                <div>
-                    <p class="text-xs text-muted-foreground">{{ stat.label }}</p>
-                    <p class="text-2xl font-bold tabular-nums tracking-tight">
-                        {{ stat.value }}
-                    </p>
-                </div>
-            </div>
-        </div>
+                <div class="hero-cards">
+                    <V2IndicatorCard card-class="inventory-card">
+                        <template #head>{{ t('Sheet status') }}</template>
+                        <template #meta
+                            >{{ pipeline.approvedShare }}%
+                            {{ t('Approved') }}</template
+                        >
 
-        <Card class="overflow-hidden border-border/60 shadow-sm">
-            <CardHeader class="border-b bg-muted/10 pb-4">
-                <div class="flex flex-wrap items-end justify-between gap-3">
-                    <CardTitle class="text-base font-semibold">
-                        {{ listTitle }}
-                    </CardTitle>
+                        <div class="inventory-hero">
+                            <div class="inventory-hero-copy">
+                                <strong>{{
+                                    formatNumber(stats.approved)
+                                }}</strong>
+                                <small>{{ t('Approved') }}</small>
+                            </div>
+                        </div>
+
+                        <div class="inventory-bar" aria-hidden="true">
+                            <i
+                                v-for="seg in pipeline.segments"
+                                :key="seg.key"
+                                :style="{
+                                    width: `${seg.width}%`,
+                                    background: seg.color,
+                                }"
+                            />
+                        </div>
+
+                        <ul class="indicator-list compact">
+                            <li
+                                v-for="seg in pipeline.segments.slice(0, 4)"
+                                :key="seg.key"
+                            >
+                                <i :style="{ background: seg.color }" />
+                                <span>{{ seg.label }}</span>
+                                <b>{{ formatNumber(seg.value) }}</b>
+                            </li>
+                        </ul>
+                    </V2IndicatorCard>
+
+                    <V2IndicatorCard card-class="money-card">
+                        <template #head>{{ t('Created by month') }}</template>
+                        <template #meta
+                            >{{ formatNumber(stats.total) }}
+                            {{ t('Total') }}</template
+                        >
+
+                        <div class="money-chart">
+                            <div
+                                v-for="bar in monthlyBars"
+                                :key="bar.key"
+                                class="money-col"
+                                :class="{ peak: bar.peak }"
+                                :title="`${bar.label}: ${bar.value}`"
+                            >
+                                <div class="money-pair">
+                                    <i
+                                        class="usd"
+                                        :style="{ height: `${bar.height}px` }"
+                                    />
+                                </div>
+                                <span>{{ bar.label }}</span>
+                            </div>
+                        </div>
+                    </V2IndicatorCard>
+                </div>
+            </template>
+
+            <template #stats>
+                <V2StatGrid>
+                    <V2StatCard
+                        :delay="0"
+                        :title="t('Sheets')"
+                        :value="formatNumber(stats.total)"
+                    >
+                        <template #icon><ClipboardList /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="1"
+                        icon-tone="warm"
+                        :title="t('Draft')"
+                        :value="formatNumber(stats.draft)"
+                    >
+                        <template #icon><FilePen /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="2"
+                        icon-tone="teal"
+                        :title="t('Submitted')"
+                        :value="formatNumber(stats.submitted)"
+                    >
+                        <template #icon><Send /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="3"
+                        accent
+                        icon-tone="orange"
+                        :title="t('Approved')"
+                        :value="formatNumber(stats.approved)"
+                    >
+                        <template #icon><FileCheck /></template>
+                    </V2StatCard>
+                </V2StatGrid>
+            </template>
+        </V2Hero>
+
+        <V2TablePanel
+            table-id="hr-attendance"
+            :columns="tableColumns"
+        >
+            <template #filters>
+                <V2FilterBar>
                     <form
                         method="get"
                         action="/hr/attendance"
@@ -362,7 +525,7 @@ const sheetActions = (sheet: AttendanceSheet): RowActionItem[] => [
                         <select
                             id="list_project"
                             name="project_id"
-                            class="h-9 min-w-[8rem] rounded-md border border-input bg-background px-3 text-sm shadow-xs"
+                            class="mis-form-select h-9 min-w-[8rem]"
                         >
                             <option value="">{{ t('All projects') }}</option>
                             <option
@@ -374,82 +537,74 @@ const sheetActions = (sheet: AttendanceSheet): RowActionItem[] => [
                                 {{ project.code }}
                             </option>
                         </select>
-                        <Button type="submit" variant="outline" class="h-9 shadow-sm">
+                        <Button type="submit" variant="outline" class="h-9">
                             {{ t('Filter') }}
                         </Button>
                     </form>
-                </div>
-            </CardHeader>
-            <CardContent class="space-y-4 pt-4">
-                <div
-                    v-if="sheets.data.length === 0"
-                    class="rounded-xl border border-dashed bg-muted/10 px-4 py-12 text-center text-sm text-muted-foreground"
-                >
-                    {{ t('No attendance sheets.') }}
-                </div>
+                </V2FilterBar>
+            </template>
 
-                <div v-else class="overflow-x-auto rounded-xl border">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b bg-muted/30 text-start text-xs uppercase tracking-wide text-muted-foreground">
-                                <th class="px-4 py-3 font-semibold">{{ t('Sheet') }}</th>
-                                <th class="px-4 py-3 font-semibold">{{ t('Type') }}</th>
-                                <th class="px-4 py-3 font-semibold">{{ t('Date range') }}</th>
-                                <th class="px-4 py-3 font-semibold">{{ t('Project') }}</th>
-                                <th class="px-4 py-3 font-semibold">{{ t('Staff') }}</th>
-                                <th class="px-4 py-3 font-semibold">{{ t('Status') }}</th>
-                                <th class="px-4 py-3 text-end font-semibold">{{ t('Actions') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr
-                                v-for="sheet in sheets.data"
-                                :key="sheet.id"
-                                class="border-b transition-colors last:border-0 hover:bg-muted/20"
-                            >
-                                <td class="px-4 py-3">
-                                    <Link
-                                        :href="openSheetUrl(sheet)"
-                                        class="font-medium hover:text-primary hover:underline"
-                                    >
-                                        {{ sheet.title }}
-                                    </Link>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <Badge
-                                        :variant="typeVariant(sheet.attendance_type)"
-                                    >
-                                        {{ typeLabel(sheet.attendance_type) }}
-                                    </Badge>
-                                </td>
-                                <td class="px-4 py-3 text-muted-foreground tabular-nums">
-                                    {{ formatDate(sheet.date_from) }}
-                                    —
-                                    {{ formatDate(sheet.date_to) }}
-                                </td>
-                                <td class="px-4 py-3 text-muted-foreground">
-                                    {{ sheet.project?.code ?? '—' }}
-                                </td>
-                                <td class="px-4 py-3">
-                                    <span class="inline-flex min-w-[2rem] justify-center rounded-md bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums">
-                                        {{ sheet.staff_count }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <Badge :variant="statusVariant(sheet.status)">
-                                        {{ statusLabel(sheet.status) }}
-                                    </Badge>
-                                </td>
-                                <td class="px-4 py-3 text-end">
-                                    <RowActionsMenu :actions="sheetActions(sheet)" />
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+            <template #default="{ visibleColCount }">
+                <table>
+                    <thead>
+                        <tr>
+                            <TableIndexTh />
+                            <th>{{ t('Sheet') }}</th>
+                            <th>{{ t('Type') }}</th>
+                            <th>{{ t('Date range') }}</th>
+                            <th>{{ t('Project') }}</th>
+                            <th>{{ t('Staff') }}</th>
+                            <th>{{ t('Status') }}</th>
+                            <th class="end">{{ t('Actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            v-for="(sheet, index) in sortedRows"
+                            :key="sheet.id"
+                            :style="{ '--i': index }"
+                        >
+                            <TableIndexTd
+                                :index="index"
+                                :from="sheets.meta?.from"
+                            />
+                            <td>
+                                <Link
+                                    :href="openSheetUrl(sheet)"
+                                    class="code-chip"
+                                >
+                                    {{ sheet.title }}
+                                </Link>
+                            </td>
+                            <td>{{ typeLabel(sheet.attendance_type) }}</td>
+                            <td class="muted nowrap">
+                                {{ formatDate(sheet.date_from) }}
+                                —
+                                {{ formatDate(sheet.date_to) }}
+                            </td>
+                            <td class="muted">
+                                {{ sheet.project?.code ?? '—' }}
+                            </td>
+                            <td>{{ sheet.staff_count }}</td>
+                            <td>{{ statusLabel(sheet.status) }}</td>
+                            <td class="end">
+                                <RowActionsMenu
+                                    :actions="sheetActions(sheet)"
+                                />
+                            </td>
+                        </tr>
+                        <EmptyState
+                            v-if="!sheets.data.length"
+                            :colspan="visibleColCount"
+                            :title="t('No attendance sheets.')"
+                        />
+                    </tbody>
+                </table>
+            </template>
 
-                <MisPagination :pagination="sheets" />
-            </CardContent>
-        </Card>
-    </MisPage>
+            <template v-if="sheets.links?.length" #pager>
+                <V2Pager :items="sheets" :only="onlyKeys" />
+            </template>
+        </V2TablePanel>
+    </V2ListPage>
 </template>

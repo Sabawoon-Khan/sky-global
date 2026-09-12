@@ -13,6 +13,8 @@ use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
 use App\Models\Organization;
 use App\Models\Project\Project;
+use App\Services\AfghanistanCompanyTaxService;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -24,6 +26,63 @@ class InvoiceController extends Controller
     use AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
+    {
+        $this->authorizePermission($request, 'finance.view');
+
+        $totalIncome = (float) ProjectIncome::query()->sum('amount');
+        $totalGeneralIncome = (float) GeneralIncome::query()->sum('amount');
+        $totalExpenses = (float) ProjectExpense::query()->sum('amount');
+        $totalGeneral = (float) GeneralExpense::query()->sum('amount');
+        $combinedIncome = $totalIncome + $totalGeneralIncome;
+        $combinedExpenses = $totalExpenses + $totalGeneral;
+        $totalInvoices = Invoice::query()->sum('total');
+        $currencyBreakdown = $this->buildCurrencyBreakdown();
+
+        $todayStart = now()->startOfDay();
+        $todayEnd = now()->endOfDay();
+        $weekStart = now()->startOfWeek();
+        $weekEnd = now()->endOfWeek();
+        $monthStart = now()->startOfMonth();
+        $monthEnd = now()->endOfMonth();
+
+        $expensesToday = $this->sumExpenseInRange($todayStart, $todayEnd);
+        $expensesThisWeek = $this->sumExpenseInRange($weekStart, $weekEnd);
+        $expensesThisMonth = $this->sumExpenseInRange($monthStart, $monthEnd);
+        $incomeToday = $this->sumIncomeInRange($todayStart, $todayEnd);
+        $incomeThisMonth = $this->sumIncomeInRange($monthStart, $monthEnd);
+
+        return Inertia::render('mis/finance/Index', [
+            'summary' => [
+                'total_income' => $combinedIncome,
+                'project_income' => $totalIncome,
+                'general_income' => $totalGeneralIncome,
+                'total_expenses' => $combinedExpenses,
+                'project_expenses' => $totalExpenses,
+                'general_expenses' => $totalGeneral,
+                'total_invoices' => (float) $totalInvoices,
+                'outstanding' => (float) Invoice::query()->whereIn('status', ['draft', 'sent', 'overdue'])->sum('total'),
+                'net' => $combinedIncome - $combinedExpenses,
+                'expenses_today' => $expensesToday,
+                'expenses_this_week' => $expensesThisWeek,
+                'expenses_this_month' => $expensesThisMonth,
+                'income_today' => $incomeToday,
+                'income_this_month' => $incomeThisMonth,
+                'currency_breakdown' => $currencyBreakdown->values()->all(),
+            ],
+            'charts' => $this->buildOverviewCharts($totalIncome, $totalGeneralIncome, $totalExpenses, $totalGeneral),
+        ]);
+    }
+
+    public function tax(Request $request, AfghanistanCompanyTaxService $companyTax): Response
+    {
+        $this->authorizePermission($request, 'finance.view');
+
+        return Inertia::render('mis/finance/Tax', [
+            'tax' => $this->buildCompanyTaxReport($companyTax),
+        ]);
+    }
+
+    public function invoices(Request $request): Response
     {
         $this->authorizePermission($request, 'finance.view');
 
@@ -39,7 +98,7 @@ class InvoiceController extends Controller
                 'total' => (float) $invoice->total,
                 'subtotal' => (float) $invoice->subtotal,
                 'tax' => (float) $invoice->tax,
-                'currency' => $invoice->currency,
+                'currency' => $invoice->currency ?: 'AFN',
                 'issue_date' => $invoice->issue_date?->toDateString(),
                 'due_date' => $invoice->due_date?->toDateString(),
                 'project' => $invoice->project?->only(['id', 'code', 'name']),
@@ -47,29 +106,7 @@ class InvoiceController extends Controller
                 'attachments' => $invoice->attachments,
             ]);
 
-        $totalIncome = ProjectIncome::query()->sum('amount_usd') ?: ProjectIncome::query()->sum('amount');
-        $totalGeneralIncome = GeneralIncome::query()->sum('amount_usd') ?: GeneralIncome::query()->sum('amount');
-        $totalExpenses = ProjectExpense::query()->sum('amount_usd') ?: ProjectExpense::query()->sum('amount');
-        $totalGeneral = GeneralExpense::query()->sum('amount_usd') ?: GeneralExpense::query()->sum('amount');
-        $totalInvoices = Invoice::query()->sum('total');
-        $currencyBreakdown = $this->buildCurrencyBreakdown();
-
-        return Inertia::render('mis/finance/Index', [
-            'summary' => [
-                'total_income' => (float) $totalIncome + (float) $totalGeneralIncome,
-                'project_income' => (float) $totalIncome,
-                'general_income' => (float) $totalGeneralIncome,
-                'total_expenses' => (float) $totalExpenses + (float) $totalGeneral,
-                'project_expenses' => (float) $totalExpenses,
-                'general_expenses' => (float) $totalGeneral,
-                'total_invoices' => (float) $totalInvoices,
-                'outstanding' => (float) Invoice::query()->whereIn('status', ['draft', 'sent', 'overdue'])->sum('total'),
-                'currency_breakdown' => $currencyBreakdown->values()->all(),
-            ],
-            'incomes' => ProjectIncome::query()->with(['project', 'attachments'])->latest('transaction_date')->limit(50)->get(),
-            'expenses' => ProjectExpense::query()->with(['project', 'attachments'])->latest('transaction_date')->limit(50)->get(),
-            'generalIncomes' => GeneralIncome::query()->with('attachments')->latest('transaction_date')->limit(50)->get(),
-            'generalExpenses' => GeneralExpense::query()->with('attachments')->latest('transaction_date')->limit(50)->get(),
+        return Inertia::render('mis/finance/Invoices/Index', [
             'invoices' => $invoices,
             'projects' => Project::query()
                 ->where('is_archived', false)
@@ -122,7 +159,7 @@ class InvoiceController extends Controller
         $invoice = Invoice::query()->create([
             ...$validated,
             'tax' => $validated['tax'] ?? 0,
-            'currency' => $validated['currency'] ?? 'AFN',
+            'currency' => 'AFN',
             'status' => $validated['status'] ?? 'draft',
             'created_by' => $request->user()->id,
         ]);
@@ -165,7 +202,10 @@ class InvoiceController extends Controller
         $lineItems = $validated['line_items'] ?? null;
         unset($validated['line_items']);
 
-        $invoice->update($validated);
+        $invoice->update([
+            ...$validated,
+            'currency' => 'AFN',
+        ]);
 
         if (is_array($lineItems)) {
             $invoice->lineItems()->delete();
@@ -196,6 +236,159 @@ class InvoiceController extends Controller
         return back();
     }
 
+    /**
+     * @return array{
+     *     current_year: int,
+     *     rate_percent: int,
+     *     year: array<string, float|int>,
+     *     quarters: list<array<string, float|int|string>>,
+     *     years: list<array<string, float|int|string>>
+     * }
+     */
+    private function buildCompanyTaxReport(AfghanistanCompanyTaxService $companyTax): array
+    {
+        $currentYear = (int) now()->year;
+
+        $yearStart = now()->copy()->startOfYear();
+        $yearEnd = now()->copy()->endOfYear();
+        $yearSummary = $companyTax->summarize(
+            $this->sumIncomeInRange($yearStart, $yearEnd),
+            $this->sumExpenseInRange($yearStart, $yearEnd),
+        );
+
+        $quarters = [];
+        for ($quarter = 1; $quarter <= 4; $quarter++) {
+            $start = now()->copy()->setDate($currentYear, ($quarter - 1) * 3 + 1, 1)->startOfDay();
+            $end = $start->copy()->addMonths(2)->endOfMonth();
+            $summary = $companyTax->summarize(
+                $this->sumIncomeInRange($start, $end),
+                $this->sumExpenseInRange($start, $end),
+            );
+
+            $quarters[] = [
+                'quarter' => $quarter,
+                'label' => "Q{$quarter} {$currentYear}",
+                'period_start' => $start->toDateString(),
+                'period_end' => $end->toDateString(),
+                ...$summary,
+            ];
+        }
+
+        $years = [];
+        for ($offset = 2; $offset >= 0; $offset--) {
+            $year = $currentYear - $offset;
+            $start = now()->copy()->setDate($year, 1, 1)->startOfDay();
+            $end = now()->copy()->setDate($year, 12, 31)->endOfDay();
+            $summary = $companyTax->summarize(
+                $this->sumIncomeInRange($start, $end),
+                $this->sumExpenseInRange($start, $end),
+            );
+
+            $years[] = [
+                'year' => $year,
+                'label' => (string) $year,
+                'period_start' => $start->toDateString(),
+                'period_end' => $end->toDateString(),
+                ...$summary,
+            ];
+        }
+
+        return [
+            'current_year' => $currentYear,
+            'rate_percent' => (int) round(AfghanistanCompanyTaxService::CORPORATE_RATE * 100),
+            'year' => $yearSummary,
+            'quarters' => $quarters,
+            'years' => $years,
+        ];
+    }
+
+    /**
+     * @return array{
+     *     daily: list<array{label: string, income: float, expense: float}>,
+     *     monthly: list<array{label: string, income: float, expense: float, net: float}>,
+     *     finance_breakdown: list<array{key: string, value: float}>,
+     *     expense_by_category: list<array{category: string, value: float}>
+     * }
+     */
+    private function buildOverviewCharts(
+        float $projectIncome,
+        float $generalIncome,
+        float $projectExpense,
+        float $overhead,
+    ): array {
+        $daily = collect(range(13, 0))->map(function (int $i) {
+            $day = now()->subDays($i);
+            $start = $day->copy()->startOfDay();
+            $end = $day->copy()->endOfDay();
+            $income = $this->sumIncomeInRange($start, $end);
+            $expense = $this->sumExpenseInRange($start, $end);
+
+            return [
+                'label' => $start->format('M j'),
+                'income' => $income,
+                'expense' => $expense,
+            ];
+        })->values()->all();
+
+        $monthly = collect(range(5, 0))->map(function (int $i) {
+            $month = now()->subMonths($i);
+            $start = $month->copy()->startOfMonth();
+            $end = $month->copy()->endOfMonth();
+            $income = $this->sumIncomeInRange($start, $end);
+            $expense = $this->sumExpenseInRange($start, $end);
+
+            return [
+                'label' => $start->format('M Y'),
+                'income' => $income,
+                'expense' => $expense,
+                'net' => $income - $expense,
+            ];
+        })->values()->all();
+
+        $expenseByCategory = GeneralExpense::query()
+            ->selectRaw("COALESCE(category, 'other') as category, sum(amount) as total")
+            ->groupBy('category')
+            ->pluck('total', 'category')
+            ->map(fn ($total, $category) => [
+                'category' => (string) $category,
+                'value' => (float) $total,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'daily' => $daily,
+            'monthly' => $monthly,
+            'finance_breakdown' => [
+                ['key' => 'project_income', 'value' => $projectIncome],
+                ['key' => 'general_income', 'value' => $generalIncome],
+                ['key' => 'project_expense', 'value' => $projectExpense],
+                ['key' => 'overhead', 'value' => $overhead],
+            ],
+            'expense_by_category' => $expenseByCategory,
+        ];
+    }
+
+    private function sumIncomeInRange(CarbonInterface $start, CarbonInterface $end): float
+    {
+        return $this->sumInRange(ProjectIncome::class, $start, $end)
+            + $this->sumInRange(GeneralIncome::class, $start, $end);
+    }
+
+    private function sumExpenseInRange(CarbonInterface $start, CarbonInterface $end): float
+    {
+        return $this->sumInRange(ProjectExpense::class, $start, $end)
+            + $this->sumInRange(GeneralExpense::class, $start, $end);
+    }
+
+    /** @param class-string $modelClass */
+    private function sumInRange(string $modelClass, CarbonInterface $start, CarbonInterface $end): float
+    {
+        return (float) $modelClass::query()
+            ->whereBetween('transaction_date', [$start, $end])
+            ->sum('amount');
+    }
+
     /** @return Collection<int, array<string, float|string>> */
     private function buildCurrencyBreakdown(): Collection
     {
@@ -207,13 +400,13 @@ class InvoiceController extends Controller
         $incomeByCurrency = $this->sumByCurrency([ProjectIncome::class, GeneralIncome::class], 'amount');
         $expenseByCurrency = $this->sumByCurrency([ProjectExpense::class, GeneralExpense::class], 'amount');
         $invoiceByCurrency = Invoice::query()
-            ->selectRaw("UPPER(COALESCE(currency, 'USD')) as currency, SUM(total) as total")
-            ->groupByRaw("UPPER(COALESCE(currency, 'USD'))")
+            ->selectRaw("UPPER(COALESCE(currency, 'AFN')) as currency, SUM(total) as total")
+            ->groupByRaw("UPPER(COALESCE(currency, 'AFN'))")
             ->pluck('total', 'currency');
         $outstandingByCurrency = Invoice::query()
             ->whereIn('status', ['draft', 'sent', 'overdue'])
-            ->selectRaw("UPPER(COALESCE(currency, 'USD')) as currency, SUM(total) as total")
-            ->groupByRaw("UPPER(COALESCE(currency, 'USD'))")
+            ->selectRaw("UPPER(COALESCE(currency, 'AFN')) as currency, SUM(total) as total")
+            ->groupByRaw("UPPER(COALESCE(currency, 'AFN'))")
             ->pluck('total', 'currency');
 
         $allCurrencies = $currencies->pluck('code')
@@ -250,8 +443,8 @@ class InvoiceController extends Controller
 
         foreach ($modelClasses as $modelClass) {
             $rows = $modelClass::query()
-                ->selectRaw("UPPER(COALESCE(currency, 'USD')) as currency, SUM($amountColumn) as total")
-                ->groupByRaw("UPPER(COALESCE(currency, 'USD'))")
+                ->selectRaw("UPPER(COALESCE(currency, 'AFN')) as currency, SUM($amountColumn) as total")
+                ->groupByRaw("UPPER(COALESCE(currency, 'AFN'))")
                 ->pluck('total', 'currency');
 
             foreach ($rows as $currency => $total) {

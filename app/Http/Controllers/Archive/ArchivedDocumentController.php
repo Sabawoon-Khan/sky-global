@@ -9,8 +9,10 @@ use App\Models\Archive\ArchivedDocument;
 use App\Models\Archive\DocumentCategory;
 use App\Models\Organization;
 use App\Models\Project\Project;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -39,13 +41,75 @@ class ArchivedDocumentController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        $base = ArchivedDocument::query()->where('is_archived', false);
+        $incoming = (clone $base)->where('direction', 'incoming')->count();
+        $outgoing = (clone $base)->where('direction', 'outgoing')->count();
+        $internal = (clone $base)->where('direction', 'internal')->count();
+        $archived = ArchivedDocument::query()->where('is_archived', true)->count();
+
         return Inertia::render('mis/archive/Index', [
             'documents' => $documents,
+            'stats' => [
+                'total' => (clone $base)->count(),
+                'incoming' => $incoming,
+                'outgoing' => $outgoing,
+                'internal' => $internal,
+                'archived' => $archived,
+            ],
+            'chart' => [
+                'status' => [
+                    ['key' => 'incoming', 'label' => 'Incoming', 'value' => $incoming],
+                    ['key' => 'outgoing', 'label' => 'Outgoing', 'value' => $outgoing],
+                    ['key' => 'internal', 'label' => 'Internal', 'value' => $internal],
+                ],
+                'monthly' => $this->countCreatedByMonth(
+                    ArchivedDocument::query()->where('is_archived', false)
+                ),
+            ],
             'filters' => [
                 'search' => $search ?: null,
                 'direction' => $direction ?: null,
             ],
         ]);
+    }
+
+    /**
+     * @param  Builder<ArchivedDocument>  $query
+     * @return list<array{key: string, label: string, value: int}>
+     */
+    protected function countCreatedByMonth($query): array
+    {
+        $to = Carbon::now()->endOfMonth();
+        $from = Carbon::now()->subMonths(5)->startOfMonth();
+
+        $buckets = [];
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $key = $cursor->format('Y-m');
+            $buckets[$key] = [
+                'key' => $key,
+                'label' => $cursor->format('M'),
+                'value' => 0,
+            ];
+            $cursor = $cursor->addMonth();
+        }
+
+        $rows = $query
+            ->whereDate('created_at', '>=', $from->toDateString())
+            ->whereDate('created_at', '<=', $to->toDateString())
+            ->get(['created_at']);
+
+        foreach ($rows as $row) {
+            if (! $row->created_at) {
+                continue;
+            }
+            $key = $row->created_at->format('Y-m');
+            if (isset($buckets[$key])) {
+                $buckets[$key]['value']++;
+            }
+        }
+
+        return array_values($buckets);
     }
 
     public function create(Request $request): Response

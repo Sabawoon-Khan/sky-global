@@ -1,20 +1,27 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { BarChart3, TrendingUp } from '@lucide/vue';
-import Can from '@/components/Can.vue';
-import MisCreateButton from '@/components/MisCreateButton.vue';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { computed } from 'vue';
 import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import { useMisPage } from '@/composables/useMisPage';
+    Briefcase,
+    FileText,
+    Target,
+    TrendingUp,
+} from '@lucide/vue';
 import BarChart from '@/components/charts/BarChart.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
 import LineChart from '@/components/charts/LineChart.vue';
+import { Badge } from '@/components/ui/badge';
+import {
+    V2Hero,
+    V2ListPage,
+    V2Panel,
+    V2StatCard,
+    V2StatGrid,
+    V2TablePanel,
+} from '@/components/v2';
+import { indexTableColumn } from '@/composables/useTableColumns';
+import { useMisPage } from '@/composables/useMisPage';
+import { formatCurrency } from '@/lib/format';
 import { translateBidStatus, translateProjectStatus } from '@/lib/status-labels';
 
 interface BidAnalytic {
@@ -53,14 +60,23 @@ interface Props {
     charts?: {
         bidding_outcomes: Array<{ key: string; value: number }>;
         project_statuses: Array<{ status: string; count: number }>;
-        monthly_bids: Array<{ label: string; submitted: number; won: number; lost: number; win_rate: number }>;
-        organization_types: Array<{ name: string; projects_count: number; total_contract_value: number }>;
+        monthly_bids: Array<{
+            label: string;
+            submitted: number;
+            won: number;
+            lost: number;
+            win_rate: number;
+        }>;
+        organization_types: Array<{
+            name: string;
+            projects_count: number;
+            total_contract_value: number;
+        }>;
         bid_statuses: Array<{ status: string; count: number }>;
     };
 }
 
 const props = defineProps<Props>();
-
 const { t, can } = useMisPage();
 
 defineOptions({
@@ -72,23 +88,37 @@ defineOptions({
     },
 });
 
-const formatCurrency = (value?: number | null, currency = 'USD'): string => {
-    if (value == null) {
-        return '—';
-    }
-
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 0,
-    }).format(value);
+/** Embassy brand chart palette */
+const colors = {
+    navy: '#0c1a2e',
+    teal: '#1f4e5f',
+    brass: '#b8956c',
+    steel: '#3d5a80',
+    muted: '#8b9bb4',
+    danger: '#8f2d3a',
 };
 
-const formatDate = (value?: string | null): string => {
-    if (!value) {
-        return '—';
-    }
+const donutColors = [
+    colors.teal,
+    colors.brass,
+    colors.navy,
+    colors.steel,
+    colors.muted,
+    colors.danger,
+];
 
+const tableColumns = computed(() => [
+    indexTableColumn(),
+    { key: 'bid', label: t('Bid') },
+    { key: 'organization', label: t('Organization') },
+    { key: 'submitted', label: t('Submitted') },
+    { key: 'amount', label: t('Our Amount') },
+    { key: 'winning', label: t('Winning') },
+    { key: 'status', label: t('Status') },
+]);
+
+const formatDate = (value?: string | null): string => {
+    if (!value) return '—';
     return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(
         new Date(value),
     );
@@ -107,304 +137,294 @@ const outcomeLabel = (key: string): string => {
 <template>
     <Head :title="t('Bidding Analytics')" />
 
-    <div class="flex flex-1 flex-col gap-6 p-4">
-        <div class="flex flex-wrap justify-end gap-2">
-                <Can permission="projects.view">
-                    <Button variant="outline" as-child>
-                        <Link href="/projects">{{ t('View Projects') }}</Link>
-                    </Button>
-                </Can>
-                <MisCreateButton
-                    href="/projects/create"
-                    permission="projects.create"
+    <V2ListPage>
+        <V2Hero image="/images/gs-hero-operations.png" priority>
+            <template #eyebrow>{{ t('Analytics') }}</template>
+            <template #title>{{ t('Bidding Analytics') }}</template>
+            <template #description>
+                {{ t('Win rate, bid activity, and opportunity pipeline.') }}
+            </template>
+            <template #side>
+                <Link
+                    v-if="can('projects.create')"
+                    href="/mis/projects/create"
+                    class="create-btn"
                 >
                     {{ t('New Project') }}
-                </MisCreateButton>
-                <Can permission="finance.view">
-                    <Button variant="outline" as-child>
-                        <Link href="/analytics/finance">{{ t('Finance Analytics') }}</Link>
-                    </Button>
-                </Can>
+                </Link>
+                <Link
+                    v-if="can('finance.view')"
+                    href="/analytics/finance"
+                    class="detail-btn"
+                >
+                    {{ t('Finance Analytics') }}
+                </Link>
+            </template>
+            <template v-if="stats" #stats>
+                <V2StatGrid>
+                    <V2StatCard
+                        :title="t('Open Opportunities')"
+                        :value="stats.open_opportunities ?? 0"
+                    >
+                        <template #icon><Briefcase /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        icon-tone="teal"
+                        :title="t('Win Rate')"
+                        :value="`${stats.win_rate ?? 0}%`"
+                    >
+                        <template #icon><TrendingUp /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        icon-tone="warm"
+                        :title="t('Won / Lost')"
+                        :value="`${stats.won ?? 0} / ${stats.lost ?? 0}`"
+                    >
+                        <template #icon><Target /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        accent
+                        icon-tone="orange"
+                        :title="t('Pending Bids')"
+                        :value="stats.pending_bids ?? 0"
+                    >
+                        <template #icon><FileText /></template>
+                    </V2StatCard>
+                </V2StatGrid>
+            </template>
+        </V2Hero>
+
+        <div v-if="charts" class="grid gap-4 lg:grid-cols-5">
+            <V2Panel
+                class="lg:col-span-2"
+                :title="t('Bidding Outcomes')"
+            >
+                <DonutChart
+                    :labels="charts.bidding_outcomes.map((b) => outcomeLabel(b.key))"
+                    :data="charts.bidding_outcomes.map((b) => b.value)"
+                    :colors="donutColors"
+                    :center-label="t('Bids')"
+                />
+            </V2Panel>
+
+            <V2Panel
+                class="lg:col-span-3"
+                :title="t('Monthly Bid Activity')"
+                :description="t('Submitted, won, and lost over time')"
+            >
+                <LineChart
+                    :labels="charts.monthly_bids.map((m) => m.label)"
+                    :datasets="[
+                        {
+                            label: t('Submitted'),
+                            data: charts.monthly_bids.map((m) => m.submitted),
+                            borderColor: colors.teal,
+                            backgroundColor: 'rgba(31, 78, 95, 0.12)',
+                        },
+                        {
+                            label: t('won'),
+                            data: charts.monthly_bids.map((m) => m.won),
+                            borderColor: colors.brass,
+                            backgroundColor: 'rgba(184, 149, 108, 0.14)',
+                        },
+                        {
+                            label: t('lost'),
+                            data: charts.monthly_bids.map((m) => m.lost),
+                            borderColor: colors.danger,
+                            backgroundColor: 'rgba(143, 45, 58, 0.1)',
+                        },
+                    ]"
+                />
+            </V2Panel>
         </div>
 
-        <div v-if="stats" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">{{ t('Open Opportunities') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="text-2xl font-bold">
-                    {{ stats.open_opportunities ?? 0 }}
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm">{{ t('Win Rate') }}</CardTitle>
-                    <TrendingUp class="size-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent class="text-2xl font-bold">
-                    {{ stats.win_rate ?? 0 }}%
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">{{ t('Won / Lost') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="text-2xl font-bold">
-                    {{ stats.won ?? 0 }} / {{ stats.lost ?? 0 }}
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-sm">{{ t('Pending Bids') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="text-2xl font-bold">
-                    {{ stats.pending_bids ?? 0 }}
-                </CardContent>
-            </Card>
-        </div>
+        <div v-if="charts" class="grid gap-4 lg:grid-cols-2">
+            <V2Panel :title="t('Project Status Breakdown')">
+                <BarChart
+                    :labels="
+                        charts.project_statuses.map((s) =>
+                            translateProjectStatus(t, s.status),
+                        )
+                    "
+                    :datasets="[
+                        {
+                            label: t('Projects'),
+                            data: charts.project_statuses.map((s) => s.count),
+                            backgroundColor: colors.teal,
+                        },
+                    ]"
+                    :show-legend="false"
+                />
+            </V2Panel>
 
-        <div v-if="charts" class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Bidding Outcomes') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <DonutChart
-                        :labels="charts.bidding_outcomes.map((b) => outcomeLabel(b.key))"
-                        :data="charts.bidding_outcomes.map((b) => b.value)"
-                    />
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>{{ t('Project Status Breakdown') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <BarChart
-                        :labels="charts.project_statuses.map((s) => translateProjectStatus(t, s.status))"
-                        :datasets="[{ label: t('Projects'), data: charts.project_statuses.map((s) => s.count) }]"
-                    />
-                </CardContent>
-            </Card>
-            <Card class="lg:col-span-2 xl:col-span-1">
-                <CardHeader>
-                    <CardTitle>{{ t('Monthly Bid Activity') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <LineChart
-                        :labels="charts.monthly_bids.map((m) => m.label)"
-                        :datasets="[
-                            { label: t('Submitted'), data: charts.monthly_bids.map((m) => m.submitted) },
-                            { label: t('won'), data: charts.monthly_bids.map((m) => m.won) },
-                            { label: t('lost'), data: charts.monthly_bids.map((m) => m.lost) },
-                        ]"
-                    />
-                </CardContent>
-            </Card>
-            <Card v-if="charts.bid_statuses?.length">
-                <CardHeader>
-                    <CardTitle>{{ t('Bid Status Breakdown') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <DonutChart
-                        :labels="charts.bid_statuses.map((s) => translateBidStatus(t, s.status))"
-                        :data="charts.bid_statuses.map((s) => s.count)"
-                    />
-                </CardContent>
-            </Card>
-            <Card v-if="charts.organization_types.length" class="xl:col-span-2">
-                <CardHeader>
-                    <CardTitle>{{ t('Contract Value by Org Type') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <BarChart
-                        :labels="charts.organization_types.map((orgType) => orgType.name)"
-                        :datasets="[{ label: t('Contract Value'), data: charts.organization_types.map((orgType) => orgType.total_contract_value) }]"
-                    />
-                </CardContent>
-            </Card>
-            <Card v-if="charts.organization_types.length">
-                <CardHeader>
-                    <CardTitle>{{ t('Projects by Org Type') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <DonutChart
-                        :labels="charts.organization_types.map((orgType) => orgType.name)"
-                        :data="charts.organization_types.map((orgType) => orgType.projects_count)"
-                    />
-                </CardContent>
-            </Card>
-            <Card v-if="stats" class="xl:col-span-2">
-                <CardHeader>
-                    <CardTitle>{{ t('Win Rate Overview') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <BarChart
-                        :labels="[t('won'), t('lost'), t('Pending')]"
-                        :datasets="[
-                            {
-                                label: t('Bids'),
-                                data: [stats?.won ?? 0, stats?.lost ?? 0, stats?.pending_bids ?? 0],
-                                backgroundColor: 'rgba(59, 130, 246, 0.7)',
-                            },
-                        ]"
-                    />
-                </CardContent>
-            </Card>
-            <Card class="xl:col-span-2">
-                <CardHeader>
-                    <CardTitle>{{ t('Win Rate Trend') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <LineChart
-                        :labels="charts.monthly_bids.map((m) => m.label)"
-                        :datasets="[
-                            {
-                                label: t('Win Rate'),
-                                data: charts.monthly_bids.map((m) => m.win_rate),
-                                borderColor: 'rgba(34, 197, 94, 1)',
-                            },
-                        ]"
-                    />
-                </CardContent>
-            </Card>
+            <V2Panel :title="t('Win Rate Trend')">
+                <LineChart
+                    :labels="charts.monthly_bids.map((m) => m.label)"
+                    :datasets="[
+                        {
+                            label: t('Win Rate'),
+                            data: charts.monthly_bids.map((m) => m.win_rate),
+                            borderColor: colors.brass,
+                            backgroundColor: 'rgba(184, 149, 108, 0.14)',
+                        },
+                    ]"
+                />
+            </V2Panel>
         </div>
 
         <div
-            v-if="organizationTypes?.length || competitorIntel"
+            v-if="charts?.organization_types?.length"
+            class="grid gap-4 lg:grid-cols-5"
+        >
+            <V2Panel
+                class="lg:col-span-3"
+                :title="t('Contract Value by Org Type')"
+            >
+                <BarChart
+                    :labels="charts.organization_types.map((o) => o.name)"
+                    :datasets="[
+                        {
+                            label: t('Contract Value'),
+                            data: charts.organization_types.map(
+                                (o) => o.total_contract_value,
+                            ),
+                            backgroundColor: colors.navy,
+                        },
+                    ]"
+                    :show-legend="false"
+                />
+            </V2Panel>
+            <V2Panel
+                class="lg:col-span-2"
+                :title="t('Projects by Org Type')"
+            >
+                <DonutChart
+                    :labels="charts.organization_types.map((o) => o.name)"
+                    :data="
+                        charts.organization_types.map((o) => o.projects_count)
+                    "
+                    :colors="donutColors"
+                />
+            </V2Panel>
+        </div>
+
+        <div
+            v-if="organizationTypes?.length || competitorIntel !== undefined"
             class="grid gap-4 lg:grid-cols-2"
         >
-            <Card v-if="organizationTypes?.length">
-                <CardHeader>
-                    <CardTitle>{{ t('By Organization Type') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="divide-y">
+            <V2Panel
+                v-if="organizationTypes?.length"
+                :title="t('By Organization Type')"
+                :padded="false"
+            >
+                <div class="divide-y">
                     <div
                         v-for="type in organizationTypes"
                         :key="type.id"
-                        class="flex items-center justify-between py-3 text-sm"
+                        class="flex items-center justify-between gap-3 px-5 py-3 text-sm"
                     >
-                        <div>
+                        <div class="min-w-0">
                             <p class="font-medium">{{ type.name }}</p>
                             <p class="text-xs text-muted-foreground">
-                                {{ type.organizations_count }} {{ t('organizations') }} ·
+                                {{ type.organizations_count }}
+                                {{ t('organizations') }} ·
                                 {{ type.projects_count }} {{ t('projects') }}
                             </p>
                         </div>
-                        <span class="font-medium">
+                        <span class="shrink-0 font-semibold tabular-nums">
                             {{ formatCurrency(type.total_contract_value) }}
                         </span>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </V2Panel>
 
-            <Card v-if="competitorIntel !== undefined">
-                <CardHeader>
-                    <CardTitle>{{ t('Competitor Intel') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="space-y-3">
-                    <p class="text-3xl font-bold">{{ competitorIntel ?? 0 }}</p>
-                    <Can permission="bidding.view_competitors">
-                        <Button variant="outline" size="sm" as-child>
-                            <Link href="/projects">{{ t('Review on projects') }}</Link>
-                        </Button>
-                    </Can>
-                </CardContent>
-            </Card>
+            <V2Panel v-if="competitorIntel !== undefined" :title="t('Competitor Intel')">
+                <p class="text-3xl font-semibold tracking-tight tabular-nums">
+                    {{ competitorIntel ?? 0 }}
+                </p>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    {{ t('Competitor records across projects') }}
+                </p>
+                <Link
+                    v-if="can('bidding.view_competitors')"
+                    href="/mis/projects"
+                    class="mt-4 inline-flex text-sm font-medium text-primary hover:underline"
+                >
+                    {{ t('Review on projects') }} →
+                </Link>
+            </V2Panel>
         </div>
 
-        <Card>
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2">
-                    <BarChart3 class="size-5" />
-                    {{ t('Recent Bids') }}
-                </CardTitle>
-                </CardHeader>
-            <CardContent>
-                <div
-                    v-if="bids.length === 0"
-                    class="text-sm text-muted-foreground"
-                >
-                    {{ t('No bid data available.') }}
+        <V2TablePanel
+            table-id="analytics-recent-bids"
+            :columns="tableColumns"
+            :delay="false"
+        >
+            <template #filters>
+                <div class="table-top">
+                    <div>
+                        <h2>{{ t('Recent Bids') }}</h2>
+                        <p>{{ t('Latest bid submissions and outcomes') }}</p>
+                    </div>
                 </div>
-                <div v-else class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b text-start text-muted-foreground">
-                                <th class="pb-3 pe-4 font-medium">{{ t('Bid') }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{
-                                    t('Organization')
-                                }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{
-                                    t('Submitted')
-                                }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{
-                                    t('Our Amount')
-                                }}</th>
-                                <th class="pb-3 pe-4 font-medium">{{
-                                    t('Winning')
-                                }}</th>
-                                <th class="pb-3 font-medium">{{ t('Status') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr
-                                v-for="bid in bids"
-                                :key="bid.id"
-                                class="border-b last:border-0"
+            </template>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{ t('Bid') }}</th>
+                        <th>{{ t('Organization') }}</th>
+                        <th>{{ t('Submitted') }}</th>
+                        <th class="end">{{ t('Our Amount') }}</th>
+                        <th class="end">{{ t('Winning') }}</th>
+                        <th>{{ t('Status') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-if="!bids.length">
+                        <td colspan="6" class="py-10 text-center text-muted-foreground">
+                            {{ t('No bid data available.') }}
+                        </td>
+                    </tr>
+                    <tr v-for="bid in bids" :key="bid.id">
+                        <td>
+                            <Link
+                                v-if="can('projects.view')"
+                                href="/mis/projects"
+                                class="font-medium hover:text-primary hover:underline"
                             >
-                                <td class="py-3 pe-4">
-                                    <Link
-                                        v-if="can('projects.view')"
-                                        :href="`/projects`"
-                                        class="font-medium hover:underline"
-                                    >
-                                        {{ bid.bid_number ?? `#${bid.id}` }}
-                                    </Link>
-                                    <span v-else class="font-medium">
-                                        {{ bid.bid_number ?? `#${bid.id}` }}
-                                    </span>
-                                </td>
-                                <td class="py-3 pe-4 text-muted-foreground">
-                                    {{ bid.organization ?? '—' }}
-                                </td>
-                                <td class="py-3 pe-4 text-muted-foreground">
-                                    {{ formatDate(bid.submitted_at) }}
-                                </td>
-                                <td class="py-3 pe-4">
-                                    {{
-                                        formatCurrency(
-                                            bid.our_total_amount,
-                                            bid.currency ?? 'USD',
-                                        )
-                                    }}
-                                </td>
-                                <td class="py-3 pe-4">
-                                    {{
-                                        formatCurrency(
-                                            bid.winning_amount,
-                                            bid.currency ?? 'USD',
-                                        )
-                                    }}
-                                </td>
-                                <td class="py-3">
-                                    <Badge
-                                        :variant="
-                                            bid.status === 'won'
-                                                ? 'default'
-                                                : bid.status === 'lost'
-                                                  ? 'destructive'
-                                                  : 'secondary'
-                                        "
-                                    >
-                                        {{ statusLabel(bid.status) }}
-                                    </Badge>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </CardContent>
-        </Card>
-    </div>
+                                {{ bid.bid_number ?? `#${bid.id}` }}
+                            </Link>
+                            <span v-else class="font-medium">
+                                {{ bid.bid_number ?? `#${bid.id}` }}
+                            </span>
+                        </td>
+                        <td>{{ bid.organization ?? '—' }}</td>
+                        <td>{{ formatDate(bid.submitted_at) }}</td>
+                        <td class="end tabular-nums">
+                            {{
+                                formatCurrency(
+                                    bid.our_total_amount,
+                                    bid.currency ?? 'AFN',
+                                )
+                            }}
+                        </td>
+                        <td class="end tabular-nums">
+                            {{
+                                formatCurrency(
+                                    bid.winning_amount,
+                                    bid.currency ?? 'AFN',
+                                )
+                            }}
+                        </td>
+                        <td>
+                            <Badge variant="outline">
+                                {{ statusLabel(bid.status) }}
+                            </Badge>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </V2TablePanel>
+    </V2ListPage>
 </template>

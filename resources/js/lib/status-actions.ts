@@ -270,7 +270,7 @@ export function projectStatusActions(
     return transitions.map((transition, index) => ({
         label: tr(t, transition.label),
         separator: index === 0,
-        href: `/projects/${projectId}/status`,
+        href: `/mis/projects/${projectId}/status`,
         method: 'post',
         data: { status: transition.value },
         variant: transition.destructive ? 'destructive' : 'default',

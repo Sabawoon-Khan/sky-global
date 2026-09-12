@@ -57,7 +57,7 @@ const addRow = (): void => {
         projectId: '',
         dailyRate: '',
         monthlyRate: '',
-        currency: 'USD',
+        currency: 'AFN',
         effectiveFrom: '',
         effectiveTo: '',
     });
@@ -78,7 +78,7 @@ onMounted(() => {
             projectId: rate.project_id ? String(rate.project_id) : '',
             dailyRate: rate.daily_rate != null ? String(rate.daily_rate) : '',
             monthlyRate: rate.monthly_rate != null ? String(rate.monthly_rate) : '',
-            currency: rate.currency ?? 'USD',
+            currency: rate.currency ?? 'AFN',
             effectiveFrom: formatDate(rate.effective_from),
             effectiveTo: formatDate(rate.effective_to),
         }));
@@ -183,7 +183,7 @@ onMounted(() => {
                         class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
                     >
                         <option
-                            v-for="code in currencies ?? ['USD']"
+                            v-for="code in currencies ?? ['AFN']"
                             :key="code"
                             :value="code"
                             :selected="row.currency === code"

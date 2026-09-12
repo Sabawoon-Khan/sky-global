@@ -82,9 +82,13 @@ class PersonnelAttendanceController extends Controller
                 'updated_at' => $sheet->updated_at?->toIso8601String(),
             ]);
 
+        $sheetStats = $this->buildSheetStats();
+
         return Inertia::render('mis/hr/Attendance/Index', [
             'sheets' => $sheets,
             'projects' => $this->activeProjects(),
+            'stats' => $sheetStats['stats'],
+            'chart' => $sheetStats['chart'],
             'filters' => [
                 'date_from' => $period['date_from']->toDateString(),
                 'date_to' => $period['date_to']->toDateString(),
@@ -93,6 +97,85 @@ class PersonnelAttendanceController extends Controller
                 'project_id' => $projectId,
             ],
         ]);
+    }
+
+    /**
+     * @return array{
+     *     stats: array{total: int, draft: int, submitted: int, approved: int, partial: int, by_status: array<string, int>},
+     *     chart: array{status: list<array{key: string, label: string, value: int}>, monthly: list<array{key: string, label: string, value: int}>}
+     * }
+     */
+    private function buildSheetStats(): array
+    {
+        $rows = AttendanceSheet::query()
+            ->withCount([
+                'attendances',
+                'attendances as draft_count' => fn ($query) => $query->where('status', 'draft'),
+                'attendances as submitted_count' => fn ($query) => $query->where('status', 'submitted'),
+                'attendances as approved_count' => fn ($query) => $query->where('status', 'approved'),
+            ])
+            ->get(['id', 'created_at']);
+
+        $byStatus = [
+            'draft' => 0,
+            'submitted' => 0,
+            'approved' => 0,
+            'partial' => 0,
+        ];
+
+        foreach ($rows as $sheet) {
+            $status = $this->resolveSheetStatus(
+                (int) $sheet->attendances_count,
+                (int) $sheet->draft_count,
+                (int) $sheet->submitted_count,
+                (int) $sheet->approved_count,
+            );
+            $byStatus[$status] = ($byStatus[$status] ?? 0) + 1;
+        }
+
+        $to = Carbon::now()->endOfMonth();
+        $from = Carbon::now()->subMonths(5)->startOfMonth();
+        $buckets = [];
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $key = $cursor->format('Y-m');
+            $buckets[$key] = [
+                'key' => $key,
+                'label' => $cursor->format('M'),
+                'value' => 0,
+            ];
+            $cursor = $cursor->addMonth();
+        }
+
+        foreach ($rows as $sheet) {
+            if (! $sheet->created_at) {
+                continue;
+            }
+            $key = $sheet->created_at->format('Y-m');
+            if (isset($buckets[$key])) {
+                $buckets[$key]['value']++;
+            }
+        }
+
+        return [
+            'stats' => [
+                'total' => $rows->count(),
+                'draft' => $byStatus['draft'],
+                'submitted' => $byStatus['submitted'],
+                'approved' => $byStatus['approved'],
+                'partial' => $byStatus['partial'],
+                'by_status' => $byStatus,
+            ],
+            'chart' => [
+                'status' => [
+                    ['key' => 'draft', 'label' => 'Draft', 'value' => $byStatus['draft']],
+                    ['key' => 'submitted', 'label' => 'Submitted', 'value' => $byStatus['submitted']],
+                    ['key' => 'approved', 'label' => 'Approved', 'value' => $byStatus['approved']],
+                    ['key' => 'partial', 'label' => 'Partial', 'value' => $byStatus['partial']],
+                ],
+                'monthly' => array_values($buckets),
+            ],
+        ];
     }
 
     private function resolveSheetStatus(

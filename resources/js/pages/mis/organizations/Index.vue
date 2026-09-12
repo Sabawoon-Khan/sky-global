@@ -1,34 +1,45 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import {
-    Building2,
-    CheckCircle2,
-    FileText,
-    FolderKanban,
-    Search,
-    Users,
-} from '@lucide/vue';
-import { computed } from 'vue';
-import MisCreateButton from '@/components/MisCreateButton.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import MisSearchInput from '@/components/mis/MisSearchInput.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
-import MisPage from '@/components/MisPage.vue';
-import MisPagination from '@/components/MisPagination.vue';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import TableIndexTd from '@/components/TableIndexTd.vue';
+import TableIndexTh from '@/components/TableIndexTh.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
 import {
-    Card,
-    CardAction,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+    V2FilterBar,
+    V2Hero,
+    V2IndicatorCard,
+    V2ListPage,
+    V2Pager,
+    V2SelectFilter,
+    V2StatCard,
+    V2StatGrid,
+    V2TablePanel,
+} from '@/components/v2';
+import { indexTableColumn } from '@/composables/useTableColumns';
+import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
+import { provideTableSort } from '@/composables/useTableSort';
 import { formatNumber, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { toggleIsActiveAction } from '@/lib/status-actions';
-import { cn } from '@/lib/utils';
+import {
+    Briefcase,
+    Building2,
+    FolderKanban,
+    Layers3,
+    Plus,
+    Trophy,
+    Users,
+} from '@lucide/vue';
+import { computed } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
+
+interface ChartPoint {
+    key: string;
+    label: string;
+    value: number;
+}
 
 interface OrganizationType {
     id: number;
@@ -50,7 +61,7 @@ interface Organization {
     procurement_opportunities_count: number;
 }
 
-interface Props {
+const props = defineProps<{
     organizations: Paginated<Organization>;
     organizationTypes: OrganizationType[];
     stats: {
@@ -60,62 +71,38 @@ interface Props {
         with_projects: number;
         with_opportunities: number;
     };
+    chart: {
+        status: ChartPoint[];
+        by_type?: ChartPoint[];
+        monthly: ChartPoint[];
+    };
     filters?: {
         search?: string | null;
         organization_type_id?: number | null;
     };
-}
+}>();
 
-const props = defineProps<Props>();
+const onlyKeys = [
+    'organizations',
+    'organizationTypes',
+    'stats',
+    'chart',
+    'filters',
+];
 
-const { t, viewAction, editAction, deleteAction, gateActions } = useMisPage();
+const { filters, pending, apply } = useMisFilters(
+    '/organizations',
+    {
+        search: props.filters?.search ?? '',
+        organization_type_id: props.filters?.organization_type_id ?? '',
+    },
+    { search: '', organization_type_id: '' },
+    { only: onlyKeys, liveKeys: ['search'] },
+);
 
-const statCards = computed(() => {
-    const { stats, organizationTypes } = props;
-    const projectRate =
-        stats.total > 0
-            ? Math.round((stats.with_projects / stats.total) * 100)
-            : 0;
-
-    return [
-        {
-            label: t('Total registered'),
-            value: formatNumber(stats.total),
-            sub:
-                organizationTypes.length > 0
-                    ? t(':count organization types', {
-                          count: String(organizationTypes.length),
-                      })
-                    : t('Clients, partners, and bidders'),
-            icon: Building2,
-            accent: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-        },
-        {
-            label: t('Active organizations'),
-            value: formatNumber(stats.active),
-            sub:
-                stats.inactive > 0
-                    ? t(':count inactive', { count: String(stats.inactive) })
-                    : t('All organizations active'),
-            icon: CheckCircle2,
-            accent: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-        },
-        {
-            label: t('With active projects'),
-            value: formatNumber(stats.with_projects),
-            sub: t(':percent of total', { percent: String(projectRate) }),
-            icon: FolderKanban,
-            accent: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
-        },
-        {
-            label: t('With opportunities'),
-            value: formatNumber(stats.with_opportunities),
-            sub: t('Organizations with tracked bids'),
-            icon: FileText,
-            accent: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-        },
-    ];
-});
+const { sortedRows } = provideTableSort(() => props.organizations.data);
+const { t, viewAction, editAction, deleteAction, gateActions, can } =
+    useMisPage();
 
 defineOptions({
     layout: {
@@ -124,6 +111,88 @@ defineOptions({
             { title: 'Organizations', href: '/organizations' },
         ],
     },
+});
+
+const tableColumns = computed(() => [
+    indexTableColumn(),
+    { key: 'name', label: t('Organization') },
+    { key: 'type', label: t('Type') },
+    { key: 'location', label: t('Location') },
+    { key: 'contact', label: t('Contact') },
+    { key: 'activity', label: t('Activity') },
+    { key: 'status', label: t('Status') },
+    { key: 'actions', label: t('Actions'), locked: true },
+]);
+
+const statusPalette = [
+    'var(--school-navy)',
+    'var(--brand-accent)',
+    'var(--school-gold)',
+    'var(--muted-foreground)',
+    '#3d5a80',
+    '#8b9bb4',
+];
+
+const pipeline = computed(() => {
+    const rows = (props.chart?.status ?? []).filter((row) => row.value > 0);
+    const total = Math.max(
+        rows.reduce((sum, row) => sum + row.value, 0),
+        props.stats.total,
+        1,
+    );
+    const activeShare =
+        total > 0 ? Math.round((props.stats.active / total) * 100) : 0;
+
+    return {
+        activeShare,
+        segments: rows.map((row, index) => ({
+            key: row.key,
+            label: row.label,
+            value: row.value,
+            color: statusPalette[index % statusPalette.length],
+            width: Math.max(row.value > 0 ? 6 : 0, (row.value / total) * 100),
+        })),
+    };
+});
+
+const typeRows = computed(() => {
+    const rows = (props.chart?.by_type ?? []).filter((row) => row.value > 0);
+    const total = Math.max(
+        rows.reduce((sum, row) => sum + row.value, 0),
+        props.stats.total,
+        1,
+    );
+
+    return rows.slice(0, 4).map((row, index) => ({
+        key: row.key,
+        label: row.label,
+        value: row.value,
+        color: statusPalette[index % statusPalette.length],
+        width: Math.max(row.value > 0 ? 6 : 0, (row.value / total) * 100),
+    }));
+});
+
+const monthlyBars = computed(() => {
+    const rows =
+        props.chart?.monthly?.length > 0
+            ? props.chart.monthly
+            : Array.from({ length: 6 }, (_, index) => ({
+                  key: `m-${index}`,
+                  label: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'][index],
+                  value: 0,
+              }));
+    const max = Math.max(...rows.map((row) => Number(row.value) || 0), 1);
+
+    return rows.map((row) => {
+        const value = Number(row.value) || 0;
+        return {
+            key: row.key,
+            label: row.label,
+            value,
+            height: Math.max(value > 0 ? 6 : 3, Math.round((value / max) * 44)),
+            peak: value === max && value > 0,
+        };
+    });
 });
 
 const organizationActions = (org: Organization): RowActionItem[] => [
@@ -145,225 +214,316 @@ const organizationActions = (org: Organization): RowActionItem[] => [
         {
             href: `/organizations/${org.id}`,
             title: t('Delete organization'),
-            description: t('Are you sure you want to delete ":name"? This cannot be undone.', {
-                name: org.name,
-            }),
+            description: t(
+                'Are you sure you want to delete ":name"? This cannot be undone.',
+                { name: org.name },
+            ),
         },
         'bidding.delete',
     ),
 ];
+
+function onTypeChange(value: string) {
+    apply({ organization_type_id: value });
+}
 </script>
 
 <template>
     <Head :title="t('Organizations')" />
 
-    <MisPage>
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Card
-                v-for="card in statCards"
-                :key="card.label"
-                class="ui-surface-hover overflow-hidden transition-all"
-            >
-                <CardHeader class="flex flex-row items-start justify-between space-y-0 pb-2">
-                    <CardTitle class="text-sm font-medium text-muted-foreground">
-                        {{ card.label }}
-                    </CardTitle>
-                    <div
-                        :class="
-                            cn(
-                                'flex size-9 shrink-0 items-center justify-center rounded-lg',
-                                card.accent,
-                            )
-                        "
-                    >
-                        <component :is="card.icon" class="size-4" stroke-width="2" />
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <p class="text-3xl font-bold tracking-tight tabular-nums">
-                        {{ card.value }}
-                    </p>
-                    <p class="mt-1 text-xs text-muted-foreground">
-                        {{ card.sub }}
-                    </p>
-                </CardContent>
-            </Card>
-        </div>
-
-        <Card>
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2">
-                    <Building2 class="size-5" />
-                    {{ t('All Organizations') }}
-                </CardTitle>
-                <CardAction>
-                    <MisCreateButton href="/organizations/create" permission="bidding.create">
-                        {{ t('Add Organization') }}
-                    </MisCreateButton>
-                </CardAction>
-            </CardHeader>
-            <CardContent class="space-y-4">
-                <form method="get" action="/organizations" class="grid gap-4 md:grid-cols-3">
-                    <div class="relative md:col-span-2">
-                        <Search
-                            class="absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground"
-                        />
-                        <Input
-                            name="search"
-                            :default-value="filters?.search ?? ''"
-                            :placeholder="t('Search by name, email, phone, province...')"
-                            class="ps-9"
-                        />
-                    </div>
-                    <div class="flex gap-2">
-                        <div class="grid flex-1 gap-1.5">
-                            <Label for="organization_type_id" class="sr-only">{{
-                                t('Type')
-                            }}</Label>
-                            <select
-                                id="organization_type_id"
-                                name="organization_type_id"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-                            >
-                                <option value="">{{ t('All types') }}</option>
-                                <option
-                                    v-for="type in organizationTypes"
-                                    :key="type.id"
-                                    :value="type.id"
-                                    :selected="filters?.organization_type_id === type.id"
-                                >
-                                    {{ type.name }}
-                                </option>
-                            </select>
-                        </div>
-                        <Button type="submit" variant="secondary">{{ t('Filter') }}</Button>
-                    </div>
-                </form>
-
-                <div
-                    v-if="organizations.data.length === 0"
-                    class="ui-empty-state"
+    <V2ListPage>
+        <V2Hero image="/images/gs-hero-operations.png">
+            <template #eyebrow>{{ t('CRM') }}</template>
+            <template #title>{{ t('Organizations') }}</template>
+            <template #description>
+                {{
+                    t(
+                        'Clients, partners, and bidders you serve or compete with.',
+                    )
+                }}
+            </template>
+            <template #side>
+                <Link
+                    v-if="can('bidding.create')"
+                    href="/organizations/create"
+                    class="create-btn"
                 >
-                    <Building2 class="mx-auto mb-3 size-10 text-muted-foreground" />
-                    <p class="font-medium">{{ t('No organizations yet') }}</p>
-                    <p class="mt-1 text-sm text-muted-foreground">
-                        {{
-                            t('Add government bodies, NGOs, private companies, and other clients you bid to or serve.')
-                        }}
-                    </p>
-                    <MisCreateButton
-                        href="/organizations/create"
-                        permission="bidding.create"
-                        class="mt-4"
-                    >
-                        {{ t('Create first organization') }}
-                    </MisCreateButton>
-                </div>
+                    <Plus />
+                    {{ t('Add Organization') }}
+                </Link>
 
-                <div v-else class="overflow-x-auto rounded-md border">
-                    <table class="w-full text-sm">
-                        <thead class="border-b bg-muted/50">
-                            <tr>
-                                <th class="px-4 py-3 text-start font-medium">{{
-                                    t('Organization')
-                                }}</th>
-                                <th class="px-4 py-3 text-start font-medium">{{ t('Type') }}</th>
-                                <th class="px-4 py-3 text-start font-medium">{{
-                                    t('Location')
-                                }}</th>
-                                <th class="px-4 py-3 text-start font-medium">{{
-                                    t('Contact')
-                                }}</th>
-                                <th class="px-4 py-3 text-start font-medium">{{
-                                    t('Activity')
-                                }}</th>
-                                <th class="px-4 py-3 text-start font-medium">{{
-                                    t('Status')
-                                }}</th>
-                                <th class="px-4 py-3 text-end font-medium">{{ t('Actions') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y">
-                            <tr
-                                v-for="org in organizations.data"
-                                :key="org.id"
-                                class="transition-colors hover:bg-muted/50"
+                <div class="hero-cards">
+                    <V2IndicatorCard card-class="inventory-card">
+                        <template #head>{{ t('Status') }}</template>
+                        <template #meta
+                            >{{ pipeline.activeShare }}%
+                            {{ t('Active') }}</template
+                        >
+
+                        <div class="inventory-hero">
+                            <div class="inventory-hero-copy">
+                                <strong>{{
+                                    formatNumber(stats.active)
+                                }}</strong>
+                                <small>{{ t('Active') }}</small>
+                            </div>
+                        </div>
+
+                        <div class="inventory-bar" aria-hidden="true">
+                            <i
+                                v-for="seg in pipeline.segments"
+                                :key="seg.key"
+                                :style="{
+                                    width: `${seg.width}%`,
+                                    background: seg.color,
+                                }"
+                            />
+                        </div>
+
+                        <ul class="indicator-list compact">
+                            <li
+                                v-for="seg in pipeline.segments.slice(0, 4)"
+                                :key="seg.key"
                             >
-                                <td class="px-4 py-3">
-                                    <Link
-                                        :href="`/organizations/${org.id}`"
-                                        class="font-medium hover:underline"
-                                    >
-                                        {{ org.name }}
-                                    </Link>
-                                    <p v-if="org.tax_id" class="text-xs text-muted-foreground">
-                                        {{ t('Tax ID') }}: {{ org.tax_id }}
-                                    </p>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <Badge
-                                        v-if="org.organization_type"
-                                        variant="secondary"
-                                        :style="
-                                            org.organization_type.color
-                                                ? {
-                                                      borderColor: org.organization_type.color,
-                                                      color: org.organization_type.color,
-                                                  }
-                                                : undefined
-                                        "
-                                    >
-                                        {{ org.organization_type.name }}
-                                    </Badge>
-                                    <span v-else class="text-muted-foreground">—</span>
-                                </td>
-                                <td class="px-4 py-3 text-muted-foreground">
-                                    <div>{{ org.province ?? '—' }}</div>
-                                    <div v-if="org.address" class="max-w-xs truncate text-xs">
-                                        {{ org.address }}
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 text-muted-foreground">
-                                    <div>{{ org.email ?? '—' }}</div>
-                                    <div class="text-xs">{{ org.phone ?? '' }}</div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                        <span class="inline-flex items-center gap-1">
-                                            <FolderKanban class="size-3" />
-                                            {{
-                                                t(':count projects', {
-                                                    count: String(org.projects_count),
-                                                })
-                                            }}
-                                        </span>
-                                        <span class="inline-flex items-center gap-1">
-                                            <Users class="size-3" />
-                                            {{
-                                                t(':count bids', {
-                                                    count: String(
-                                                        org.procurement_opportunities_count,
-                                                    ),
-                                                })
-                                            }}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <Badge :variant="org.is_active ? 'default' : 'outline'">
-                                        {{ org.is_active ? t('Active') : t('Inactive') }}
-                                    </Badge>
-                                </td>
-                                <td class="px-4 py-3 text-end">
-                                    <RowActionsMenu :actions="organizationActions(org)" />
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                                <i :style="{ background: seg.color }" />
+                                <span>{{ seg.label }}</span>
+                                <b>{{ formatNumber(seg.value) }}</b>
+                            </li>
+                        </ul>
 
-                <MisPagination :pagination="organizations" />
-            </CardContent>
-        </Card>
-    </MisPage>
+                        <template v-if="typeRows.length">
+                            <div class="inventory-bar" aria-hidden="true">
+                                <i
+                                    v-for="seg in typeRows"
+                                    :key="seg.key"
+                                    :style="{
+                                        width: `${seg.width}%`,
+                                        background: seg.color,
+                                    }"
+                                />
+                            </div>
+                            <ul class="indicator-list compact">
+                                <li
+                                    v-for="seg in typeRows"
+                                    :key="`type-${seg.key}`"
+                                >
+                                    <i :style="{ background: seg.color }" />
+                                    <span>{{ seg.label }}</span>
+                                    <b>{{ formatNumber(seg.value) }}</b>
+                                </li>
+                            </ul>
+                        </template>
+                    </V2IndicatorCard>
+
+                    <V2IndicatorCard card-class="money-card">
+                        <template #head>{{ t('Created by month') }}</template>
+                        <template #meta
+                            >{{ formatNumber(stats.total) }}
+                            {{ t('Total') }}</template
+                        >
+
+                        <div class="money-chart">
+                            <div
+                                v-for="bar in monthlyBars"
+                                :key="bar.key"
+                                class="money-col"
+                                :class="{ peak: bar.peak }"
+                                :title="`${bar.label}: ${bar.value}`"
+                            >
+                                <div class="money-pair">
+                                    <i
+                                        class="usd"
+                                        :style="{ height: `${bar.height}px` }"
+                                    />
+                                </div>
+                                <span>{{ bar.label }}</span>
+                            </div>
+                        </div>
+                    </V2IndicatorCard>
+                </div>
+            </template>
+
+            <template #stats>
+                <V2StatGrid>
+                    <V2StatCard
+                        :delay="0"
+                        :title="t('Organizations')"
+                        :value="formatNumber(stats.total)"
+                    >
+                        <template #icon><Building2 /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="1"
+                        icon-tone="warm"
+                        :title="t('Active')"
+                        :value="formatNumber(stats.active)"
+                    >
+                        <template #icon><Layers3 /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="2"
+                        icon-tone="teal"
+                        :title="t('With projects')"
+                        :value="formatNumber(stats.with_projects)"
+                    >
+                        <template #icon><Briefcase /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="3"
+                        accent
+                        icon-tone="orange"
+                        :title="t('With opportunities')"
+                        :value="formatNumber(stats.with_opportunities)"
+                    >
+                        <template #icon><Trophy /></template>
+                    </V2StatCard>
+                </V2StatGrid>
+            </template>
+        </V2Hero>
+
+        <V2TablePanel
+            table-id="organizations"
+            :columns="tableColumns"
+            :pending="pending && organizations.data.length > 0"
+        >
+            <template #filters>
+                <V2FilterBar>
+                    <div class="filter-search">
+                        <MisSearchInput
+                            v-model="filters.search"
+                            :placeholder="
+                                t('Search by name, email, phone, province...')
+                            "
+                            @submit="apply()"
+                        />
+                    </div>
+                    <V2SelectFilter
+                        v-model="filters.organization_type_id"
+                        :label="t('Type')"
+                        @change="onTypeChange"
+                    >
+                        <option value="">{{ t('All types') }}</option>
+                        <option
+                            v-for="type in organizationTypes"
+                            :key="type.id"
+                            :value="String(type.id)"
+                        >
+                            {{ type.name }}
+                        </option>
+                    </V2SelectFilter>
+                    <template #columns>
+                        <TableToolbar />
+                    </template>
+                </V2FilterBar>
+            </template>
+
+            <template #default="{ visibleColCount }">
+                <table>
+                    <thead>
+                        <tr>
+                            <TableIndexTh />
+                            <th>{{ t('Organization') }}</th>
+                            <th>{{ t('Type') }}</th>
+                            <th>{{ t('Location') }}</th>
+                            <th>{{ t('Contact') }}</th>
+                            <th>{{ t('Activity') }}</th>
+                            <th>{{ t('Status') }}</th>
+                            <th class="end">{{ t('Actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            v-for="(org, index) in sortedRows"
+                            :key="org.id"
+                            :style="{ '--i': index }"
+                        >
+                            <TableIndexTd
+                                :index="index"
+                                :from="organizations.meta?.from"
+                            />
+                            <td>
+                                <Link
+                                    :href="`/organizations/${org.id}`"
+                                    class="code-chip"
+                                >
+                                    {{ org.name }}
+                                </Link>
+                                <div v-if="org.tax_id" class="muted text-xs">
+                                    {{ t('Tax ID') }}: {{ org.tax_id }}
+                                </div>
+                            </td>
+                            <td>
+                                {{
+                                    org.organization_type?.name ?? '—'
+                                }}
+                            </td>
+                            <td class="muted">
+                                <div>{{ org.province ?? '—' }}</div>
+                                <div
+                                    v-if="org.address"
+                                    class="max-w-xs truncate text-xs"
+                                >
+                                    {{ org.address }}
+                                </div>
+                            </td>
+                            <td class="muted">
+                                <div>{{ org.email ?? '—' }}</div>
+                                <div class="text-xs">{{ org.phone ?? '' }}</div>
+                            </td>
+                            <td class="muted text-xs">
+                                <span class="inline-flex items-center gap-1">
+                                    <FolderKanban class="size-3" />
+                                    {{
+                                        t(':count projects', {
+                                            count: String(org.projects_count),
+                                        })
+                                    }}
+                                </span>
+                                <span class="ms-2 inline-flex items-center gap-1">
+                                    <Users class="size-3" />
+                                    {{
+                                        t(':count bids', {
+                                            count: String(
+                                                org.procurement_opportunities_count,
+                                            ),
+                                        })
+                                    }}
+                                </span>
+                            </td>
+                            <td>
+                                {{
+                                    org.is_active ? t('Active') : t('Inactive')
+                                }}
+                            </td>
+                            <td class="end">
+                                <RowActionsMenu
+                                    :actions="organizationActions(org)"
+                                />
+                            </td>
+                        </tr>
+                        <EmptyState
+                            v-if="!organizations.data.length"
+                            :colspan="visibleColCount"
+                            :title="t('No organizations yet')"
+                        >
+                            <template #actions>
+                                <Link
+                                    v-if="can('bidding.create')"
+                                    href="/organizations/create"
+                                    class="create-btn"
+                                >
+                                    <Plus />
+                                    {{ t('Create first organization') }}
+                                </Link>
+                            </template>
+                        </EmptyState>
+                    </tbody>
+                </table>
+            </template>
+
+            <template v-if="organizations.links?.length" #pager>
+                <V2Pager :items="organizations" :only="onlyKeys" />
+            </template>
+        </V2TablePanel>
+    </V2ListPage>
 </template>

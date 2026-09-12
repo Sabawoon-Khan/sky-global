@@ -24,16 +24,102 @@ class ProjectIncomeController extends Controller
 
         $projectId = $request->integer('project_id') ?: null;
 
-        $incomes = ProjectIncome::query()
-            ->with(['project', 'account'])
-            ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+        $query = ProjectIncome::query()
+            ->with(['project', 'account', 'attachments'])
+            ->when($projectId, fn ($q) => $q->where('project_id', $projectId));
+
+        $incomes = (clone $query)
             ->latest('transaction_date')
             ->paginate(20)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(fn (ProjectIncome $income) => [
+                'id' => $income->id,
+                'description' => $income->description,
+                'amount' => (float) $income->amount,
+                'amount_usd' => $income->amount_usd !== null ? (float) $income->amount_usd : null,
+                'currency' => $income->currency,
+                'transaction_date' => $income->transaction_date?->toDateString(),
+                'status' => $income->status,
+                'project' => $income->project?->only(['id', 'code', 'name']),
+                'attachments' => $income->attachments,
+            ]);
+
+        $chartBase = (clone $query);
+
+        $monthly = collect(range(5, 0))->map(function (int $offset) use ($projectId) {
+            $start = now()->subMonths($offset)->startOfMonth();
+            $end = (clone $start)->endOfMonth();
+
+            $amount = (float) ProjectIncome::query()
+                ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+                ->whereBetween('transaction_date', [$start, $end])
+                ->sum('amount');
+
+            return [
+                'label' => $start->format('M'),
+                'value' => $amount,
+            ];
+        })->values()->all();
+
+        $byStatus = (clone $chartBase)
+            ->selectRaw("COALESCE(status, 'pending') as status, SUM(amount) as total, COUNT(*) as count")
+            ->groupByRaw("COALESCE(status, 'pending')")
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($row) => [
+                'key' => (string) $row->status,
+                'value' => (float) $row->total,
+                'count' => (int) $row->count,
+            ])
+            ->values()
+            ->all();
+
+        $byProjectRows = (clone $chartBase)
+            ->selectRaw('project_id, SUM(amount) as total, COUNT(*) as count')
+            ->whereNotNull('project_id')
+            ->groupBy('project_id')
+            ->orderByDesc('total')
+            ->limit(6)
+            ->get();
+
+        $projectsById = Project::query()
+            ->whereIn('id', $byProjectRows->pluck('project_id')->filter()->all())
+            ->get(['id', 'code', 'name'])
+            ->keyBy('id');
+
+        $byProject = $byProjectRows
+            ->map(function ($row) use ($projectsById) {
+                $project = $projectsById->get($row->project_id);
+
+                return [
+                    'key' => $project?->code ?? ('#'.$row->project_id),
+                    'label' => $project?->name ?? ('#'.$row->project_id),
+                    'value' => (float) $row->total,
+                    'count' => (int) $row->count,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $approved = (float) (clone $chartBase)->where('status', 'approved')->sum('amount');
+        $pending = (float) (clone $chartBase)->where(function ($q) {
+            $q->whereNull('status')->orWhere('status', 'pending');
+        })->sum('amount');
 
         return Inertia::render('mis/finance/Income/Index', [
             'incomes' => $incomes,
             'filters' => ['project_id' => $projectId],
+            'stats' => [
+                'total' => (float) (clone $query)->sum('amount'),
+                'count' => (clone $query)->count(),
+                'approved' => $approved,
+                'pending' => $pending,
+            ],
+            'charts' => [
+                'monthly' => $monthly,
+                'by_status' => $byStatus,
+                'by_project' => $byProject,
+            ],
         ]);
     }
 

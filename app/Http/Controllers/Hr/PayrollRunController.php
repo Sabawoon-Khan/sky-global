@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Hr;
 
+use App\Enums\ProjectStatus;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
@@ -13,11 +14,10 @@ use App\Models\Hr\PayrollRun;
 use App\Models\Hr\PersonnelAttendance;
 use App\Models\Hr\PersonnelPayrollAdjustment;
 use App\Models\Project\Project;
-use App\Enums\ProjectStatus;
 use App\Services\PayrollCalculationService;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -68,9 +68,36 @@ class PayrollRunController extends Controller
 
         $period = $this->defaultPeriod($request);
 
+        $byStatus = PayrollRun::query()
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+
+        $general = PayrollRun::query()->where('payroll_type', 'general')->count();
+        $project = PayrollRun::query()->where('payroll_type', 'project')->count();
+
         return Inertia::render('mis/hr/Payroll/Index', [
             'payrollRuns' => $payrollRuns,
             'projects' => $this->activeProjects(),
+            'stats' => [
+                'total' => PayrollRun::query()->count(),
+                'processed' => (int) ($byStatus['processed'] ?? 0),
+                'draft' => (int) ($byStatus['draft'] ?? 0),
+                'general' => $general,
+                'project' => $project,
+                'by_status' => $byStatus,
+            ],
+            'chart' => [
+                'status' => [
+                    ['key' => 'processed', 'label' => 'Processed', 'value' => (int) ($byStatus['processed'] ?? 0)],
+                    ['key' => 'draft', 'label' => 'Draft', 'value' => (int) ($byStatus['draft'] ?? 0)],
+                    ['key' => 'general', 'label' => 'General', 'value' => $general],
+                    ['key' => 'project', 'label' => 'Project', 'value' => $project],
+                ],
+                'monthly' => $this->countCreatedByMonth(PayrollRun::query()),
+            ],
             'filters' => [
                 'date_from' => $period['date_from']->toDateString(),
                 'date_to' => $period['date_to']->toDateString(),
@@ -79,6 +106,45 @@ class PayrollRunController extends Controller
                 'project_id' => $projectId,
             ],
         ]);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\Hr\PayrollRun>  $query
+     * @return list<array{key: string, label: string, value: int}>
+     */
+    protected function countCreatedByMonth($query): array
+    {
+        $to = Carbon::now()->endOfMonth();
+        $from = Carbon::now()->subMonths(5)->startOfMonth();
+
+        $buckets = [];
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $key = $cursor->format('Y-m');
+            $buckets[$key] = [
+                'key' => $key,
+                'label' => $cursor->format('M'),
+                'value' => 0,
+            ];
+            $cursor = $cursor->addMonth();
+        }
+
+        $rows = $query
+            ->whereDate('created_at', '>=', $from->toDateString())
+            ->whereDate('created_at', '<=', $to->toDateString())
+            ->get(['created_at']);
+
+        foreach ($rows as $row) {
+            if (! $row->created_at) {
+                continue;
+            }
+            $key = $row->created_at->format('Y-m');
+            if (isset($buckets[$key])) {
+                $buckets[$key]['value']++;
+            }
+        }
+
+        return array_values($buckets);
     }
 
     public function store(Request $request): RedirectResponse
@@ -215,6 +281,7 @@ class PayrollRunController extends Controller
             'base' => $rows->sum('base_amount'),
             'bonus' => $rows->sum('bonus'),
             'deductions' => $rows->sum('deductions'),
+            'tax' => $rows->sum('tax'),
             'advance' => $rows->sum('advance'),
             'net' => $rows->sum('net_amount'),
         ];
@@ -293,10 +360,14 @@ class PayrollRunController extends Controller
         $bonus = (float) ($validated['bonus'] ?? 0);
         $deductions = (float) ($validated['deductions'] ?? 0);
         $advance = (float) ($validated['advance'] ?? 0);
+        $tax = $this->calculator->calculateAfghanistanWageTax(
+            (float) $payrollItem->base_amount + $bonus,
+        );
 
         $payrollItem->update([
             'bonus' => $bonus,
             'deductions' => $deductions,
+            'tax' => $tax,
             'advance' => $advance,
             'notes' => $validated['notes'] ?? $payrollItem->notes,
             'net_amount' => PayrollItem::calculateNetAmount(
@@ -304,6 +375,7 @@ class PayrollRunController extends Controller
                 $bonus,
                 $deductions,
                 $advance,
+                $tax,
             ),
         ]);
 
@@ -364,6 +436,9 @@ class PayrollRunController extends Controller
             }
 
             $deductions = $calculation['absence_deduction'] + $adjustments['deductions'];
+            $tax = $this->calculator->calculateAfghanistanWageTax(
+                $baseAmount + $adjustments['bonus'],
+            );
 
             $item = PayrollItem::query()->create([
                 'payroll_run_id' => $payrollRun->id,
@@ -374,12 +449,14 @@ class PayrollRunController extends Controller
                 'base_amount' => $baseAmount,
                 'bonus' => $adjustments['bonus'],
                 'deductions' => $deductions,
+                'tax' => $tax,
                 'advance' => $adjustments['advance'],
                 'net_amount' => PayrollItem::calculateNetAmount(
                     $baseAmount,
                     $adjustments['bonus'],
                     $deductions,
                     $adjustments['advance'],
+                    $tax,
                 ),
                 'currency' => $calculation['currency'],
                 'notes' => null,
@@ -426,6 +503,10 @@ class PayrollRunController extends Controller
                 $payrollRun->period_month,
             );
 
+            $tax = $this->calculator->calculateAfghanistanWageTax(
+                $adjustments['salary'] + $adjustments['bonus'],
+            );
+
             $item = PayrollItem::query()->create([
                 'payroll_run_id' => $payrollRun->id,
                 'personnel_type' => $first->personnel_type,
@@ -434,12 +515,14 @@ class PayrollRunController extends Controller
                 'base_amount' => $adjustments['salary'],
                 'bonus' => $adjustments['bonus'],
                 'deductions' => $adjustments['deductions'],
+                'tax' => $tax,
                 'advance' => $adjustments['advance'],
                 'net_amount' => PayrollItem::calculateNetAmount(
                     $adjustments['salary'],
                     $adjustments['bonus'],
                     $adjustments['deductions'],
                     $adjustments['advance'],
+                    $tax,
                 ),
                 'currency' => 'AFN',
                 'notes' => 'Generated from salary adjustment',
@@ -639,6 +722,7 @@ class PayrollRunController extends Controller
             'base_amount' => (float) $item->base_amount,
             'bonus' => (float) $item->bonus,
             'deductions' => (float) $item->deductions,
+            'tax' => (float) $item->tax,
             'advance' => (float) $item->advance,
             'net_amount' => (float) $item->net_amount,
             'currency' => $item->currency ?? 'AFN',

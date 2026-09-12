@@ -3,7 +3,7 @@ import { Form, Head, Link, router } from '@inertiajs/vue3';
 import { Archive, Download, FileText } from '@lucide/vue';
 import ArchiveDocumentFields from '@/components/archive/ArchiveDocumentFields.vue';
 import Can from '@/components/Can.vue';
-import MisPage from '@/components/MisPage.vue';
+import { V2DetailHero, V2ListPage } from '@/components/v2';
 import RichTextContent from '@/components/RichTextContent.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -108,32 +108,20 @@ const moveToLongTermArchive = (): void => {
 <template>
     <Head :title="document.title" />
 
-    <MisPage>
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div class="space-y-2">
-                <h1 class="text-2xl font-semibold tracking-tight">
-                    {{ document.title }}
-                </h1>
-                <p
-                    v-if="document.reference_number"
-                    class="font-mono text-sm text-muted-foreground"
-                >
-                    {{ document.reference_number }}
-                </p>
-                <div class="flex flex-wrap gap-2">
-                    <Badge v-if="document.direction" variant="outline">
-                        {{ document.direction }}
-                    </Badge>
-                    <Badge v-if="document.document_category" variant="secondary">
-                        {{ document.document_category.name }}
-                    </Badge>
-                    <Badge v-if="document.version" variant="outline">
-                        v{{ document.version }}
-                    </Badge>
-                </div>
-            </div>
-
-            <div class="flex shrink-0 flex-wrap gap-2">
+    <V2ListPage>
+        <V2DetailHero image="/images/gs-hero-operations.png">
+            <template #eyebrow>{{ t('Archive') }}</template>
+            <template #title>{{ document.title }}</template>
+            <template #description>
+                {{ document.reference_number ?? '' }}
+            </template>
+            <template #actions>
+                <Badge v-if="document.direction" variant="outline">
+                    {{ document.direction }}
+                </Badge>
+                <Badge v-if="document.document_category" variant="secondary">
+                    {{ document.document_category.name }}
+                </Badge>
                 <Button
                     v-if="document.download_url"
                     variant="default"
@@ -154,8 +142,8 @@ const moveToLongTermArchive = (): void => {
                 >
                     {{ t('Move to long-term archive') }}
                 </Button>
-            </div>
-        </div>
+            </template>
+        </V2DetailHero>
 
         <div class="grid gap-6 xl:grid-cols-2">
             <Card>
@@ -213,7 +201,7 @@ const moveToLongTermArchive = (): void => {
                             </p>
                             <Link
                                 v-if="document.project"
-                                :href="`/projects/${document.project.id}`"
+                                :href="`/mis/projects/${document.project.id}`"
                                 class="hover:underline"
                             >
                                 {{ document.project.code }} — {{ document.project.name }}
@@ -293,5 +281,5 @@ const moveToLongTermArchive = (): void => {
                 </Card>
             </Can>
         </div>
-    </MisPage>
+    </V2ListPage>
 </template>

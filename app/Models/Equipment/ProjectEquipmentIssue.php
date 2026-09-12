@@ -6,6 +6,7 @@ use App\Models\Project\Project;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProjectEquipmentIssue extends Model
 {
@@ -39,6 +40,11 @@ class ProjectEquipmentIssue extends Model
     public function issuedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'issued_by');
+    }
+
+    public function returns(): HasMany
+    {
+        return $this->hasMany(ProjectEquipmentReturn::class);
     }
 
     public function quantityOutstanding(): int

@@ -11,7 +11,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Project\StoreProjectRequest;
 use App\Http\Requests\Project\UpdateProjectRequest;
 use App\Models\Equipment\EquipmentCatalog;
-use App\Models\Finance\Currency;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
 use App\Models\Hr\Contractor;
@@ -22,8 +21,10 @@ use App\Models\Procurement\CompetitorBid;
 use App\Models\Project\Project;
 use App\Models\Project\ProjectDetail;
 use App\Services\ProjectActivityLogger;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -38,9 +39,10 @@ class ProjectController extends Controller
         $search = $request->string('search')->trim()->toString();
         $status = $request->string('status')->trim()->toString();
 
-        $projects = Project::query()
+        $baseQuery = Project::query()->where('is_archived', false);
+
+        $projects = (clone $baseQuery)
             ->with('organization.organizationType')
-            ->where('is_archived', false)
             ->when($search, fn ($query) => $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('code', 'like', "%{$search}%")
@@ -51,17 +53,83 @@ class ProjectController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        $byStatus = (clone $baseQuery)
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+
+        $active = (int) ($byStatus[ProjectStatus::Active->value] ?? 0);
+        $planning = (int) ($byStatus[ProjectStatus::Draft->value] ?? 0)
+            + (int) ($byStatus[ProjectStatus::Submitted->value] ?? 0);
+        $wonOrContracted = (int) ($byStatus[ProjectStatus::Won->value] ?? 0) + $active;
+
         return Inertia::render('mis/projects/Index', [
             'projects' => $projects,
             'statusOptions' => collect(ProjectStatus::cases())->map(fn ($s) => [
                 'value' => $s->value,
                 'label' => ucfirst($s->value),
             ]),
+            'stats' => [
+                'total' => (clone $baseQuery)->count(),
+                'active' => $active,
+                'planning' => $planning,
+                'won_or_contracted' => $wonOrContracted,
+                'by_status' => $byStatus,
+            ],
+            'chart' => [
+                'status' => collect(ProjectStatus::cases())->map(fn (ProjectStatus $case) => [
+                    'key' => $case->value,
+                    'label' => ucfirst(str_replace('_', ' ', $case->value)),
+                    'value' => (int) ($byStatus[$case->value] ?? 0),
+                ])->values()->all(),
+                'monthly' => $this->countCreatedByMonth(clone $baseQuery),
+            ],
             'filters' => [
                 'search' => $search ?: null,
                 'status' => $status ?: null,
             ],
         ]);
+    }
+
+    /**
+     * @param  Builder<Project>  $query
+     * @return list<array{key: string, label: string, value: int}>
+     */
+    protected function countCreatedByMonth($query): array
+    {
+        $to = Carbon::now()->endOfMonth();
+        $from = Carbon::now()->subMonths(5)->startOfMonth();
+
+        $buckets = [];
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $key = $cursor->format('Y-m');
+            $buckets[$key] = [
+                'key' => $key,
+                'label' => $cursor->format('M'),
+                'value' => 0,
+            ];
+            $cursor = $cursor->addMonth();
+        }
+
+        $rows = $query
+            ->whereDate('created_at', '>=', $from->toDateString())
+            ->whereDate('created_at', '<=', $to->toDateString())
+            ->get(['created_at']);
+
+        foreach ($rows as $row) {
+            if (! $row->created_at) {
+                continue;
+            }
+            $key = $row->created_at->format('Y-m');
+            if (isset($buckets[$key])) {
+                $buckets[$key]['value']++;
+            }
+        }
+
+        return array_values($buckets);
     }
 
     public function create(Request $request): Response
@@ -127,7 +195,13 @@ class ProjectController extends Controller
             'incomes' => fn ($q) => $q->with('attachments')->latest('transaction_date')->limit(20),
             'expenses' => fn ($q) => $q->with('attachments')->latest('transaction_date')->limit(20),
             'shareholders' => fn ($q) => $q->with(['transactions' => fn ($tq) => $tq->latest('transaction_date')->limit(10)]),
-            'equipmentIssues' => fn ($q) => $q->with('equipmentCatalog')->latest(),
+            'equipmentIssues' => fn ($q) => $q
+                ->with([
+                    'equipmentCatalog',
+                    'issuedBy',
+                    'returns' => fn ($rq) => $rq->with('receivedBy')->latest(),
+                ])
+                ->latest(),
         ]);
 
         $income = $project->incomes()->sum('amount');

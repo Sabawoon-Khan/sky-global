@@ -1,25 +1,37 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-import { ClipboardList, Plus, Printer, Wallet } from '@lucide/vue';
-import Can from '@/components/Can.vue';
-import MisPage from '@/components/MisPage.vue';
-import MisPagination from '@/components/MisPagination.vue';
-import RowActionsMenu from '@/components/RowActionsMenu.vue';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+    Briefcase,
+    FileCheck,
+    Layers3,
+    Plus,
+    Printer,
+    Wallet,
+} from '@lucide/vue';
+import Can from '@/components/Can.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
+import TableIndexTd from '@/components/TableIndexTd.vue';
+import TableIndexTh from '@/components/TableIndexTh.vue';
+import {
+    V2FilterBar,
+    V2Hero,
+    V2IndicatorCard,
+    V2ListPage,
+    V2Pager,
+    V2StatCard,
+    V2StatGrid,
+    V2TablePanel,
+} from '@/components/v2';
+import { indexTableColumn } from '@/composables/useTableColumns';
 import { useMisPage } from '@/composables/useMisPage';
+import { provideTableSort } from '@/composables/useTableSort';
 import { formatCurrency, formatNumber, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
-import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface ProjectOption {
     id: number;
@@ -43,9 +55,27 @@ interface PayrollRun {
     created_by_name?: string | null;
 }
 
+interface ChartPoint {
+    key: string;
+    label: string;
+    value: number;
+}
+
 interface Props {
     payrollRuns: Paginated<PayrollRun>;
     projects: ProjectOption[];
+    stats: {
+        total: number;
+        processed: number;
+        draft: number;
+        general: number;
+        project: number;
+        by_status?: Record<string, number>;
+    };
+    chart: {
+        status: ChartPoint[];
+        monthly: ChartPoint[];
+    };
     filters?: {
         date_from?: string;
         date_to?: string;
@@ -58,6 +88,74 @@ interface Props {
 const props = defineProps<Props>();
 
 const { t, viewAction, deleteAction } = useMisPage();
+
+const onlyKeys = ['payrollRuns', 'projects', 'stats', 'chart', 'filters'];
+const { sortedRows } = provideTableSort(() => props.payrollRuns.data);
+
+const statusPalette = [
+    'var(--school-navy)',
+    'var(--brand-accent)',
+    'var(--school-gold)',
+    'var(--muted-foreground)',
+    '#3d5a80',
+    '#8b9bb4',
+];
+
+const pipeline = computed(() => {
+    const rows = (props.chart?.status ?? []).filter((row) => row.value > 0);
+    const total = Math.max(
+        rows.reduce((sum, row) => sum + row.value, 0),
+        props.stats.total,
+        1,
+    );
+    const processedShare =
+        total > 0 ? Math.round((props.stats.processed / total) * 100) : 0;
+
+    return {
+        processedShare,
+        segments: rows.map((row, index) => ({
+            key: row.key,
+            label: row.label,
+            value: row.value,
+            color: statusPalette[index % statusPalette.length],
+            width: Math.max(row.value > 0 ? 6 : 0, (row.value / total) * 100),
+        })),
+    };
+});
+
+const monthlyBars = computed(() => {
+    const rows =
+        props.chart?.monthly?.length > 0
+            ? props.chart.monthly
+            : Array.from({ length: 6 }, (_, index) => ({
+                  key: `m-${index}`,
+                  label: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'][index],
+                  value: 0,
+              }));
+    const max = Math.max(...rows.map((row) => Number(row.value) || 0), 1);
+
+    return rows.map((row) => {
+        const value = Number(row.value) || 0;
+        return {
+            key: row.key,
+            label: row.label,
+            value,
+            height: Math.max(value > 0 ? 6 : 3, Math.round((value / max) * 44)),
+            peak: value === max && value > 0,
+        };
+    });
+});
+
+const tableColumns = computed(() => [
+    indexTableColumn(),
+    { key: 'title', label: t('Payroll') },
+    { key: 'type', label: t('Type') },
+    { key: 'range', label: t('Date range') },
+    { key: 'project', label: t('Project') },
+    { key: 'staff', label: t('Staff') },
+    { key: 'total', label: t('Total net') },
+    { key: 'actions', label: t('Actions'), locked: true },
+]);
 
 const newPayrollType = ref<'general' | 'project'>('general');
 const newProjectId = ref<string>('');
@@ -103,20 +201,9 @@ const listTitle = computed(() => {
     return t('All payroll runs');
 });
 
-const runStats = computed(() => [
-    {
-        label: t('Total runs'),
-        value: formatNumber(props.payrollRuns.meta?.total ?? props.payrollRuns.data.length),
-        icon: Wallet,
-        accent: 'bg-primary/10 text-primary',
-    },
-    {
-        label: t('On this page'),
-        value: formatNumber(props.payrollRuns.data.length),
-        icon: ClipboardList,
-        accent: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-    },
-]);
+const totalRuns = computed(
+    () => props.payrollRuns.meta?.total ?? props.payrollRuns.data.length,
+);
 
 const printUrl = (run: PayrollRun): string =>
     `/hr/payroll/${run.id}/print`;
@@ -145,21 +232,14 @@ const payrollActions = (run: PayrollRun): RowActionItem[] => [
 <template>
     <Head :title="t('Payroll')" />
 
-    <MisPage>
-        <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <div class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Wallet class="size-5" />
-                </div>
-                <div>
-                    <h1 class="text-xl font-semibold tracking-tight">
-                        {{ t('Payroll') }}
-                    </h1>
-                    <p class="text-sm text-muted-foreground">
-                        {{ t('Generate payroll from attendance in one click.') }}
-                    </p>
-                </div>
-            </div>
+    <V2ListPage>
+        <V2Hero image="/images/gs-hero-people.png">
+            <template #eyebrow>{{ t('HR') }}</template>
+            <template #title>{{ t('Payroll') }}</template>
+            <template #description>
+                {{ t('Generate payroll from attendance in one click.') }}
+            </template>
+            <template #side>
             <Can permission="hr.create">
                 <Form
                     action="/hr/payroll"
@@ -248,39 +328,116 @@ const payrollActions = (run: PayrollRun): RowActionItem[] => [
                     </Button>
                 </Form>
             </Can>
-        </div>
 
-        <div class="grid gap-3 sm:grid-cols-2">
-            <div
-                v-for="stat in runStats"
-                :key="stat.label"
-                class="flex items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm"
-            >
-                <div
-                    :class="
-                        cn(
-                            'flex size-9 items-center justify-center rounded-lg',
-                            stat.accent,
-                        )
-                    "
-                >
-                    <component :is="stat.icon" class="size-4" />
-                </div>
-                <div>
-                    <p class="text-xs text-muted-foreground">{{ stat.label }}</p>
-                    <p class="text-2xl font-bold tabular-nums tracking-tight">
-                        {{ stat.value }}
-                    </p>
-                </div>
-            </div>
-        </div>
+                <div class="hero-cards">
+                    <V2IndicatorCard card-class="inventory-card">
+                        <template #head>{{ t('Run status') }}</template>
+                        <template #meta
+                            >{{ pipeline.processedShare }}%
+                            {{ t('Processed') }}</template
+                        >
 
-        <Card class="overflow-hidden border-border/60 shadow-sm">
-            <CardHeader class="border-b bg-muted/10 pb-4">
-                <div class="flex flex-wrap items-end justify-between gap-3">
-                    <CardTitle class="text-base font-semibold">
-                        {{ listTitle }}
-                    </CardTitle>
+                        <div class="inventory-hero">
+                            <div class="inventory-hero-copy">
+                                <strong>{{
+                                    formatNumber(stats.processed)
+                                }}</strong>
+                                <small>{{ t('Processed') }}</small>
+                            </div>
+                        </div>
+
+                        <div class="inventory-bar" aria-hidden="true">
+                            <i
+                                v-for="seg in pipeline.segments"
+                                :key="seg.key"
+                                :style="{
+                                    width: `${seg.width}%`,
+                                    background: seg.color,
+                                }"
+                            />
+                        </div>
+
+                        <ul class="indicator-list compact">
+                            <li
+                                v-for="seg in pipeline.segments.slice(0, 4)"
+                                :key="seg.key"
+                            >
+                                <i :style="{ background: seg.color }" />
+                                <span>{{ seg.label }}</span>
+                                <b>{{ formatNumber(seg.value) }}</b>
+                            </li>
+                        </ul>
+                    </V2IndicatorCard>
+
+                    <V2IndicatorCard card-class="money-card">
+                        <template #head>{{ t('Created by month') }}</template>
+                        <template #meta
+                            >{{ formatNumber(stats.total) }}
+                            {{ t('Total') }}</template
+                        >
+
+                        <div class="money-chart">
+                            <div
+                                v-for="bar in monthlyBars"
+                                :key="bar.key"
+                                class="money-col"
+                                :class="{ peak: bar.peak }"
+                                :title="`${bar.label}: ${bar.value}`"
+                            >
+                                <div class="money-pair">
+                                    <i
+                                        class="usd"
+                                        :style="{ height: `${bar.height}px` }"
+                                    />
+                                </div>
+                                <span>{{ bar.label }}</span>
+                            </div>
+                        </div>
+                    </V2IndicatorCard>
+                </div>
+            </template>
+
+            <template #stats>
+                <V2StatGrid>
+                    <V2StatCard
+                        :delay="0"
+                        :title="t('Payroll runs')"
+                        :value="formatNumber(stats.total)"
+                    >
+                        <template #icon><Wallet /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="1"
+                        icon-tone="warm"
+                        :title="t('Processed')"
+                        :value="formatNumber(stats.processed)"
+                    >
+                        <template #icon><FileCheck /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="2"
+                        icon-tone="teal"
+                        :title="t('General')"
+                        :value="formatNumber(stats.general)"
+                    >
+                        <template #icon><Layers3 /></template>
+                    </V2StatCard>
+                    <V2StatCard
+                        :delay="3"
+                        accent
+                        icon-tone="orange"
+                        :title="t('Project')"
+                        :value="formatNumber(stats.project)"
+                    >
+                        <template #icon><Briefcase /></template>
+                    </V2StatCard>
+                </V2StatGrid>
+            </template>
+        </V2Hero>
+
+        <V2TablePanel table-id="hr-payroll" :columns="tableColumns">
+            <template #filters>
+                <V2FilterBar>
                     <form
                         method="get"
                         action="/hr/payroll"
@@ -306,7 +463,7 @@ const payrollActions = (run: PayrollRun): RowActionItem[] => [
                         />
                         <select
                             name="project_id"
-                            class="h-9 min-w-[8rem] rounded-md border border-input bg-background px-3 text-sm shadow-xs"
+                            class="mis-form-select h-9 min-w-[8rem]"
                         >
                             <option value="">{{ t('All projects') }}</option>
                             <option
@@ -318,78 +475,82 @@ const payrollActions = (run: PayrollRun): RowActionItem[] => [
                                 {{ project.code }}
                             </option>
                         </select>
-                        <Button type="submit" variant="outline" class="h-9 shadow-sm">
+                        <Button type="submit" variant="outline" class="h-9">
                             {{ t('Filter') }}
                         </Button>
                     </form>
-                </div>
-            </CardHeader>
-            <CardContent class="space-y-4 pt-4">
-                <div
-                    v-if="payrollRuns.data.length === 0"
-                    class="rounded-xl border border-dashed bg-muted/10 px-4 py-12 text-center text-sm text-muted-foreground"
-                >
-                    {{ t('No payroll runs yet. Record attendance first, then generate payroll.') }}
-                </div>
+                </V2FilterBar>
+            </template>
 
-                <div v-else class="overflow-x-auto rounded-xl border">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b bg-muted/30 text-start text-xs uppercase tracking-wide text-muted-foreground">
-                                <th class="px-4 py-3 font-semibold">{{ t('Payroll') }}</th>
-                                <th class="px-4 py-3 font-semibold">{{ t('Type') }}</th>
-                                <th class="px-4 py-3 font-semibold">{{ t('Date range') }}</th>
-                                <th class="px-4 py-3 font-semibold">{{ t('Project') }}</th>
-                                <th class="px-4 py-3 font-semibold">{{ t('Staff') }}</th>
-                                <th class="px-4 py-3 font-semibold">{{ t('Total net') }}</th>
-                                <th class="px-4 py-3 text-end font-semibold">{{ t('Actions') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr
-                                v-for="run in payrollRuns.data"
-                                :key="run.id"
-                                class="border-b transition-colors last:border-0 hover:bg-muted/20"
-                            >
-                                <td class="px-4 py-3">
-                                    <Link
-                                        :href="`/hr/payroll/${run.id}`"
-                                        class="font-medium hover:text-primary hover:underline"
-                                    >
-                                        {{ run.title }}
-                                    </Link>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <Badge :variant="typeVariant(run.payroll_type)">
-                                        {{ typeLabel(run.payroll_type) }}
-                                    </Badge>
-                                </td>
-                                <td class="px-4 py-3 text-muted-foreground tabular-nums">
-                                    {{ formatDate(run.date_from) }}
-                                    —
-                                    {{ formatDate(run.date_to) }}
-                                </td>
-                                <td class="px-4 py-3 text-muted-foreground">
-                                    {{ run.project?.code ?? '—' }}
-                                </td>
-                                <td class="px-4 py-3">
-                                    <span class="inline-flex min-w-[2rem] justify-center rounded-md bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums">
-                                        {{ run.items_count ?? 0 }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 font-medium tabular-nums">
-                                    {{ formatCurrency(Number(run.total_net ?? 0)) }}
-                                </td>
-                                <td class="px-4 py-3 text-end">
-                                    <RowActionsMenu :actions="payrollActions(run)" />
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+            <template #default="{ visibleColCount }">
+                <table>
+                    <thead>
+                        <tr>
+                            <TableIndexTh />
+                            <th>{{ t('Payroll') }}</th>
+                            <th>{{ t('Type') }}</th>
+                            <th>{{ t('Date range') }}</th>
+                            <th>{{ t('Project') }}</th>
+                            <th>{{ t('Staff') }}</th>
+                            <th>{{ t('Total net') }}</th>
+                            <th class="end">{{ t('Actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            v-for="(run, index) in sortedRows"
+                            :key="run.id"
+                            :style="{ '--i': index }"
+                        >
+                            <TableIndexTd
+                                :index="index"
+                                :from="payrollRuns.meta?.from"
+                            />
+                            <td>
+                                <Link
+                                    :href="`/hr/payroll/${run.id}`"
+                                    class="code-chip"
+                                >
+                                    {{ run.title }}
+                                </Link>
+                            </td>
+                            <td>{{ typeLabel(run.payroll_type) }}</td>
+                            <td class="muted nowrap">
+                                {{ formatDate(run.date_from) }}
+                                —
+                                {{ formatDate(run.date_to) }}
+                            </td>
+                            <td class="muted">
+                                {{ run.project?.code ?? '—' }}
+                            </td>
+                            <td>{{ run.items_count ?? 0 }}</td>
+                            <td class="nums">
+                                {{
+                                    formatCurrency(Number(run.total_net ?? 0))
+                                }}
+                            </td>
+                            <td class="end">
+                                <RowActionsMenu
+                                    :actions="payrollActions(run)"
+                                />
+                            </td>
+                        </tr>
+                        <EmptyState
+                            v-if="!payrollRuns.data.length"
+                            :colspan="visibleColCount"
+                            :title="
+                                t(
+                                    'No payroll runs yet. Record attendance first, then generate payroll.',
+                                )
+                            "
+                        />
+                    </tbody>
+                </table>
+            </template>
 
-                <MisPagination :pagination="payrollRuns" />
-            </CardContent>
-        </Card>
-    </MisPage>
+            <template v-if="payrollRuns.links?.length" #pager>
+                <V2Pager :items="payrollRuns" :only="onlyKeys" />
+            </template>
+        </V2TablePanel>
+    </V2ListPage>
 </template>
