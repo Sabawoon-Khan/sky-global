@@ -710,6 +710,7 @@ class PayrollRunController extends Controller
         $attendanceSummary = $this->formatAttendanceSummary($attendance);
 
         return [
+            'id' => $item->id,
             'no' => $index + 1,
             'name' => trim(($item->personnel?->first_name ?? '').' '.($item->personnel?->last_name ?? '')) ?: "#{$item->personnel_id}",
             'designation' => '—',

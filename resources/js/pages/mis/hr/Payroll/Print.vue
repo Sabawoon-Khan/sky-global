@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { Printer } from '@lucide/vue';
 import AppLogoImage from '@/components/AppLogoImage.vue';
+import PayrollPrintPersonnelPicker from '@/components/PayrollPrintPersonnelPicker.vue';
 import { Button } from '@/components/ui/button';
 import { useMisPage } from '@/composables/useMisPage';
 import { formatAfn } from '@/lib/format';
 
 interface PayrollRow {
+    id: number;
     no: number;
     name: string;
     designation: string;
@@ -63,20 +65,98 @@ const props = defineProps<Props>();
 
 const { t } = useMisPage();
 
+const allIds = (): number[] => [
+    ...props.employees.map((row) => row.id),
+    ...props.contractors.map((row) => row.id),
+];
+
+const requestedIds = (): number[] => {
+    if (typeof window === 'undefined') {
+        return [];
+    }
+
+    const items = new URLSearchParams(window.location.search).get('items');
+
+    if (!items) {
+        return [];
+    }
+
+    const allowed = new Set(allIds());
+
+    return items
+        .split(',')
+        .map((value) => Number(value))
+        .filter((id) => Number.isInteger(id) && allowed.has(id));
+};
+
+const initialSelectedIds = (): number[] => {
+    const requested = requestedIds();
+
+    return requested.length > 0 ? requested : allIds();
+};
+
+const selectedIds = ref<number[]>(initialSelectedIds());
+
+const employeeOptions = computed(() =>
+    props.employees.map((row) => ({ id: row.id, name: row.name })),
+);
+const contractorOptions = computed(() =>
+    props.contractors.map((row) => ({ id: row.id, name: row.name })),
+);
+
+const selectedSet = computed(() => new Set(selectedIds.value));
+
+const numberRows = (rows: PayrollRow[]): PayrollRow[] =>
+    rows.map((row, index) => ({ ...row, no: index + 1 }));
+
+const selectedEmployees = computed(() =>
+    numberRows(props.employees.filter((row) => selectedSet.value.has(row.id))),
+);
+const selectedContractors = computed(() =>
+    numberRows(
+        props.contractors.filter((row) => selectedSet.value.has(row.id)),
+    ),
+);
+
+const sumTotals = (rows: PayrollRow[]): Totals => ({
+    base: rows.reduce((sum, row) => sum + row.base_amount, 0),
+    bonus: rows.reduce((sum, row) => sum + row.bonus, 0),
+    deductions: rows.reduce((sum, row) => sum + row.deductions, 0),
+    tax: rows.reduce((sum, row) => sum + row.tax, 0),
+    advance: rows.reduce((sum, row) => sum + row.advance, 0),
+    net: rows.reduce((sum, row) => sum + row.net_amount, 0),
+});
+
+const selectedEmployeeTotals = computed(() =>
+    sumTotals(selectedEmployees.value),
+);
+const selectedContractorTotals = computed(() =>
+    sumTotals(selectedContractors.value),
+);
+const selectedTotals = computed(() =>
+    sumTotals([...selectedEmployees.value, ...selectedContractors.value]),
+);
+
 const hasItems = computed(
-    () => props.employees.length > 0 || props.contractors.length > 0,
+    () =>
+        selectedEmployees.value.length > 0 ||
+        selectedContractors.value.length > 0,
 );
 
 const amount = (value: number): string => formatAfn(value);
 
 const printPage = (): void => {
+    if (!hasItems.value) {
+        return;
+    }
+
     window.print();
 };
 
 onMounted(() => {
     const params = new URLSearchParams(window.location.search);
 
-    if (params.get('autoprint') === '1') {
+    if (params.get('autoprint') === '1' && hasItems.value) {
         window.setTimeout(() => window.print(), 500);
     }
 });
@@ -87,15 +167,36 @@ onMounted(() => {
 
     <div class="sheet-page">
         <div class="sheet-toolbar no-print">
-            <a :href="`/hr/payroll/${payrollRun.id}`" class="back-link">
-                ← {{ t('Back to payroll') }}
-            </a>
-            <div class="flex items-center gap-2">
-                <span class="period-hint">{{ period_label }}</span>
-                <Button type="button" variant="outline" @click="printPage">
-                    <Printer class="size-4" />
-                    {{ t('Print') }}
-                </Button>
+            <div class="toolbar-row">
+                <a :href="`/hr/payroll/${payrollRun.id}`" class="back-link">
+                    ← {{ t('Back to payroll') }}
+                </a>
+                <div class="flex items-center gap-2">
+                    <span class="period-hint">{{ period_label }}</span>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        :disabled="!hasItems"
+                        @click="printPage"
+                    >
+                        <Printer class="size-4" />
+                        {{ t('Print') }}
+                    </Button>
+                </div>
+            </div>
+
+            <div
+                v-if="employees.length > 0 || contractors.length > 0"
+                class="picker-panel"
+            >
+                <p class="picker-title">
+                    {{ t('Select employees or contractors to print') }}
+                </p>
+                <PayrollPrintPersonnelPicker
+                    v-model="selectedIds"
+                    :employees="employeeOptions"
+                    :contractors="contractorOptions"
+                />
             </div>
         </div>
 
@@ -119,10 +220,21 @@ onMounted(() => {
                 <p><strong>{{ t('Prepared by') }}:</strong> {{ payrollRun.processed_by ?? '—' }}</p>
             </div>
 
-            <p v-if="!hasItems" class="sheet-empty">{{ t('No payroll line items.') }}</p>
+            <p v-if="!hasItems" class="sheet-empty">
+                {{
+                    employees.length > 0 || contractors.length > 0
+                        ? t(
+                              'Select at least one employee or contractor to print.',
+                          )
+                        : t('No payroll line items.')
+                }}
+            </p>
 
             <template v-else>
-                <section v-if="employees.length > 0" class="sheet-section">
+                <section
+                    v-if="selectedEmployees.length > 0"
+                    class="sheet-section"
+                >
                     <h2 class="section-title">{{ t('Employees') }}</h2>
                     <div class="sheet-table-wrap">
                         <table class="sheet-table">
@@ -145,7 +257,10 @@ onMounted(() => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="row in employees" :key="`emp-${row.no}`">
+                                <tr
+                                    v-for="row in selectedEmployees"
+                                    :key="`emp-${row.id}`"
+                                >
                                     <td>{{ row.no }}</td>
                                     <td class="col-name">{{ row.name }}</td>
                                     <td>{{ row.days_present }}</td>
@@ -165,19 +280,22 @@ onMounted(() => {
                             <tfoot>
                                 <tr class="totals-row">
                                     <td colspan="8" class="text-end font-bold">{{ t('Employee totals') }}</td>
-                                    <td class="col-amount font-bold">{{ amount(employee_totals.base) }}</td>
-                                    <td class="col-amount font-bold">{{ amount(employee_totals.bonus) }}</td>
-                                    <td class="col-amount font-bold">{{ amount(employee_totals.deductions) }}</td>
-                                    <td class="col-amount font-bold">{{ amount(employee_totals.tax) }}</td>
-                                    <td class="col-amount font-bold">{{ amount(employee_totals.advance) }}</td>
-                                    <td class="col-amount col-net font-bold">{{ amount(employee_totals.net) }}</td>
+                                    <td class="col-amount font-bold">{{ amount(selectedEmployeeTotals.base) }}</td>
+                                    <td class="col-amount font-bold">{{ amount(selectedEmployeeTotals.bonus) }}</td>
+                                    <td class="col-amount font-bold">{{ amount(selectedEmployeeTotals.deductions) }}</td>
+                                    <td class="col-amount font-bold">{{ amount(selectedEmployeeTotals.tax) }}</td>
+                                    <td class="col-amount font-bold">{{ amount(selectedEmployeeTotals.advance) }}</td>
+                                    <td class="col-amount col-net font-bold">{{ amount(selectedEmployeeTotals.net) }}</td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
                 </section>
 
-                <section v-if="contractors.length > 0" class="sheet-section">
+                <section
+                    v-if="selectedContractors.length > 0"
+                    class="sheet-section"
+                >
                     <h2 class="section-title">{{ t('Contractors') }}</h2>
                     <div class="sheet-table-wrap">
                         <table class="sheet-table">
@@ -200,7 +318,10 @@ onMounted(() => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="row in contractors" :key="`con-${row.no}`">
+                                <tr
+                                    v-for="row in selectedContractors"
+                                    :key="`con-${row.id}`"
+                                >
                                     <td>{{ row.no }}</td>
                                     <td class="col-name">{{ row.name }}</td>
                                     <td>{{ row.days_present }}</td>
@@ -220,12 +341,12 @@ onMounted(() => {
                             <tfoot>
                                 <tr class="totals-row">
                                     <td colspan="8" class="text-end font-bold">{{ t('Contractor totals') }}</td>
-                                    <td class="col-amount font-bold">{{ amount(contractor_totals.base) }}</td>
-                                    <td class="col-amount font-bold">{{ amount(contractor_totals.bonus) }}</td>
-                                    <td class="col-amount font-bold">{{ amount(contractor_totals.deductions) }}</td>
-                                    <td class="col-amount font-bold">{{ amount(contractor_totals.tax) }}</td>
-                                    <td class="col-amount font-bold">{{ amount(contractor_totals.advance) }}</td>
-                                    <td class="col-amount col-net font-bold">{{ amount(contractor_totals.net) }}</td>
+                                    <td class="col-amount font-bold">{{ amount(selectedContractorTotals.base) }}</td>
+                                    <td class="col-amount font-bold">{{ amount(selectedContractorTotals.bonus) }}</td>
+                                    <td class="col-amount font-bold">{{ amount(selectedContractorTotals.deductions) }}</td>
+                                    <td class="col-amount font-bold">{{ amount(selectedContractorTotals.tax) }}</td>
+                                    <td class="col-amount font-bold">{{ amount(selectedContractorTotals.advance) }}</td>
+                                    <td class="col-amount col-net font-bold">{{ amount(selectedContractorTotals.net) }}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -237,12 +358,12 @@ onMounted(() => {
                         <tbody>
                             <tr class="totals-row">
                                 <td class="font-bold">{{ t('Grand total') }}</td>
-                                <td class="col-amount font-bold">{{ amount(totals.base) }}</td>
-                                <td class="col-amount font-bold">{{ amount(totals.bonus) }}</td>
-                                <td class="col-amount font-bold">{{ amount(totals.deductions) }}</td>
-                                <td class="col-amount font-bold">{{ amount(totals.tax) }}</td>
-                                <td class="col-amount font-bold">{{ amount(totals.advance) }}</td>
-                                <td class="col-amount col-net font-bold">{{ amount(totals.net) }}</td>
+                                <td class="col-amount font-bold">{{ amount(selectedTotals.base) }}</td>
+                                <td class="col-amount font-bold">{{ amount(selectedTotals.bonus) }}</td>
+                                <td class="col-amount font-bold">{{ amount(selectedTotals.deductions) }}</td>
+                                <td class="col-amount font-bold">{{ amount(selectedTotals.tax) }}</td>
+                                <td class="col-amount font-bold">{{ amount(selectedTotals.advance) }}</td>
+                                <td class="col-amount col-net font-bold">{{ amount(selectedTotals.net) }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -266,11 +387,30 @@ onMounted(() => {
 
 .sheet-toolbar {
     display: flex;
-    justify-content: space-between;
-    gap: 1rem;
+    flex-direction: column;
+    gap: 0.75rem;
     max-width: 100%;
     margin: 0 auto 0.75rem;
+}
+
+.toolbar-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
     align-items: center;
+}
+
+.picker-panel {
+    background: #fff;
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+}
+
+.picker-title {
+    margin: 0 0 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #111;
 }
 
 .back-link {

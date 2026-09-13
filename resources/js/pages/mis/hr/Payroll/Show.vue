@@ -18,7 +18,17 @@ import EntityAttachments, {
     type EntityAttachment,
 } from '@/components/EntityAttachments.vue';
 import MisTabs from '@/components/MisTabs.vue';
+import PayrollPrintPersonnelPicker from '@/components/PayrollPrintPersonnelPicker.vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import {
     V2DetailHero,
     V2ListPage,
@@ -203,9 +213,58 @@ const adjustmentsUrl = computed(
         `/hr/payroll-adjustments?year=${props.payrollRun.period_year}&month=${props.payrollRun.period_month}`,
 );
 
-const printUrl = computed(
-    () => `/hr/payroll/${props.payrollRun.id}/print?autoprint=1`,
+const printDialogOpen = ref(false);
+const printSelectedIds = ref<number[]>([]);
+
+const printEmployees = computed(() =>
+    employeeItems.value.map((item) => ({
+        id: item.id,
+        name: personnelLabel(item),
+    })),
 );
+
+const printContractors = computed(() =>
+    contractorItems.value.map((item) => ({
+        id: item.id,
+        name: personnelLabel(item),
+    })),
+);
+
+const allPrintIds = computed(() => [
+    ...printEmployees.value.map((person) => person.id),
+    ...printContractors.value.map((person) => person.id),
+]);
+
+function openPrintDialog(): void {
+    printSelectedIds.value = [...allPrintIds.value];
+    printDialogOpen.value = true;
+}
+
+function confirmPrint(): void {
+    if (printSelectedIds.value.length === 0) {
+        return;
+    }
+
+    const params = new URLSearchParams();
+    const selected = new Set(printSelectedIds.value);
+    const printingAll =
+        allPrintIds.value.length > 0 &&
+        allPrintIds.value.every((id) => selected.has(id)) &&
+        selected.size === allPrintIds.value.length;
+
+    if (!printingAll) {
+        params.set('items', printSelectedIds.value.join(','));
+    }
+
+    params.set('autoprint', '1');
+
+    window.open(
+        `/hr/payroll/${props.payrollRun.id}/print?${params.toString()}`,
+        '_blank',
+        'noopener,noreferrer',
+    );
+    printDialogOpen.value = false;
+}
 
 const tableColumns = computed(() => [
     indexTableColumn(),
@@ -274,15 +333,15 @@ function confirmDelete(): void {
                         {{ t('Adjustments') }}
                     </Link>
 
-                    <a
-                        :href="printUrl"
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <button
+                        type="button"
                         class="detail-btn"
+                        :disabled="itemCount === 0"
+                        @click="openPrintDialog"
                     >
                         <Printer />
                         {{ t('Print') }}
-                    </a>
+                    </button>
 
                     <Form
                         :action="`/hr/payroll/${payrollRun.id}/process`"
@@ -566,5 +625,55 @@ function confirmDelete(): void {
             v-if="payrollRun.attachments?.length"
             :attachments="payrollRun.attachments"
         />
+
+        <Dialog v-model:open="printDialogOpen">
+            <DialogContent class="sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>{{ t('Print payroll') }}</DialogTitle>
+                    <DialogDescription>
+                        {{
+                            t(
+                                'Select employees or contractors to print',
+                            )
+                        }}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <PayrollPrintPersonnelPicker
+                    v-model="printSelectedIds"
+                    :employees="printEmployees"
+                    :contractors="printContractors"
+                />
+
+                <p
+                    v-if="printSelectedIds.length === 0"
+                    class="text-sm text-destructive"
+                >
+                    {{
+                        t(
+                            'Select at least one employee or contractor to print.',
+                        )
+                    }}
+                </p>
+
+                <DialogFooter class="gap-2">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        @click="printDialogOpen = false"
+                    >
+                        {{ t('Cancel') }}
+                    </Button>
+                    <Button
+                        type="button"
+                        :disabled="printSelectedIds.length === 0"
+                        @click="confirmPrint"
+                    >
+                        <Printer class="size-4" />
+                        {{ t('Print') }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </V2ListPage>
 </template>

@@ -213,7 +213,7 @@ const payrollActions = (run: PayrollRun): RowActionItem[] => [
     {
         label: t('Print'),
         icon: Printer,
-        href: `${printUrl(run)}?autoprint=1`,
+        href: printUrl(run),
         download: true,
     },
     deleteAction(
