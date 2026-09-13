@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -39,10 +38,7 @@ defineOptions({
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Add currency') }}</CardTitle>
-                    <CardDescription>
-                        {{ t('Add a new currency to the system') }}
-                    </CardDescription>
-                </CardHeader>
+            </CardHeader>
                 <CardContent class="grid gap-4">
                     <div class="grid gap-2">
                         <Label for="currency-code">{{ t('Code') }}</Label>

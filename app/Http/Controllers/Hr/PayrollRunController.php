@@ -16,6 +16,7 @@ use App\Models\Hr\PersonnelPayrollAdjustment;
 use App\Models\Project\Project;
 use App\Services\PayrollCalculationService;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -109,7 +110,7 @@ class PayrollRunController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\Hr\PayrollRun>  $query
+     * @param  Builder<PayrollRun>  $query
      * @return list<array{key: string, label: string, value: int}>
      */
     protected function countCreatedByMonth($query): array
@@ -221,6 +222,12 @@ class PayrollRunController extends Controller
                 ? "Payroll generated with {$itemCount} line items."
                 : 'Payroll created, but no matching attendance records were found.',
         ]);
+
+        $this->notifyMisCreated(
+            'hr',
+            $payrollRun->title ?: __('Payroll'),
+            route('hr.payroll.show', $payrollRun, false),
+        );
 
         return redirect()->route('hr.payroll.show', $payrollRun);
     }
@@ -405,6 +412,12 @@ class PayrollRunController extends Controller
 
             $payrollRun->delete();
         });
+
+        $this->notifyMisDeleted(
+            'hr',
+            $payrollRun->title ?: __('Payroll'),
+            route('hr.payroll.index', [], false),
+        );
 
         Inertia::flash('toast', [
             'type' => 'success',

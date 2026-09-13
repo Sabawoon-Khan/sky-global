@@ -14,7 +14,15 @@ import {
 
 export type SortDir = 'asc' | 'desc';
 
-export type TableSortState<T extends Record<string, unknown> = Record<string, unknown>> = {
+export type SortAccessors<T> = Record<string, (row: T) => unknown>;
+
+export type TableSortOptions<T> = {
+    defaultKey?: string;
+    defaultDir?: SortDir;
+    accessors?: SortAccessors<T>;
+};
+
+export type TableSortState<T = Record<string, unknown>> = {
     sortedRows: Ref<T[]>;
     sortKey: Ref<string>;
     sortDir: Ref<SortDir>;
@@ -22,7 +30,7 @@ export type TableSortState<T extends Record<string, unknown> = Record<string, un
 };
 
 /** Reactive view of table sort state — nested refs auto-unwrap in templates (SSR-safe). */
-export type ReactiveTableSortState<T extends Record<string, unknown> = Record<string, unknown>> =
+export type ReactiveTableSortState<T = Record<string, unknown>> =
     UnwrapNestedRefs<{
         sortedRows: ComputedRef<T[]>;
         sortKey: Ref<string>;
@@ -42,6 +50,22 @@ function getByPath(row: Record<string, unknown>, path: string): unknown {
     }, row);
 }
 
+function numericValue(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+    }
+
+    if (typeof value === 'string') {
+        const trimmed = value.replace(/,/g, '').trim();
+
+        if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+            return Number(trimmed);
+        }
+    }
+
+    return null;
+}
+
 function compareValues(a: unknown, b: unknown): number {
     if (a == null && b == null) {
         return 0;
@@ -53,8 +77,11 @@ function compareValues(a: unknown, b: unknown): number {
         return -1;
     }
 
-    if (typeof a === 'number' && typeof b === 'number') {
-        return a - b;
+    const aNum = numericValue(a);
+    const bNum = numericValue(b);
+
+    if (aNum != null && bNum != null) {
+        return aNum - bNum;
     }
 
     if (typeof a === 'boolean' && typeof b === 'boolean') {
@@ -73,19 +100,29 @@ function compareValues(a: unknown, b: unknown): number {
     return as.localeCompare(bs, undefined, { numeric: true, sensitivity: 'base' });
 }
 
-function createTableSortState<T extends Record<string, unknown>>(
+function createTableSortState<T>(
     rows: MaybeRefOrGetter<T[]>,
-    options: { defaultKey?: string; defaultDir?: SortDir } = {},
+    options: TableSortOptions<T> = {},
 ): TableSortState<T> {
     const sortKey = ref(options.defaultKey ?? 'id');
     const sortDir = ref<SortDir>(options.defaultDir ?? 'desc');
+
+    const valueOf = (row: T, key: string): unknown => {
+        const accessor = options.accessors?.[key];
+
+        if (accessor) {
+            return accessor(row);
+        }
+
+        return getByPath(row as Record<string, unknown>, key);
+    };
 
     const sortedRows = computed(() => {
         const list = [...toValue(rows)];
         const key = sortKey.value;
         const dir = sortDir.value === 'asc' ? 1 : -1;
 
-        list.sort((left, right) => dir * compareValues(getByPath(left, key), getByPath(right, key)));
+        list.sort((left, right) => dir * compareValues(valueOf(left, key), valueOf(right, key)));
 
         return list;
     });
@@ -108,16 +145,16 @@ function createTableSortState<T extends Record<string, unknown>>(
     };
 }
 
-export function useTableSort<T extends Record<string, unknown>>(
+export function useTableSort<T>(
     rows: MaybeRefOrGetter<T[]>,
-    options: { defaultKey?: string; defaultDir?: SortDir } = {},
+    options: TableSortOptions<T> = {},
 ): ReactiveTableSortState<T> {
     return reactive(createTableSortState(rows, options)) as ReactiveTableSortState<T>;
 }
 
-export function provideTableSort<T extends Record<string, unknown>>(
+export function provideTableSort<T>(
     rows: MaybeRefOrGetter<T[]>,
-    options: { defaultKey?: string; defaultDir?: SortDir } = {},
+    options: TableSortOptions<T> = {},
 ): TableSortState<T> {
     const state = createTableSortState(rows, options);
     provide(TABLE_SORT_KEY, state as TableSortState);

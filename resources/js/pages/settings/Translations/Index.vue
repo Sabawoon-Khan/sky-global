@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useLocale } from '@/composables/useLocale';
 import { useTranslations } from '@/composables/useTranslations';
+import { provideTableSort } from '@/composables/useTableSort';
+import SortableTh from '@/components/SortableTh.vue';
 import type { Paginated } from '@/lib/format';
 
 interface TranslationEntry {
@@ -32,6 +33,15 @@ const props = defineProps<Props>();
 
 const { t } = useTranslations();
 const { locales } = useLocale();
+
+const { sortedRows } = provideTableSort(() => props.entries.data, {
+    accessors: {
+        key: (row) => row.key,
+        translation: (row) => row.value,
+    },
+    defaultKey: 'key',
+    defaultDir: 'asc',
+});
 
 defineOptions({
     layout: {
@@ -92,9 +102,6 @@ const saveTranslations = (): void => {
                     <Languages class="size-4" />
                     {{ t('Translations') }}
                 </CardTitle>
-                <CardDescription class="text-xs">
-                    {{ t('Edit application translations. Keys cannot be changed.') }}
-                </CardDescription>
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -165,17 +172,17 @@ const saveTranslations = (): void => {
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="border-b bg-muted/30 text-left text-xs text-muted-foreground">
-                                <th class="w-[42%] px-4 py-2 font-medium">
+                                <SortableTh column="key" class="w-[42%] px-4 py-2 font-medium">
                                     {{ t('Key') }}
-                                </th>
-                                <th class="px-4 py-2 font-medium">
+                                </SortableTh>
+                                <SortableTh column="translation" class="px-4 py-2 font-medium">
                                     {{ t('Translation') }}
-                                </th>
+                                </SortableTh>
                             </tr>
                         </thead>
                         <tbody>
                             <tr
-                                v-for="(entry, index) in entries.data"
+                                v-for="(entry, index) in sortedRows"
                                 :key="entry.key"
                                 class="border-b last:border-b-0 hover:bg-muted/15"
                             >

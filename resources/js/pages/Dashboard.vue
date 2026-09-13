@@ -122,9 +122,14 @@ const tableColumns = computed(() => [
     { key: 'margin', label: t('Margin') },
 ]);
 
-const { sortedRows } = provideTableSort(
-    () => props.projectProfitability as Array<Record<string, unknown>>,
-);
+const { sortedRows } = provideTableSort(() => props.projectProfitability, {
+    accessors: {
+        name: (row) => row.name,
+        income: (row) => row.income,
+        expense: (row) => row.expense,
+        margin: (row) => row.margin,
+    },
+});
 
 defineOptions({
     layout: {
@@ -250,13 +255,6 @@ function openProject(row: Record<string, unknown>) {
         <V2Hero image="/images/gs-hero-dashboard.png" priority>
             <template #eyebrow>{{ todayLabel }}</template>
             <template #title>{{ greeting }}, {{ userName }}</template>
-            <template #description>
-                {{
-                    t(
-                        'Protective operations overview — bidding, sites, finance, and workforce.',
-                    )
-                }}
-            </template>
             <template #side>
                 <div class="detail-actions">
                     <Button as-child variant="outline" size="sm" class="detail-btn">
@@ -335,15 +333,7 @@ function openProject(row: Record<string, unknown>) {
             </template>
         </V2Hero>
 
-        <V2Panel v-if="!stats" :title="t('Limited dashboard access')">
-            <p class="text-sm text-muted-foreground">
-                {{
-                    t(
-                        'Contact your administrator for full access to projects, finance, and analytics.',
-                    )
-                }}
-            </p>
-        </V2Panel>
+        <V2Panel v-if="!stats" :title="t('Limited dashboard access')" />
 
         <template v-else>
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -400,7 +390,6 @@ function openProject(row: Record<string, unknown>) {
                 <MisChartCard
                     class="xl:col-span-3"
                     :title="t('Income vs expenses')"
-                    :description="t('Grouped totals for the selected period')"
                     type="bar"
                     :labels="monthlyChart.labels"
                     :datasets="monthlyChart.datasets"
@@ -419,7 +408,6 @@ function openProject(row: Record<string, unknown>) {
                 <MisChartCard
                     class="xl:col-span-2"
                     :title="t('Top projects')"
-                    :description="t('Income and margin')"
                     type="bar"
                     :labels="projectsChart.labels"
                     :datasets="projectsChart.datasets"

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Enums\ProjectActivityType;
+use App\Http\Controllers\Concerns\AppliesListFilters;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
+use App\Models\Finance\FinanceCategory;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Project\Project;
 use App\Services\ProjectActivityLogger;
@@ -16,17 +18,21 @@ use Inertia\Response;
 
 class ProjectExpenseController extends Controller
 {
-    use AuthorizesMisPermissions, StoresOptionalAttachments;
+    use AppliesListFilters, AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
         $this->authorizePermission($request, 'finance.view');
 
-        $projectId = $request->integer('project_id') ?: null;
+        $filters = $this->listFilters($request, ['pending', 'approved', 'rejected']);
 
         $query = ProjectExpense::query()
-            ->with(['project', 'account', 'attachments'])
-            ->when($projectId, fn ($q) => $q->where('project_id', $projectId));
+            ->with(['project', 'account', 'attachments']);
+        $this->applyListFilters($query, $filters, [
+            'search_columns' => ['description', 'reference_number'],
+            'search_relations' => ['project' => ['code', 'name']],
+            'pending_null' => true,
+        ]);
 
         $expenses = (clone $query)
             ->latest('transaction_date')
@@ -35,6 +41,7 @@ class ProjectExpenseController extends Controller
             ->through(fn (ProjectExpense $expense) => [
                 'id' => $expense->id,
                 'description' => $expense->description,
+                'category' => $expense->category,
                 'amount' => (float) $expense->amount,
                 'amount_usd' => $expense->amount_usd !== null ? (float) $expense->amount_usd : null,
                 'currency' => $expense->currency,
@@ -46,7 +53,25 @@ class ProjectExpenseController extends Controller
 
         return Inertia::render('mis/finance/Expenses/Index', [
             'expenses' => $expenses,
-            'filters' => ['project_id' => $projectId],
+            'projects' => Project::query()
+                ->where('is_archived', false)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name']),
+            'categories' => collect(FinanceCategory::options('expense'))
+                ->pluck('name')
+                ->concat(
+                    ProjectExpense::query()
+                        ->whereNotNull('category')
+                        ->where('category', '!=', '')
+                        ->distinct()
+                        ->orderBy('category')
+                        ->pluck('category')
+                )
+                ->unique()
+                ->sort()
+                ->values()
+                ->all(),
+            'filters' => $filters,
             'stats' => [
                 'total' => (float) (clone $query)->sum('amount'),
                 'count' => (clone $query)->count(),
@@ -66,6 +91,7 @@ class ProjectExpenseController extends Controller
             'exchange_rate' => ['nullable', 'numeric', 'min:0'],
             'amount_usd' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
+            'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],
@@ -89,6 +115,12 @@ class ProjectExpenseController extends Controller
             );
         }
 
+        $this->notifyMisCreated(
+            'finance',
+            $expense->description ?: __('Project expense'),
+            route('finance.expenses', [], false),
+        );
+
         return back()->with('success', 'Expense recorded.');
     }
 
@@ -103,6 +135,7 @@ class ProjectExpenseController extends Controller
             'exchange_rate' => ['nullable', 'numeric', 'min:0'],
             'amount_usd' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
+            'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['sometimes', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],
@@ -111,6 +144,12 @@ class ProjectExpenseController extends Controller
 
         $expense->update($validated);
 
+        $this->notifyMisUpdated(
+            'finance',
+            $expense->description ?: __('Project expense'),
+            route('finance.expenses', [], false),
+        );
+
         return back()->with('success', 'Expense updated.');
     }
 
@@ -118,7 +157,10 @@ class ProjectExpenseController extends Controller
     {
         $this->authorizePermission($request, 'finance.delete');
 
+        $label = $expense->description ?: __('Project expense');
         $expense->delete();
+
+        $this->notifyMisDeleted('finance', $label, route('finance.expenses', [], false));
 
         return back()->with('success', 'Expense deleted.');
     }

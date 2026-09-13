@@ -31,4 +31,35 @@ trait StoresOptionalAttachments
             'uploaded_by' => $request->user()?->id,
         ]);
     }
+
+    protected function storeUploadedAttachments(Request $request, Model $model, string $field = 'documents'): int
+    {
+        $files = $request->file($field);
+
+        if (! is_array($files) || $files === []) {
+            return 0;
+        }
+
+        $stored = 0;
+
+        foreach ($files as $file) {
+            if ($file === null) {
+                continue;
+            }
+
+            $path = $file->store('attachments/'.class_basename($model), 'local');
+
+            $model->attachments()->create([
+                'title' => $file->getClientOriginalName(),
+                'file_path' => $path,
+                'original_filename' => $file->getClientOriginalName(),
+                'file_size' => $file->getSize(),
+                'uploaded_by' => $request->user()?->id,
+            ]);
+
+            $stored++;
+        }
+
+        return $stored;
+    }
 }

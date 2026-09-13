@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Archive;
 
+use App\Http\Controllers\Concerns\AppliesListFilters;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\GeneratesMisReferenceNumbers;
 use App\Http\Controllers\Controller;
@@ -20,23 +21,26 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ArchivedDocumentController extends Controller
 {
-    use AuthorizesMisPermissions, GeneratesMisReferenceNumbers;
+    use AppliesListFilters, AuthorizesMisPermissions, GeneratesMisReferenceNumbers;
 
     public function index(Request $request): Response
     {
         $this->authorizePermission($request, 'archive.view');
 
-        $search = $request->string('search')->trim()->toString();
-        $direction = $request->string('direction')->trim()->toString();
+        $filters = $this->listFilters($request, [], ['direction', 'document_category_id']);
 
-        $documents = ArchivedDocument::query()
+        $query = ArchivedDocument::query()
             ->with(['documentCategory', 'organization', 'project'])
-            ->where('is_archived', false)
-            ->when($search, fn ($query) => $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                    ->orWhere('reference_number', 'like', "%{$search}%");
-            }))
-            ->when($direction, fn ($query) => $query->where('direction', $direction))
+            ->where('is_archived', false);
+        $this->applyListFilters($query, $filters, [
+            'date_column' => 'document_date',
+            'search_columns' => ['title', 'reference_number'],
+        ]);
+        $query
+            ->when($filters['direction'] ?? null, fn ($q, string $direction) => $q->where('direction', $direction))
+            ->when($filters['document_category_id'] ?? null, fn ($q, int $categoryId) => $q->where('document_category_id', $categoryId));
+
+        $documents = (clone $query)
             ->latest('document_date')
             ->paginate(15)
             ->withQueryString();
@@ -66,10 +70,8 @@ class ArchivedDocumentController extends Controller
                     ArchivedDocument::query()->where('is_archived', false)
                 ),
             ],
-            'filters' => [
-                'search' => $search ?: null,
-                'direction' => $direction ?: null,
-            ],
+            'documentCategories' => DocumentCategory::query()->orderBy('name')->get(['id', 'name']),
+            'filters' => $filters,
         ]);
     }
 
@@ -145,7 +147,7 @@ class ArchivedDocumentController extends Controller
         $file = $request->file('file');
         $path = $file->store('archive', 'local');
 
-        ArchivedDocument::query()->create([
+        $document = ArchivedDocument::query()->create([
             ...collect($validated)->except('file')->all(),
             'reference_number' => $this->generateArchiveReferenceNumber(),
             'file_path' => $path,
@@ -153,6 +155,12 @@ class ArchivedDocumentController extends Controller
             'file_size' => $file->getSize(),
             'uploaded_by' => $request->user()->id,
         ]);
+
+        $this->notifyMisCreated(
+            'archive',
+            $document->title,
+            route('archive.show', $document, false),
+        );
 
         return redirect()
             ->route('archive.index')
@@ -229,6 +237,12 @@ class ArchivedDocumentController extends Controller
         unset($validated['file']);
         $archivedDocument->update($validated);
 
+        $this->notifyMisUpdated(
+            'archive',
+            $archivedDocument->title,
+            route('archive.show', $archivedDocument, false),
+        );
+
         return back()->with('success', 'Document updated.');
     }
 
@@ -237,6 +251,13 @@ class ArchivedDocumentController extends Controller
         $this->authorizePermission($request, 'archive.archive');
 
         $archivedDocument->update(['is_archived' => true]);
+
+        $this->notifyMisStatus(
+            'archive',
+            $archivedDocument->title,
+            'archived',
+            route('archive.index', [], false),
+        );
 
         return redirect()
             ->route('archive.index')
@@ -247,7 +268,10 @@ class ArchivedDocumentController extends Controller
     {
         $this->authorizePermission($request, 'archive.delete');
 
+        $title = $archivedDocument->title;
         $archivedDocument->delete();
+
+        $this->notifyMisDeleted('archive', $title, route('archive.index', [], false));
 
         return redirect()
             ->route('archive.index')

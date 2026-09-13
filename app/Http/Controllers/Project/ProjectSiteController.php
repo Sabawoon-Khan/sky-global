@@ -27,6 +27,12 @@ class ProjectSiteController extends Controller
 
         $project->sites()->create($validated);
 
+        $this->notifyMisCreated(
+            'projects',
+            $validated['name'],
+            route('projects.show', $project, false),
+        );
+
         return back()->with('success', 'Site added.');
     }
 

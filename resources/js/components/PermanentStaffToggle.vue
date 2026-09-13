@@ -64,13 +64,6 @@ function togglePermanent(checked: boolean | 'indeterminate'): void {
                     {{ t('Always at office') }}
                 </span>
             </div>
-            <p class="text-sm text-muted-foreground">
-                {{
-                    isPermanent
-                        ? t('Included in general attendance. Not assigned to projects.')
-                        : t('Assigned to projects for attendance and payroll.')
-                }}
-            </p>
             <div v-if="canEdit" class="flex items-center gap-2 pt-2">
                 <Checkbox
                     :id="`permanent-${employeeId}`"

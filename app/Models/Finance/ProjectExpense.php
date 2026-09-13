@@ -3,6 +3,7 @@
 namespace App\Models\Finance;
 
 use App\Concerns\HasAttachments;
+use App\Concerns\LogsCrudActivity;
 use App\Models\Project\Project;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ProjectExpense extends Model
 {
-    use HasAttachments, SoftDeletes;
+    use HasAttachments, LogsCrudActivity, SoftDeletes;
 
     protected $fillable = [
         'project_id',
@@ -22,6 +23,7 @@ class ProjectExpense extends Model
         'exchange_rate',
         'amount_usd',
         'description',
+        'category',
         'transaction_date',
         'reference_number',
         'payment_method',

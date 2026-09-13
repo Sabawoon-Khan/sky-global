@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasStatusChangeLogs;
+use App\Concerns\LogsCrudActivity;
 use App\Models\Hr\Employee;
 use App\Models\Project\Project;
 use Database\Factories\UserFactory;
@@ -15,14 +16,12 @@ use Illuminate\Support\Facades\DB;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
-use Spatie\Activitylog\Models\Concerns\LogsActivity;
-use Spatie\Activitylog\Support\LogOptions;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, HasStatusChangeLogs, LogsActivity, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+    use HasFactory, HasRoles, HasStatusChangeLogs, LogsCrudActivity, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /** @use HasFactory<UserFactory> */
     protected $fillable = [
@@ -51,11 +50,6 @@ class User extends Authenticatable implements PasskeyUser
             'disabled_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
         ];
-    }
-
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()->logOnly(['name', 'email', 'is_active'])->logOnlyDirty();
     }
 
     public function employee(): BelongsTo
@@ -200,6 +194,7 @@ class User extends Authenticatable implements PasskeyUser
             ['general_expenses', 'approved_by'],
             ['invoices', 'created_by'],
             ['payments', 'created_by'],
+            ['tax_payments', 'created_by'],
             ['attendance_sheets', 'created_by'],
             ['personnel_attendances', 'approved_by'],
             ['payroll_runs', 'processed_by'],

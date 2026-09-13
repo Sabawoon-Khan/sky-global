@@ -26,6 +26,8 @@ class ProcurementOpportunityController extends Controller
 
         $search = $request->string('search')->trim()->toString();
         $status = $request->string('status')->trim()->toString();
+        $dateFrom = $request->filled('date_from') ? $request->date('date_from')?->toDateString() : null;
+        $dateTo = $request->filled('date_to') ? $request->date('date_to')?->toDateString() : null;
 
         $opportunities = ProcurementOpportunity::query()
             ->with('organization')
@@ -34,6 +36,8 @@ class ProcurementOpportunityController extends Controller
                     ->orWhere('reference_number', 'like', "%{$search}%");
             }))
             ->when($status, fn ($query) => $query->where('status', $status))
+            ->when($dateFrom, fn ($query) => $query->whereDate('submission_deadline', '>=', $dateFrom))
+            ->when($dateTo, fn ($query) => $query->whereDate('submission_deadline', '<=', $dateTo))
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -59,6 +63,8 @@ class ProcurementOpportunityController extends Controller
             'filters' => [
                 'search' => $search ?: null,
                 'status' => $status ?: null,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
             ],
         ]);
     }

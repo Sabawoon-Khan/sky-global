@@ -1,21 +1,36 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import BarChart from '@/components/charts/BarChart.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
+import MisSearchInput from '@/components/mis/MisSearchInput.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
+import TableToolbar from '@/components/TableToolbar.vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    V2FilterBar,
     V2Hero,
     V2ListPage,
     V2Panel,
+    V2SelectFilter,
     V2StatCard,
     V2StatGrid,
     V2TablePanel,
 } from '@/components/v2';
 import { indexTableColumn } from '@/composables/useTableColumns';
+import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
+import { provideTableSort } from '@/composables/useTableSort';
+import SortableTh from '@/components/SortableTh.vue';
 import { formatAfn, formatDate, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { approvalStatusActions } from '@/lib/status-actions';
@@ -46,9 +61,24 @@ interface ChartPoint {
     count?: number;
 }
 
+interface ProjectOption {
+    id: number;
+    code: string;
+    name: string;
+}
+
 const props = defineProps<{
     incomes: Paginated<Income>;
-    filters?: { project_id?: number | null };
+    projects?: ProjectOption[];
+    categories?: string[];
+    filters?: {
+        search?: string | null;
+        project_id?: number | null;
+        status?: string | null;
+        category?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
+    };
     stats?: {
         total?: number;
         count?: number;
@@ -63,6 +93,58 @@ const props = defineProps<{
 }>();
 
 const { t, editAction, deleteAction, gateActions } = useMisPage();
+const viewingRecord = ref<Income | null>(null);
+
+const onlyKeys = [
+    'incomes',
+    'projects',
+    'categories',
+    'filters',
+    'stats',
+    'charts',
+];
+
+const { filters, pending, apply, clear } = useMisFilters(
+    '/finance/income',
+    {
+        search: props.filters?.search ?? '',
+        project_id: props.filters?.project_id ? String(props.filters.project_id) : '',
+        status: props.filters?.status ?? '',
+        category: props.filters?.category ?? '',
+        date_from: props.filters?.date_from ?? '',
+        date_to: props.filters?.date_to ?? '',
+    },
+    {
+        search: '',
+        project_id: '',
+        status: '',
+        category: '',
+        date_from: '',
+        date_to: '',
+    },
+    { only: onlyKeys, liveKeys: ['search'] },
+);
+
+const hasActiveFilters = computed(
+    () =>
+        Boolean(filters.search) ||
+        Boolean(filters.project_id) ||
+        Boolean(filters.status) ||
+        Boolean(filters.category) ||
+        Boolean(filters.date_from) ||
+        Boolean(filters.date_to),
+);
+
+const { sortedRows } = provideTableSort(() => props.incomes.data, {
+    accessors: {
+        description: (row) => row.description,
+        project: (row) => row.project?.code ?? row.project?.name,
+        date: (row) => row.transaction_date,
+        status: (row) => row.status,
+        attachment: (row) => row.attachments?.[0]?.original_filename,
+        amount: (row) => row.amount,
+    },
+});
 
 defineOptions({
     layout: {
@@ -157,6 +239,18 @@ const incomeActions = (item: Income): RowActionItem[] => [
         'finance.delete',
     ),
 ];
+
+function onProjectChange(value: string): void {
+    apply({ project_id: value });
+}
+
+function onStatusChange(value: string): void {
+    apply({ status: value });
+}
+
+function onCategoryChange(value: string): void {
+    apply({ category: value });
+}
 </script>
 
 <template>
@@ -166,9 +260,6 @@ const incomeActions = (item: Income): RowActionItem[] => [
         <V2Hero image="/images/gs-hero-dashboard.png">
             <template #eyebrow>{{ t('Finance') }}</template>
             <template #title>{{ t('Project Income') }}</template>
-            <template #description>
-                {{ t('Income recorded against projects.') }}
-            </template>
             <template #stats>
                 <V2StatGrid>
                     <V2StatCard
@@ -211,7 +302,6 @@ const incomeActions = (item: Income): RowActionItem[] => [
             <V2Panel
                 class="lg:col-span-3"
                 :title="t('Monthly income')"
-                :description="t('Last 6 months')"
             >
                 <BarChart
                     v-if="monthlyChart.labels.length"
@@ -243,7 +333,6 @@ const incomeActions = (item: Income): RowActionItem[] => [
         <V2Panel
             v-if="projectChart.labels.length"
             :title="t('Top projects')"
-            :description="t('Highest income by project')"
         >
             <BarChart
                 :labels="projectChart.labels"
@@ -256,26 +345,93 @@ const incomeActions = (item: Income): RowActionItem[] => [
         <V2TablePanel
             table-id="finance-project-income"
             :columns="tableColumns"
+            :pending="pending && incomes.data.length > 0"
             :delay="false"
         >
             <template #filters>
-                <div class="table-top">
-                    <div>
-                        <h2>{{ t('Project Income') }}</h2>
-                        <p>{{ t('Income recorded against projects.') }}</p>
+                <V2FilterBar>
+                    <div class="filter-search">
+                        <MisSearchInput
+                            v-model="filters.search"
+                            :placeholder="t('Search description, project, or reference...')"
+                            @submit="apply()"
+                            @clear="apply({ search: '' })"
+                        />
                     </div>
-                </div>
+                    <label class="filter-select">
+                        <span>{{ t('From') }}</span>
+                        <input
+                            v-model="filters.date_from"
+                            type="date"
+                            @change="apply()"
+                        />
+                    </label>
+                    <label class="filter-select">
+                        <span>{{ t('To') }}</span>
+                        <input
+                            v-model="filters.date_to"
+                            type="date"
+                            @change="apply()"
+                        />
+                    </label>
+                    <V2SelectFilter
+                        v-model="filters.project_id"
+                        :label="t('Project')"
+                        @change="onProjectChange"
+                    >
+                        <option value="">{{ t('All projects') }}</option>
+                        <option
+                            v-for="project in projects ?? []"
+                            :key="project.id"
+                            :value="String(project.id)"
+                        >
+                            {{ project.code }}
+                        </option>
+                    </V2SelectFilter>
+                    <V2SelectFilter
+                        v-model="filters.status"
+                        :label="t('Status')"
+                        @change="onStatusChange"
+                    >
+                        <option value="">{{ t('All statuses') }}</option>
+                        <option value="pending">{{ t('Pending') }}</option>
+                        <option value="approved">{{ t('Approved') }}</option>
+                        <option value="rejected">{{ t('Rejected') }}</option>
+                    </V2SelectFilter>
+                    <V2SelectFilter
+                        v-model="filters.category"
+                        :label="t('Category')"
+                        @change="onCategoryChange"
+                    >
+                        <option value="">{{ t('All categories') }}</option>
+                        <option
+                            v-for="category in categories ?? []"
+                            :key="category"
+                            :value="category"
+                        >
+                            {{ category }}
+                        </option>
+                    </V2SelectFilter>
+                    <template v-if="hasActiveFilters" #actions>
+                        <Button type="button" variant="ghost" class="h-9" @click="clear">
+                            {{ t('Clear') }}
+                        </Button>
+                    </template>
+                    <template #columns>
+                        <TableToolbar />
+                    </template>
+                </V2FilterBar>
             </template>
 
             <table>
                 <thead>
                     <tr>
-                        <th>{{ t('Description') }}</th>
-                        <th>{{ t('Project') }}</th>
-                        <th>{{ t('Date') }}</th>
-                        <th>{{ t('Status') }}</th>
-                        <th>{{ t('Attachment') }}</th>
-                        <th class="end">{{ t('Amount') }}</th>
+                        <SortableTh column="description">{{ t('Description') }}</SortableTh>
+                        <SortableTh column="project">{{ t('Project') }}</SortableTh>
+                        <SortableTh column="date">{{ t('Date') }}</SortableTh>
+                        <SortableTh column="status">{{ t('Status') }}</SortableTh>
+                        <SortableTh column="attachment">{{ t('Attachment') }}</SortableTh>
+                        <SortableTh column="amount" align="end" class="end">{{ t('Amount') }}</SortableTh>
                         <th class="end">{{ t('Actions') }}</th>
                     </tr>
                 </thead>
@@ -286,8 +442,10 @@ const incomeActions = (item: Income): RowActionItem[] => [
                         </td>
                     </tr>
                     <tr
-                        v-for="item in props.incomes.data"
+                        v-for="item in sortedRows"
                         :key="item.id"
+                        class="cursor-pointer"
+                        @click="viewingRecord = item"
                     >
                         <td>{{ item.description }}</td>
                         <td>
@@ -311,6 +469,7 @@ const incomeActions = (item: Income): RowActionItem[] => [
                                 :href="item.attachments[0].download_url"
                                 class="inline-flex items-center gap-1 text-primary hover:underline"
                                 :title="item.attachments[0].original_filename"
+                                @click.stop
                             >
                                 <Paperclip class="size-3.5 shrink-0" />
                                 <span class="max-w-[8rem] truncate text-xs">
@@ -322,7 +481,7 @@ const incomeActions = (item: Income): RowActionItem[] => [
                         <td class="end font-medium tabular-nums">
                             {{ money(item.amount) }}
                         </td>
-                        <td class="end">
+                        <td class="end" @click.stop>
                             <RowActionsMenu :actions="incomeActions(item)" />
                         </td>
                     </tr>
@@ -335,5 +494,76 @@ const incomeActions = (item: Income): RowActionItem[] => [
                 </div>
             </template>
         </V2TablePanel>
+
+        <Dialog
+            :open="viewingRecord !== null"
+            @update:open="(open) => !open && (viewingRecord = null)"
+        >
+            <DialogContent v-if="viewingRecord" class="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>{{ t('Description') }}</DialogTitle>
+                </DialogHeader>
+                <div class="space-y-4 py-2">
+                    <p class="whitespace-pre-wrap text-sm leading-relaxed">
+                        {{ viewingRecord.description || '—' }}
+                    </p>
+                    <dl class="grid gap-3 text-sm sm:grid-cols-2">
+                        <div>
+                            <dt class="text-muted-foreground">{{ t('Project') }}</dt>
+                            <dd class="font-medium">
+                                {{ viewingRecord.project?.code ?? '—' }}
+                                <span
+                                    v-if="viewingRecord.project?.name"
+                                    class="block text-xs font-normal text-muted-foreground"
+                                >
+                                    {{ viewingRecord.project.name }}
+                                </span>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-muted-foreground">{{ t('Date') }}</dt>
+                            <dd class="font-medium">
+                                {{ formatDate(viewingRecord.transaction_date) }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-muted-foreground">{{ t('Status') }}</dt>
+                            <dd>
+                                <Badge variant="outline">
+                                    {{ statusLabel(viewingRecord.status) }}
+                                </Badge>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-muted-foreground">{{ t('Amount') }}</dt>
+                            <dd class="font-medium tabular-nums">
+                                {{ money(viewingRecord.amount) }}
+                            </dd>
+                        </div>
+                    </dl>
+                    <div v-if="viewingRecord.attachments?.length">
+                        <p class="mb-1 text-sm text-muted-foreground">
+                            {{ t('Attachment') }}
+                        </p>
+                        <a
+                            :href="viewingRecord.attachments[0].download_url"
+                            class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                        >
+                            <Paperclip class="size-3.5 shrink-0" />
+                            {{ viewingRecord.attachments[0].original_filename }}
+                        </a>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        @click="viewingRecord = null"
+                    >
+                        {{ t('Close') }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </V2ListPage>
 </template>

@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Project\StoreProjectRequest;
 use App\Http\Requests\Project\UpdateProjectRequest;
 use App\Models\Equipment\EquipmentCatalog;
+use App\Models\Finance\FinanceCategory;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
 use App\Models\Hr\Contractor;
@@ -172,6 +173,12 @@ class ProjectController extends Controller
             'New project created in draft — add your bid and competitor intel here.',
         );
 
+        $this->notifyMisCreated(
+            'projects',
+            $project->name,
+            route('projects.show', $project, false),
+        );
+
         return redirect()
             ->route('projects.show', $project)
             ->with('success', 'Project created. Add your bid details on the project page.');
@@ -249,6 +256,7 @@ class ProjectController extends Controller
                     'unit' => $item->unit,
                     'quantity_on_hand' => (int) ($item->stock?->quantity_on_hand ?? 0),
                 ]),
+            'financeCategories' => FinanceCategory::options(),
         ]);
     }
 
@@ -275,6 +283,21 @@ class ProjectController extends Controller
             $this->handleStatusSideEffects($project, $previousStatus, $validated['status']);
         }
         $this->storeOptionalAttachment($request, $project);
+
+        if (isset($validated['status']) && $validated['status'] !== $previousStatus) {
+            $this->notifyMisStatus(
+                'projects',
+                $project->name,
+                $validated['status'],
+                route('projects.show', $project, false),
+            );
+        } else {
+            $this->notifyMisUpdated(
+                'projects',
+                $project->name,
+                route('projects.show', $project, false),
+            );
+        }
 
         return back()->with('success', 'Project saved.');
     }
@@ -318,6 +341,13 @@ class ProjectController extends Controller
 
         $project->update($updates);
         $this->handleStatusSideEffects($project, $previousStatus, $newStatus);
+
+        $this->notifyMisStatus(
+            'projects',
+            $project->name,
+            $newStatus,
+            route('projects.show', $project, false),
+        );
 
         return back()->with('success', 'Status updated to '.ucfirst($newStatus).'.');
     }
@@ -371,6 +401,7 @@ class ProjectController extends Controller
             'amount' => ['required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
             'description' => ['nullable', 'string', 'max:255'],
+            'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
         ]);
@@ -391,6 +422,12 @@ class ProjectController extends Controller
             ['amount' => $validated['amount']],
         );
 
+        $this->notifyMisCreated(
+            'finance',
+            $validated['description'] ?: $project->name,
+            route('projects.show', $project, false),
+        );
+
         return back()->with('success', 'Payment recorded.');
     }
 
@@ -402,6 +439,7 @@ class ProjectController extends Controller
             'amount' => ['required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
             'description' => ['nullable', 'string', 'max:255'],
+            'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
         ]);
@@ -420,6 +458,12 @@ class ProjectController extends Controller
             'Expense recorded',
             $validated['description'] ?? 'Expense added',
             ['amount' => $validated['amount']],
+        );
+
+        $this->notifyMisCreated(
+            'finance',
+            $validated['description'] ?: $project->name,
+            route('projects.show', $project, false),
         );
 
         return back()->with('success', 'Expense recorded.');
@@ -473,6 +517,13 @@ class ProjectController extends Controller
             'Project was archived.',
         );
 
+        $this->notifyMisStatus(
+            'projects',
+            $project->name,
+            'archived',
+            route('projects.index', [], false),
+        );
+
         return redirect()
             ->route('projects.index')
             ->with('success', 'Project archived.');
@@ -482,7 +533,10 @@ class ProjectController extends Controller
     {
         $this->authorizePermission($request, 'projects.delete');
 
+        $name = $project->name;
         $project->delete();
+
+        $this->notifyMisDeleted('projects', $name, route('projects.index', [], false));
 
         return redirect()
             ->route('projects.index')

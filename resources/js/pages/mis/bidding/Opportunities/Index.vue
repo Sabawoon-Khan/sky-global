@@ -5,6 +5,7 @@ import StatusBadge from '@/components/StatusBadge.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
 import TableToolbar from '@/components/TableToolbar.vue';
+import SortableTh from '@/components/SortableTh.vue';
 import {
     V2FilterBar,
     V2Hero,
@@ -76,6 +77,8 @@ const props = defineProps<{
     filters?: {
         search?: string | null;
         status?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
     };
 }>();
 
@@ -86,12 +89,24 @@ const { filters, pending, apply } = useMisFilters(
     {
         search: props.filters?.search ?? '',
         status: props.filters?.status ?? '',
+        date_from: props.filters?.date_from ?? '',
+        date_to: props.filters?.date_to ?? '',
     },
-    { search: '', status: '' },
+    { search: '', status: '', date_from: '', date_to: '' },
     { only: onlyKeys, liveKeys: ['search'] },
 );
 
-const { sortedRows } = provideTableSort(() => props.opportunities.data);
+const { sortedRows } = provideTableSort(() => props.opportunities.data, {
+    accessors: {
+        reference: (row) => row.reference_number,
+        title: (row) => row.title,
+        organization: (row) => row.organization?.name,
+        scope: (row) => row.security_scope || row.location,
+        deadline: (row) => row.submission_deadline,
+        value: (row) => row.estimated_value,
+        status: (row) => row.status,
+    },
+});
 const { t, can } = useMisPage();
 
 defineOptions({
@@ -180,9 +195,6 @@ function onStatusChange(value: string) {
         <V2Hero image="/images/gs-hero-operations.png">
             <template #eyebrow>{{ t('Bidding') }}</template>
             <template #title>{{ t('Opportunities') }}</template>
-            <template #description>
-                {{ t('Record procurement requests before creating bids.') }}
-            </template>
             <template #side>
                 <Link
                     v-if="can('bidding.create')"
@@ -313,6 +325,22 @@ function onStatusChange(value: string) {
                             @submit="apply()"
                         />
                     </div>
+                    <label class="filter-select">
+                        <span>{{ t('From') }}</span>
+                        <input
+                            v-model="filters.date_from"
+                            type="date"
+                            @change="apply()"
+                        />
+                    </label>
+                    <label class="filter-select">
+                        <span>{{ t('To') }}</span>
+                        <input
+                            v-model="filters.date_to"
+                            type="date"
+                            @change="apply()"
+                        />
+                    </label>
                     <V2SelectFilter
                         v-model="filters.status"
                         :label="t('Status')"
@@ -335,13 +363,13 @@ function onStatusChange(value: string) {
                     <thead>
                         <tr>
                             <TableIndexTh />
-                            <th>{{ t('Reference') }}</th>
-                            <th>{{ t('Title') }}</th>
-                            <th>{{ t('Organization') }}</th>
-                            <th>{{ t('Scope') }}</th>
-                            <th>{{ t('Deadline') }}</th>
-                            <th>{{ t('Value') }}</th>
-                            <th>{{ t('Status') }}</th>
+                            <SortableTh column="reference">{{ t('Reference') }}</SortableTh>
+                            <SortableTh column="title">{{ t('Title') }}</SortableTh>
+                            <SortableTh column="organization">{{ t('Organization') }}</SortableTh>
+                            <SortableTh column="scope">{{ t('Scope') }}</SortableTh>
+                            <SortableTh column="deadline">{{ t('Deadline') }}</SortableTh>
+                            <SortableTh column="value">{{ t('Value') }}</SortableTh>
+                            <SortableTh column="status">{{ t('Status') }}</SortableTh>
                         </tr>
                     </thead>
                     <tbody>

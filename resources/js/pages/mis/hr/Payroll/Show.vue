@@ -39,6 +39,8 @@ import {
 } from '@/components/v2';
 import { indexTableColumn } from '@/composables/useTableColumns';
 import { useMisPage } from '@/composables/useMisPage';
+import { provideTableSort, useTableSort } from '@/composables/useTableSort';
+import SortableTh from '@/components/SortableTh.vue';
 import { formatAfn } from '@/lib/format';
 
 interface Personnel {
@@ -146,6 +148,26 @@ const activeItems = computed(() =>
         : contractorItems.value,
 );
 
+const { sortedRows } = provideTableSort(() => activeItems.value, {
+    accessors: {
+        personnel: (row) =>
+            `${row.personnel?.first_name ?? ''} ${row.personnel?.last_name ?? ''}`.trim() ||
+            row.personnel_id,
+        present: (row) => row.attendance?.days_present,
+        absent: (row) => row.attendance?.days_absent,
+        sick: (row) => row.attendance?.days_sick_leave,
+        annual: (row) => row.attendance?.days_annual_leave,
+        casual: (row) => row.attendance?.days_casual_leave,
+        other: (row) => row.attendance?.days_other,
+        base: (row) => Number(row.base_amount ?? 0),
+        bonus: (row) => Number(row.bonus ?? 0),
+        deductions: (row) => Number(row.deductions ?? 0),
+        tax: (row) => Number(row.tax ?? 0),
+        advance: (row) => Number(row.advance ?? 0),
+        net: (row) => Number(row.net_amount ?? 0),
+    },
+});
+
 const tabs = computed(() => [
     {
         id: 'employees',
@@ -196,17 +218,23 @@ const typeLabel = computed(() =>
 );
 
 const taxBrackets = [
-    { range: '0 – 5,000 AFN', rule: '0%' },
-    { range: '5,000 – 12,500 AFN', rule: '2% of amount over 5,000' },
+    { range: '0 – 10,000 AFN', rule: '0%' },
     {
-        range: '12,500 – 100,000 AFN',
-        rule: '150 AFN + 10% of amount over 12,500',
+        range: '10,000 – 100,000 AFN',
+        rule: '10% of amount over 10,000',
     },
     {
         range: 'Over 100,000 AFN',
-        rule: '8,900 AFN + 20% of amount over 100,000',
+        rule: '9,000 AFN + 20% of amount over 100,000',
     },
-] as const;
+];
+
+const taxBracketSort = useTableSort(() => taxBrackets, {
+    accessors: {
+        range: (row) => row.range,
+        rule: (row) => row.rule,
+    },
+});
 
 const adjustmentsUrl = computed(
     () =>
@@ -410,27 +438,34 @@ function confirmDelete(): void {
             <V2Panel
                 class="lg:col-span-3"
                 :title="t('Afghanistan wage tax')"
-                :description="
-                    t(
-                        'Wage withholding tax is calculated on taxable pay (base + bonus) using Afghanistan Income Tax Law monthly brackets.',
-                    )
-                "
             >
                 <div class="overflow-x-auto rounded-xl border border-border/70">
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="border-b bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
-                                <th class="px-3 py-2 text-start font-semibold">
+                                <SortableTh
+                                    column="range"
+                                    class="px-3 py-2 text-start font-semibold"
+                                    :sort-key="taxBracketSort.sortKey"
+                                    :sort-dir="taxBracketSort.sortDir"
+                                    @sort="taxBracketSort.sortBy"
+                                >
                                     {{ t('Monthly income') }}
-                                </th>
-                                <th class="px-3 py-2 text-start font-semibold">
+                                </SortableTh>
+                                <SortableTh
+                                    column="rule"
+                                    class="px-3 py-2 text-start font-semibold"
+                                    :sort-key="taxBracketSort.sortKey"
+                                    :sort-dir="taxBracketSort.sortDir"
+                                    @sort="taxBracketSort.sortBy"
+                                >
                                     {{ t('Withholding') }}
-                                </th>
+                                </SortableTh>
                             </tr>
                         </thead>
                         <tbody>
                             <tr
-                                v-for="bracket in taxBrackets"
+                                v-for="bracket in taxBracketSort.sortedRows"
                                 :key="bracket.range"
                                 class="border-b last:border-0"
                             >
@@ -540,19 +575,19 @@ function confirmDelete(): void {
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>{{ t('Personnel') }}</th>
-                        <th class="end">{{ t('Present') }}</th>
-                        <th class="end">{{ t('Absent') }}</th>
-                        <th class="end">{{ t('Sick') }}</th>
-                        <th class="end">{{ t('Annual') }}</th>
-                        <th class="end">{{ t('Casual') }}</th>
-                        <th class="end">{{ t('Other') }}</th>
-                        <th class="end">{{ t('Base') }}</th>
-                        <th class="end">{{ t('Bonus') }}</th>
-                        <th class="end">{{ t('Deductions') }}</th>
-                        <th class="end">{{ t('Tax') }}</th>
-                        <th class="end">{{ t('Advance') }}</th>
-                        <th class="end">{{ t('Net') }}</th>
+                        <SortableTh column="personnel">{{ t('Personnel') }}</SortableTh>
+                        <SortableTh column="present" align="end" class="end">{{ t('Present') }}</SortableTh>
+                        <SortableTh column="absent" align="end" class="end">{{ t('Absent') }}</SortableTh>
+                        <SortableTh column="sick" align="end" class="end">{{ t('Sick') }}</SortableTh>
+                        <SortableTh column="annual" align="end" class="end">{{ t('Annual') }}</SortableTh>
+                        <SortableTh column="casual" align="end" class="end">{{ t('Casual') }}</SortableTh>
+                        <SortableTh column="other" align="end" class="end">{{ t('Other') }}</SortableTh>
+                        <SortableTh column="base" align="end" class="end">{{ t('Base') }}</SortableTh>
+                        <SortableTh column="bonus" align="end" class="end">{{ t('Bonus') }}</SortableTh>
+                        <SortableTh column="deductions" align="end" class="end">{{ t('Deductions') }}</SortableTh>
+                        <SortableTh column="tax" align="end" class="end">{{ t('Tax') }}</SortableTh>
+                        <SortableTh column="advance" align="end" class="end">{{ t('Advance') }}</SortableTh>
+                        <SortableTh column="net" align="end" class="end">{{ t('Net') }}</SortableTh>
                     </tr>
                 </thead>
                 <tbody>
@@ -575,7 +610,7 @@ function confirmDelete(): void {
                         </td>
                     </tr>
                     <tr
-                        v-for="(item, index) in activeItems"
+                        v-for="(item, index) in sortedRows"
                         :key="item.id"
                     >
                         <td class="tabular-nums text-muted-foreground">

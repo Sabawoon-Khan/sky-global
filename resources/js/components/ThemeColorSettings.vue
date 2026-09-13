@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -25,13 +24,6 @@ const { colors, isCustomized, setColor, resetColors } = useThemeColors();
         >
             <div>
                 <CardTitle>{{ t('Theme colors') }}</CardTitle>
-                <CardDescription>
-                    {{
-                        t(
-                            'Customize brand and accent colors across the entire application.',
-                        )
-                    }}
-                </CardDescription>
             </div>
             <Button
                 type="button"

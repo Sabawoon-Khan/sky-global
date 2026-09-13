@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Hr;
 
+use App\Enums\ProjectStatus;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
-use App\Enums\ProjectStatus;
 use App\Models\Hr\AttendanceSheet;
 use App\Models\Hr\Contractor;
 use App\Models\Hr\Employee;
@@ -14,6 +14,7 @@ use App\Models\Project\Project;
 use App\Models\Project\ProjectDeployment;
 use App\Support\DailyAttendanceMarks;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -789,6 +790,20 @@ class PersonnelAttendanceController extends Controller
                 'approved_by' => $request->user()->id,
             ]);
 
+        if ($count > 0) {
+            $this->notifyMisCustom(
+                'hr',
+                __('Attendance approved'),
+                __(':name changed :record status to :status.', [
+                    'name' => $request->user()->name,
+                    'record' => $sheet->title ?: __('Attendance'),
+                    'status' => __('Approved'),
+                ]),
+                route('hr.attendance.index', [], false),
+                'success',
+            );
+        }
+
         Inertia::flash('toast', [
             'type' => $count > 0 ? 'success' : 'error',
             'message' => $count > 0
@@ -1268,7 +1283,7 @@ class PersonnelAttendanceController extends Controller
 
     /**
      * @param  class-string<Employee|Contractor>  $personnelType
-     * @return \Illuminate\Database\Eloquent\Builder<Employee|Contractor>
+     * @return Builder<Employee|Contractor>
      */
     private function activePersonnelQuery(
         string $personnelType,
@@ -1365,7 +1380,7 @@ class PersonnelAttendanceController extends Controller
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array{day: int, weekday: string}>
+     * @return Collection<int, array{day: int, weekday: string}>
      */
     private function calendarDaysForRange(
         Carbon $periodStart,

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Enums\ProjectActivityType;
+use App\Http\Controllers\Concerns\AppliesListFilters;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
+use App\Models\Finance\FinanceCategory;
 use App\Models\Finance\ProjectIncome;
 use App\Models\Project\Project;
 use App\Services\ProjectActivityLogger;
@@ -16,17 +18,21 @@ use Inertia\Response;
 
 class ProjectIncomeController extends Controller
 {
-    use AuthorizesMisPermissions, StoresOptionalAttachments;
+    use AppliesListFilters, AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
         $this->authorizePermission($request, 'finance.view');
 
-        $projectId = $request->integer('project_id') ?: null;
+        $filters = $this->listFilters($request, ['pending', 'approved', 'rejected']);
 
         $query = ProjectIncome::query()
-            ->with(['project', 'account', 'attachments'])
-            ->when($projectId, fn ($q) => $q->where('project_id', $projectId));
+            ->with(['project', 'account', 'attachments']);
+        $this->applyListFilters($query, $filters, [
+            'search_columns' => ['description', 'reference_number'],
+            'search_relations' => ['project' => ['code', 'name']],
+            'pending_null' => true,
+        ]);
 
         $incomes = (clone $query)
             ->latest('transaction_date')
@@ -35,6 +41,7 @@ class ProjectIncomeController extends Controller
             ->through(fn (ProjectIncome $income) => [
                 'id' => $income->id,
                 'description' => $income->description,
+                'category' => $income->category,
                 'amount' => (float) $income->amount,
                 'amount_usd' => $income->amount_usd !== null ? (float) $income->amount_usd : null,
                 'currency' => $income->currency,
@@ -46,12 +53,11 @@ class ProjectIncomeController extends Controller
 
         $chartBase = (clone $query);
 
-        $monthly = collect(range(5, 0))->map(function (int $offset) use ($projectId) {
+        $monthly = collect(range(5, 0))->map(function (int $offset) use ($query) {
             $start = now()->subMonths($offset)->startOfMonth();
             $end = (clone $start)->endOfMonth();
 
-            $amount = (float) ProjectIncome::query()
-                ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+            $amount = (float) (clone $query)
                 ->whereBetween('transaction_date', [$start, $end])
                 ->sum('amount');
 
@@ -108,7 +114,12 @@ class ProjectIncomeController extends Controller
 
         return Inertia::render('mis/finance/Income/Index', [
             'incomes' => $incomes,
-            'filters' => ['project_id' => $projectId],
+            'projects' => Project::query()
+                ->where('is_archived', false)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name']),
+            'categories' => $this->incomeCategoryOptions(),
+            'filters' => $filters,
             'stats' => [
                 'total' => (float) (clone $query)->sum('amount'),
                 'count' => (clone $query)->count(),
@@ -123,6 +134,27 @@ class ProjectIncomeController extends Controller
         ]);
     }
 
+    /**
+     * @return list<string>
+     */
+    private function incomeCategoryOptions(): array
+    {
+        return collect(FinanceCategory::options('income'))
+            ->pluck('name')
+            ->concat(
+                ProjectIncome::query()
+                    ->whereNotNull('category')
+                    ->where('category', '!=', '')
+                    ->distinct()
+                    ->orderBy('category')
+                    ->pluck('category')
+            )
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $this->authorizePermission($request, 'finance.create');
@@ -135,6 +167,7 @@ class ProjectIncomeController extends Controller
             'exchange_rate' => ['nullable', 'numeric', 'min:0'],
             'amount_usd' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
+            'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],
@@ -158,6 +191,12 @@ class ProjectIncomeController extends Controller
             );
         }
 
+        $this->notifyMisCreated(
+            'finance',
+            $income->description ?: __('Project income'),
+            route('finance.income', [], false),
+        );
+
         return back()->with('success', 'Income recorded.');
     }
 
@@ -172,6 +211,7 @@ class ProjectIncomeController extends Controller
             'exchange_rate' => ['nullable', 'numeric', 'min:0'],
             'amount_usd' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
+            'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['sometimes', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],
@@ -180,6 +220,12 @@ class ProjectIncomeController extends Controller
 
         $income->update($validated);
 
+        $this->notifyMisUpdated(
+            'finance',
+            $income->description ?: __('Project income'),
+            route('finance.income', [], false),
+        );
+
         return back()->with('success', 'Income updated.');
     }
 
@@ -187,7 +233,10 @@ class ProjectIncomeController extends Controller
     {
         $this->authorizePermission($request, 'finance.delete');
 
+        $label = $income->description ?: __('Project income');
         $income->delete();
+
+        $this->notifyMisDeleted('finance', $label, route('finance.income', [], false));
 
         return back()->with('success', 'Income deleted.');
     }

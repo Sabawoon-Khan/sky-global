@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -188,13 +187,6 @@ const hasLogs = computed(() => props.logs.data.length > 0);
                     <ShieldAlert class="size-5" />
                     {{ t('Login Logs') }}
                 </CardTitle>
-                <CardDescription>
-                    {{
-                        t(
-                            'Security audit trail for sign-in, sign-out, and authentication events',
-                        )
-                    }}
-                </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
                 <form

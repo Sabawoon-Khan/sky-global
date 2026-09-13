@@ -59,6 +59,14 @@ class ContactController extends Controller
             ]);
         }
 
+        $this->notifyMisCustom(
+            'settings',
+            __('New website message'),
+            __('New message from :name', ['name' => $message->name]),
+            null,
+            'warning',
+        );
+
         return back()->with('success', 'Thank you. Your message has been sent.');
     }
 }

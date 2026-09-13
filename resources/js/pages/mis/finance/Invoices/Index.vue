@@ -3,6 +3,7 @@ import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
+import MisListFilterBar from '@/components/mis/MisListFilterBar.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
@@ -11,19 +12,25 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
 } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { V2Hero, V2ListPage, V2StatCard, V2StatGrid } from '@/components/v2';
+import { V2Hero, V2ListPage, V2SelectFilter, V2StatCard, V2StatGrid } from '@/components/v2';
+import SortableTh from '@/components/SortableTh.vue';
+import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
-import { formatAfn, formatDate, type Paginated } from '@/lib/format';
+import { provideTableSort } from '@/composables/useTableSort';
+import { formatCurrency, formatDate, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { invoiceStatusActions } from '@/lib/status-actions';
-import { cn } from '@/lib/utils';
-import { ChevronDown, FileText, Paperclip, Plus } from '@lucide/vue';
+import { FileText, Paperclip, Plus, Printer, Trash2 } from '@lucide/vue';
 
 interface FinanceAttachment {
     id: number;
@@ -56,9 +63,65 @@ const props = defineProps<{
     invoices: Paginated<Invoice>;
     projects?: SelectOption[];
     organizations?: SelectOption[];
+    filters?: {
+        search?: string | null;
+        project_id?: number | null;
+        organization_id?: number | null;
+        status?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
+    };
 }>();
 
 const { t, deleteAction, gateActions } = useMisPage();
+
+const { filters, apply, clear } = useMisFilters(
+    '/finance/invoices',
+    {
+        search: props.filters?.search ?? '',
+        project_id: props.filters?.project_id ? String(props.filters.project_id) : '',
+        organization_id: props.filters?.organization_id
+            ? String(props.filters.organization_id)
+            : '',
+        status: props.filters?.status ?? '',
+        date_from: props.filters?.date_from ?? '',
+        date_to: props.filters?.date_to ?? '',
+    },
+    {
+        search: '',
+        project_id: '',
+        organization_id: '',
+        status: '',
+        date_from: '',
+        date_to: '',
+    },
+    {
+        only: ['invoices', 'projects', 'organizations', 'filters'],
+        liveKeys: ['search'],
+    },
+);
+
+const hasActiveFilters = computed(
+    () =>
+        Boolean(filters.search) ||
+        Boolean(filters.project_id) ||
+        Boolean(filters.organization_id) ||
+        Boolean(filters.status) ||
+        Boolean(filters.date_from) ||
+        Boolean(filters.date_to),
+);
+
+const { sortedRows } = provideTableSort(() => props.invoices.data, {
+    accessors: {
+        number: (row) => row.invoice_number ?? row.id,
+        client: (row) => row.organization?.name,
+        project: (row) => row.project?.code ?? row.project?.name,
+        due: (row) => row.due_date,
+        status: (row) => row.status,
+        attachment: (row) => row.attachments?.[0]?.original_filename,
+        amount: (row) => row.total ?? row.subtotal,
+    },
+});
 
 defineOptions({
     layout: {
@@ -70,19 +133,54 @@ defineOptions({
 });
 
 const showInvoiceForm = ref(false);
-const invoiceSubtotal = ref('');
 const invoiceTax = ref('');
-const invoiceTotal = computed(() => {
-    const subtotal = Number(invoiceSubtotal.value) || 0;
-    const tax = Number(invoiceTax.value) || 0;
+const invoiceLines = ref([
+    { description: '', quantity: '1', unit_price: '', days: '1' },
+]);
 
-    return (subtotal + tax).toFixed(2);
-});
+const invoiceSubtotal = computed(() =>
+    invoiceLines.value.reduce((sum, line) => {
+        const quantity = Number(line.quantity) || 0;
+        const unitPrice = Number(line.unit_price) || 0;
+        const days = Number(line.days) || 1;
+
+        return sum + quantity * unitPrice * days;
+    }, 0),
+);
+
+const invoiceTotal = computed(
+    () => invoiceSubtotal.value + (Number(invoiceTax.value) || 0),
+);
+
+const addInvoiceLine = (): void => {
+    invoiceLines.value.push({
+        description: '',
+        quantity: '1',
+        unit_price: '',
+        days: '1',
+    });
+};
+
+const removeInvoiceLine = (index: number): void => {
+    if (invoiceLines.value.length === 1) {
+        invoiceLines.value[0] = {
+            description: '',
+            quantity: '1',
+            unit_price: '',
+            days: '1',
+        };
+        return;
+    }
+
+    invoiceLines.value.splice(index, 1);
+};
 
 watch(showInvoiceForm, (open) => {
     if (!open) {
-        invoiceSubtotal.value = '';
         invoiceTax.value = '';
+        invoiceLines.value = [
+            { description: '', quantity: '1', unit_price: '', days: '1' },
+        ];
     }
 });
 
@@ -113,6 +211,12 @@ const invoiceStatusLabel = (status: string): string => {
 };
 
 const invoiceActions = (invoice: Invoice): RowActionItem[] => [
+    {
+        label: t('Print'),
+        icon: Printer,
+        href: `/finance/invoices/${invoice.id}/print?autoprint=1`,
+        download: true,
+    },
     ...gateActions(
         invoiceStatusActions({
             url: `/finance/invoices/${invoice.id}`,
@@ -142,9 +246,6 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
         <V2Hero image="/images/gs-hero-dashboard.png">
             <template #eyebrow>{{ t('Finance') }}</template>
             <template #title>{{ t('Invoices') }}</template>
-            <template #description>
-                {{ t('All invoice amounts are in Afghani (AFN).') }}
-            </template>
             <template #stats>
                 <V2StatGrid>
                     <V2StatCard
@@ -164,69 +265,105 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                     <h2 class="text-base font-semibold tracking-tight">
                         {{ t('Invoices') }}
                     </h2>
-                    <p class="text-sm text-muted-foreground">
-                        {{ t('All invoice amounts are in Afghani (AFN).') }}
-                    </p>
                 </div>
                 <Can permission="finance.create">
                     <Button
                         variant="outline"
                         size="sm"
-                        @click="showInvoiceForm = !showInvoiceForm"
+                        @click="showInvoiceForm = true"
                     >
                         <Plus class="me-1 size-4" />
-                        {{ showInvoiceForm ? t('Close') : t('Add invoice') }}
-                        <ChevronDown
-                            class="ms-1 size-4 transition-transform"
-                            :class="cn(showInvoiceForm && 'rotate-180')"
-                        />
+                        {{ t('Add invoice') }}
                     </Button>
                 </Can>
             </div>
 
-            <Can permission="finance.create">
-                <Card v-if="showInvoiceForm">
-                    <CardHeader class="pb-3">
-                        <CardTitle class="text-base">{{
-                            t('New invoice')
-                        }}</CardTitle>
-                        <CardDescription>
-                            {{
-                                t(
-                                    'Create an invoice in AFN for a client or project.',
-                                )
-                            }}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Form
-                            action="/finance/invoices"
-                            method="post"
-                            class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-                            :options="{
-                                preserveScroll: true,
-                                resetOnSuccess: true,
-                                forceFormData: true,
-                            }"
-                            validate-files
-                            v-slot="{ errors, processing }"
-                            @success="showInvoiceForm = false"
-                        >
-                            <input type="hidden" name="currency" value="AFN" />
+            <MisListFilterBar
+                v-model:search="filters.search"
+                v-model:date-from="filters.date_from"
+                v-model:date-to="filters.date_to"
+                :search-placeholder="t('Search')"
+                :has-active="hasActiveFilters"
+                @apply="apply()"
+                @clear="clear"
+            >
+                <V2SelectFilter
+                    v-model="filters.project_id"
+                    :label="t('Project')"
+                    @change="(value) => apply({ project_id: value })"
+                >
+                    <option value="">{{ t('All projects') }}</option>
+                    <option
+                        v-for="project in projects ?? []"
+                        :key="project.id"
+                        :value="String(project.id)"
+                    >
+                        {{ project.code ?? project.name }}
+                    </option>
+                </V2SelectFilter>
+                <V2SelectFilter
+                    v-model="filters.organization_id"
+                    :label="t('Client')"
+                    @change="(value) => apply({ organization_id: value })"
+                >
+                    <option value="">{{ t('All') }}</option>
+                    <option
+                        v-for="org in organizations ?? []"
+                        :key="org.id"
+                        :value="String(org.id)"
+                    >
+                        {{ org.name }}
+                    </option>
+                </V2SelectFilter>
+                <V2SelectFilter
+                    v-model="filters.status"
+                    :label="t('Status')"
+                    @change="(value) => apply({ status: value })"
+                >
+                    <option value="">{{ t('All statuses') }}</option>
+                    <option value="draft">{{ t('Draft') }}</option>
+                    <option value="sent">{{ t('Sent') }}</option>
+                    <option value="paid">{{ t('Paid') }}</option>
+                    <option value="overdue">{{ t('Overdue') }}</option>
+                    <option value="cancelled">{{ t('Cancelled') }}</option>
+                </V2SelectFilter>
+            </MisListFilterBar>
 
-                            <div class="grid gap-2">
-                                <Label for="inv-number"
-                                    >{{ t('Invoice #') }} *</Label
-                                >
-                                <Input
-                                    id="inv-number"
-                                    name="invoice_number"
-                                    required
-                                />
-                                <InputError
-                                    :message="errors.invoice_number"
-                                />
-                            </div>
+            <Dialog
+                :open="showInvoiceForm"
+                @update:open="showInvoiceForm = $event"
+            >
+                <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+                    <Form
+                        action="/finance/invoices"
+                        method="post"
+                        :options="{
+                            preserveScroll: true,
+                            resetOnSuccess: true,
+                            forceFormData: true,
+                        }"
+                        validate-files
+                        v-slot="{ errors, processing }"
+                        @success="showInvoiceForm = false"
+                    >
+                        <DialogHeader>
+                            <DialogTitle>{{ t('New invoice') }}</DialogTitle>
+                        </DialogHeader>
+
+                        <div class="grid gap-4 py-4">
+                            <input type="hidden" name="currency" value="USD" />
+                            <input
+                                type="hidden"
+                                name="subtotal"
+                                :value="invoiceSubtotal.toFixed(2)"
+                            />
+                            <input
+                                type="hidden"
+                                name="total"
+                                :value="invoiceTotal.toFixed(2)"
+                            />
+
+                            <div class="grid gap-4 sm:grid-cols-2">
                             <div class="grid gap-2">
                                 <Label for="inv-status">{{
                                     t('Status')
@@ -313,80 +450,169 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 />
                             </div>
                             <div class="grid gap-2">
-                                <Label for="inv-subtotal"
-                                    >{{ t('Subtotal') }} (AFN) *</Label
-                                >
+                                <Label for="inv-period-start">{{
+                                    t('Period start')
+                                }}</Label>
                                 <Input
-                                    id="inv-subtotal"
-                                    name="subtotal"
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    required
-                                    v-model="invoiceSubtotal"
+                                    id="inv-period-start"
+                                    name="period_start"
+                                    type="date"
                                 />
-                                <InputError :message="errors.subtotal" />
                             </div>
                             <div class="grid gap-2">
-                                <Label for="inv-tax"
-                                    >{{ t('Tax') }} (AFN)</Label
-                                >
+                                <Label for="inv-period-end">{{
+                                    t('Period end')
+                                }}</Label>
+                                <Input
+                                    id="inv-period-end"
+                                    name="period_end"
+                                    type="date"
+                                />
+                            </div>
+                            <div class="grid gap-2 sm:col-span-2">
+                                <Label for="inv-services">{{
+                                    t('Services')
+                                }}</Label>
+                                <Input id="inv-services" name="services" />
+                            </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <Label>{{ t('Line items') }}</Label>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        @click="addInvoiceLine"
+                                    >
+                                        <Plus class="size-4" />
+                                    </Button>
+                                </div>
+                                <div class="overflow-x-auto rounded-md border">
+                                    <table class="w-full text-sm">
+                                        <thead class="bg-muted/40 text-muted-foreground">
+                                            <tr>
+                                                <th class="px-2 py-1.5 text-start font-medium">
+                                                    {{ t('Description') }}
+                                                </th>
+                                                <th class="w-20 px-2 py-1.5 text-start font-medium">
+                                                    {{ t('Qty') }}
+                                                </th>
+                                                <th class="w-28 px-2 py-1.5 text-start font-medium">
+                                                    {{ t('Unit cost') }}
+                                                </th>
+                                                <th class="w-20 px-2 py-1.5 text-start font-medium">
+                                                    {{ t('Days') }}
+                                                </th>
+                                                <th class="w-10" />
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr
+                                                v-for="(line, index) in invoiceLines"
+                                                :key="index"
+                                            >
+                                                <td class="px-2 py-1.5">
+                                                    <Input
+                                                        v-model="line.description"
+                                                        :name="`line_items[${index}][description]`"
+                                                        class="h-8"
+                                                    />
+                                                </td>
+                                                <td class="px-2 py-1.5">
+                                                    <Input
+                                                        v-model="line.quantity"
+                                                        :name="`line_items[${index}][quantity]`"
+                                                        type="number"
+                                                        min="0"
+                                                        step="1"
+                                                        class="h-8"
+                                                    />
+                                                </td>
+                                                <td class="px-2 py-1.5">
+                                                    <Input
+                                                        v-model="line.unit_price"
+                                                        :name="`line_items[${index}][unit_price]`"
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        class="h-8"
+                                                    />
+                                                </td>
+                                                <td class="px-2 py-1.5">
+                                                    <Input
+                                                        v-model="line.days"
+                                                        :name="`line_items[${index}][days]`"
+                                                        type="number"
+                                                        min="1"
+                                                        step="1"
+                                                        class="h-8"
+                                                    />
+                                                </td>
+                                                <td class="px-2 py-1.5">
+                                                    <button
+                                                        type="button"
+                                                        class="text-muted-foreground hover:text-destructive"
+                                                        @click="removeInvoiceLine(index)"
+                                                    >
+                                                        <Trash2 class="size-3.5" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-4 sm:grid-cols-2">
+                            <div class="grid gap-2">
+                                <Label for="inv-tax">{{ t('Tax') }}</Label>
                                 <Input
                                     id="inv-tax"
                                     name="tax"
                                     type="number"
                                     min="0"
-                                    step="1"
+                                    step="0.01"
                                     v-model="invoiceTax"
                                 />
                             </div>
                             <div class="grid gap-2">
-                                <Label for="inv-total"
-                                    >{{ t('Total') }} (AFN)</Label
-                                >
+                                <Label>{{ t('Total') }}</Label>
                                 <div
                                     class="flex h-9 items-center rounded-md border border-input bg-muted/40 px-3 text-sm font-semibold tabular-nums"
                                 >
-                                    {{ formatAfn(Number(invoiceTotal) || 0) }}
+                                    {{ formatCurrency(invoiceTotal, 'USD') }}
                                 </div>
-                                <input
-                                    type="hidden"
-                                    name="total"
-                                    :value="invoiceTotal"
-                                />
-                                <InputError :message="errors.total" />
                             </div>
-                            <div
-                                class="grid gap-2 sm:col-span-2 lg:col-span-3"
-                            >
+                            <div class="grid gap-2 sm:col-span-2">
+                                <Label for="inv-notes">{{ t('Notes') }}</Label>
+                                <Input id="inv-notes" name="notes" />
+                            </div>
+                            <div class="grid gap-2 sm:col-span-2">
                                 <OptionalAttachmentField
                                     :label="t('Attachment')"
                                     :error="errors.attachment"
                                 />
                             </div>
-                            <div
-                                class="flex items-center gap-2 sm:col-span-2 lg:col-span-3"
-                            >
-                                <Button
-                                    type="submit"
-                                    size="sm"
-                                    :disabled="processing"
-                                >
-                                    {{ t('Save invoice') }}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    @click="showInvoiceForm = false"
-                                >
-                                    {{ t('Cancel') }}
-                                </Button>
                             </div>
-                        </Form>
-                    </CardContent>
-                </Card>
-            </Can>
+                        </div>
+
+                        <DialogFooter class="gap-2">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                @click="showInvoiceForm = false"
+                            >
+                                {{ t('Cancel') }}
+                            </Button>
+                            <Button type="submit" :disabled="processing">
+                                {{ t('Save invoice') }}
+                            </Button>
+                        </DialogFooter>
+                    </Form>
+                </DialogContent>
+            </Dialog>
 
             <Card>
                 <CardContent class="p-0">
@@ -403,39 +629,35 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                     class="border-b bg-muted/40 text-start text-muted-foreground"
                                 >
                                     <tr>
-                                        <th class="px-4 py-3 font-medium">
+                                        <SortableTh column="number" class="px-4 py-3 font-medium">
                                             {{ t('Invoice #') }}
-                                        </th>
-                                        <th class="px-4 py-3 font-medium">
+                                        </SortableTh>
+                                        <SortableTh column="client" class="px-4 py-3 font-medium">
                                             {{ t('Client') }}
-                                        </th>
-                                        <th class="px-4 py-3 font-medium">
+                                        </SortableTh>
+                                        <SortableTh column="project" class="px-4 py-3 font-medium">
                                             {{ t('Project') }}
-                                        </th>
-                                        <th class="px-4 py-3 font-medium">
+                                        </SortableTh>
+                                        <SortableTh column="due" class="px-4 py-3 font-medium">
                                             {{ t('Due Date') }}
-                                        </th>
-                                        <th class="px-4 py-3 font-medium">
+                                        </SortableTh>
+                                        <SortableTh column="status" class="px-4 py-3 font-medium">
                                             {{ t('Status') }}
-                                        </th>
-                                        <th class="px-4 py-3 font-medium">
+                                        </SortableTh>
+                                        <SortableTh column="attachment" class="px-4 py-3 font-medium">
                                             {{ t('Attachment') }}
-                                        </th>
-                                        <th
-                                            class="px-4 py-3 text-end font-medium"
-                                        >
+                                        </SortableTh>
+                                        <SortableTh column="amount" align="end" class="px-4 py-3 text-end font-medium">
                                             {{ t('Amount') }}
-                                        </th>
-                                        <th
-                                            class="px-4 py-3 text-end font-medium"
-                                        >
+                                        </SortableTh>
+                                        <th class="px-4 py-3 text-end font-medium">
                                             {{ t('Actions') }}
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y">
                                     <tr
-                                        v-for="invoice in props.invoices.data"
+                                        v-for="invoice in sortedRows"
                                         :key="invoice.id"
                                         class="hover:bg-muted/30"
                                     >
@@ -515,7 +737,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                         <td
                                             class="px-4 py-3 text-end font-semibold tabular-nums"
                                         >
-                                            {{ formatAfn(invoice.total) }}
+                                            {{ formatCurrency(invoice.total, invoice.currency) }}
                                         </td>
                                         <td class="px-4 py-3 text-end">
                                             <RowActionsMenu

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { onMounted } from 'vue';
-import { ArrowLeft, Printer } from '@lucide/vue';
+import { ArrowLeft } from '@lucide/vue';
 import AppLogoImage from '@/components/AppLogoImage.vue';
 import { Button } from '@/components/ui/button';
+import MisExportActions from '@/components/mis/MisExportActions.vue';
 import { useMisPage } from '@/composables/useMisPage';
 
 interface CalendarDay {
@@ -62,10 +63,6 @@ const backHref = (): string => {
     return '/hr/attendance';
 };
 
-const printPage = (): void => {
-    window.print();
-};
-
 onMounted(() => {
     const params = new URLSearchParams(window.location.search);
 
@@ -79,7 +76,7 @@ onMounted(() => {
     <Head :title="sheet_title" />
 
     <div class="sheet-page">
-        <div class="sheet-toolbar">
+        <div class="sheet-toolbar no-print">
             <Button variant="ghost" size="sm" as-child>
                 <Link :href="backHref()">
                     <ArrowLeft class="size-4" />
@@ -90,14 +87,11 @@ onMounted(() => {
                 <span class="hidden text-sm text-muted-foreground sm:inline">
                     {{ period_label }}
                 </span>
-                <Button type="button" variant="outline" @click="printPage">
-                    <Printer class="size-4" />
-                    {{ t('Print') }}
-                </Button>
+                <MisExportActions variant="outline" />
             </div>
         </div>
 
-        <article class="sheet-document">
+        <article class="sheet-document" data-export-root>
             <header class="sheet-header">
                 <AppLogoImage class="sheet-logo sheet-logo--left" />
                 <div class="sheet-header-center">

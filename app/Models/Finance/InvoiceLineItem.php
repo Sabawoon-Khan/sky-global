@@ -12,6 +12,7 @@ class InvoiceLineItem extends Model
         'description',
         'quantity',
         'unit_price',
+        'days',
         'total',
     ];
 
@@ -20,6 +21,7 @@ class InvoiceLineItem extends Model
         return [
             'quantity' => 'decimal:2',
             'unit_price' => 'decimal:2',
+            'days' => 'integer',
             'total' => 'decimal:2',
         ];
     }

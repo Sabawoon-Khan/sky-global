@@ -77,6 +77,15 @@ class PersonnelPayrollAdjustmentController extends Controller
             'amount' => round((float) $validated['amount'], 2),
         ]);
 
+        $this->notifyMisCreated(
+            'hr',
+            __('Payroll adjustment'),
+            route('hr.payroll-adjustments.index', [
+                'year' => $validated['period_year'],
+                'month' => $validated['period_month'],
+            ], false),
+        );
+
         Inertia::flash('toast', [
             'type' => 'success',
             'message' => 'Payroll adjustment recorded.',
@@ -125,6 +134,15 @@ class PersonnelPayrollAdjustmentController extends Controller
             ]);
             $created++;
         }
+
+        $this->notifyMisCreated(
+            'hr',
+            __('Payroll adjustment'),
+            route('hr.payroll-adjustments.index', [
+                'year' => $validated['period_year'],
+                'month' => $validated['period_month'],
+            ], false),
+        );
 
         Inertia::flash('toast', [
             'type' => 'success',

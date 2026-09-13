@@ -62,6 +62,12 @@ class RoleManagementController extends Controller
         $role = Role::findOrCreate($validated['name']);
         $role->syncPermissions($permissions);
 
+        $this->notifyMisCreated(
+            'settings',
+            $role->name,
+            route('settings.roles.index', [], false),
+        );
+
         return redirect()
             ->route('settings.roles.index')
             ->with('success', 'Role created.');

@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import MisExportActions from '@/components/mis/MisExportActions.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { usePermissions } from '@/composables/usePermissions';
 import { useTranslations } from '@/composables/useTranslations';
@@ -53,6 +54,12 @@ const adminNavItems = computed<NavItem[]>(() =>
             ? {
                   title: t('Login Logs'),
                   href: '/settings/login-logs',
+              }
+            : null,
+        canAny(['settings.view_login_logs', 'settings.manage_users'])
+            ? {
+                  title: t('Activity Logs'),
+                  href: '/settings/activity-logs',
               }
             : null,
         can('settings.edit')
@@ -155,7 +162,10 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
 
             <Separator class="my-6 lg:hidden" />
 
-            <div class="min-w-0 flex-1">
+            <div class="min-w-0 flex-1" data-export-root>
+                <div class="mb-4 flex justify-end">
+                    <MisExportActions variant="outline" />
+                </div>
                 <section class="w-full space-y-12">
                     <slot />
                 </section>

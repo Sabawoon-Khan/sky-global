@@ -18,7 +18,6 @@ import {
     Card,
     CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -47,7 +46,11 @@ interface UserRecord {
 interface Props {
     users: Paginated<UserRecord>;
     roles: Role[];
-    filters?: { search?: string | null };
+    filters?: {
+        search?: string | null;
+        role_id?: number | null;
+        is_active?: string | null;
+    };
 }
 
 defineProps<Props>();
@@ -133,10 +136,7 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                     <UserCog class="size-5" />
                     {{ t('System Users') }}
                 </CardTitle>
-                <CardDescription>
-                    {{ t('Manage user accounts, roles, and access') }}
-                </CardDescription>
-                <CardAction>
+<CardAction>
                     <Can permission="settings.manage_users">
                         <SettingsAddButton href="/settings/users/create">
                             {{ t('Add User') }}
@@ -148,17 +148,49 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                 <form
                     method="get"
                     action="/settings/users"
-                    class="relative max-w-sm"
+                    class="flex flex-wrap items-end gap-2"
                 >
-                    <Search
-                        class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <Input
-                        name="search"
-                        :default-value="filters?.search ?? ''"
-                        :aria-label="t('Search users...')"
-                        class="pl-9"
-                    />
+                    <div class="relative max-w-sm flex-1 min-w-[12rem]">
+                        <Search
+                            class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                        />
+                        <Input
+                            name="search"
+                            :default-value="filters?.search ?? ''"
+                            :aria-label="t('Search users...')"
+                            class="pl-9"
+                            :placeholder="t('Search users...')"
+                        />
+                    </div>
+                    <select
+                        name="role_id"
+                        class="mis-form-select h-10 min-w-[8rem]"
+                    >
+                        <option value="">{{ t('All') }}</option>
+                        <option
+                            v-for="role in roles"
+                            :key="role.id"
+                            :value="role.id"
+                            :selected="filters?.role_id === role.id"
+                        >
+                            {{ role.name }}
+                        </option>
+                    </select>
+                    <select
+                        name="is_active"
+                        class="mis-form-select h-10 min-w-[8rem]"
+                    >
+                        <option value="">{{ t('All statuses') }}</option>
+                        <option value="1" :selected="filters?.is_active === '1'">
+                            {{ t('Active') }}
+                        </option>
+                        <option value="0" :selected="filters?.is_active === '0'">
+                            {{ t('Disabled') }}
+                        </option>
+                    </select>
+                    <Button type="submit" variant="outline" class="h-10">
+                        {{ t('Filter') }}
+                    </Button>
                 </form>
 
                 <div

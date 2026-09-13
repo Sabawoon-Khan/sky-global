@@ -2,6 +2,7 @@ export { default as MisStatCard } from './MisStatCard.vue';
 export { default as MisStatGrid } from './MisStatGrid.vue';
 export { default as MisMoneyStack } from './MisMoneyStack.vue';
 export { default as MisSearchInput } from './MisSearchInput.vue';
+export { default as MisListFilterBar } from './MisListFilterBar.vue';
 export { default as MisFilterBar } from './MisFilterBar.vue';
 export { default as MisEmptyState } from './MisEmptyState.vue';
 export { default as MisListRow } from './MisListRow.vue';
@@ -29,6 +30,7 @@ export type { MisDetailItem } from './MisDetailGrid.vue';
 export { default as MisStatusBadge } from './MisStatusBadge.vue';
 export { default as MisToolbar } from './MisToolbar.vue';
 export { default as MisLoadingState } from './MisLoadingState.vue';
+export { default as MisExportActions } from './MisExportActions.vue';
 
 export { default as MisPage } from '@/components/MisPage.vue';
 export { default as MisPagination } from '@/components/MisPagination.vue';

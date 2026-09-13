@@ -15,6 +15,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
+import SortableTh from '@/components/SortableTh.vue';
 import {
     V2FilterBar,
     V2Hero,
@@ -32,6 +33,13 @@ import type { Paginated } from '@/lib/format';
 import { formatNumber } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -92,7 +100,16 @@ const props = defineProps<Props>();
 const { t, editAction, deleteAction, can } = useMisPage();
 
 const onlyKeys = ['sheets', 'projects', 'stats', 'chart', 'filters'];
-const { sortedRows } = provideTableSort(() => props.sheets.data);
+const { sortedRows } = provideTableSort(() => props.sheets.data, {
+    accessors: {
+        title: (row) => row.title,
+        type: (row) => row.attendance_type,
+        range: (row) => row.date_from,
+        project: (row) => row.project?.code ?? row.project?.name,
+        staff: (row) => row.staff_count,
+        status: (row) => row.status,
+    },
+});
 
 const statusPalette = [
     'var(--school-navy)',
@@ -160,6 +177,7 @@ const tableColumns = computed(() => [
 ]);
 
 const newSheetType = ref<'general' | 'project'>('general');
+const showSheetForm = ref(false);
 const newSheetProjectId = ref<string>('');
 
 watch(newSheetType, (type) => {
@@ -271,7 +289,7 @@ const sheetActions = (sheet: AttendanceSheet): RowActionItem[] => [
         hidden: !canApproveSheet(sheet),
     },
     {
-        label: t('Print'),
+        label: t('Print sheet'),
         icon: Printer,
         onClick: () => {
             if (typeof window !== 'undefined') {
@@ -306,83 +324,16 @@ const sheetActions = (sheet: AttendanceSheet): RowActionItem[] => [
         <V2Hero image="/images/gs-hero-people.png">
             <template #eyebrow>{{ t('HR') }}</template>
             <template #title>{{ t('Attendance') }}</template>
-            <template #description>
-                {{ t('Open a sheet to record or update daily marks.') }}
-            </template>
             <template #side>
             <Can permission="hr.create">
-                <form
-                    method="get"
-                    action="/hr/attendance/create"
-                    class="flex flex-wrap items-end gap-2 rounded-xl border bg-card p-3 shadow-sm"
+                <button
+                    type="button"
+                    class="create-btn"
+                    @click="showSheetForm = true"
                 >
-                    <div class="grid gap-1.5">
-                        <Label for="new_attendance_type" class="text-xs font-medium">
-                            {{ t('Type') }}
-                        </Label>
-                        <select
-                            id="new_attendance_type"
-                            v-model="newSheetType"
-                            name="attendance_type"
-                            class="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-xs"
-                        >
-                            <option value="general">{{ t('General') }}</option>
-                            <option value="project">{{ t('Project') }}</option>
-                        </select>
-                    </div>
-                    <div class="grid gap-1.5">
-                        <Label for="date_from" class="text-xs font-medium">
-                            {{ t('From') }}
-                        </Label>
-                        <Input
-                            id="date_from"
-                            name="date_from"
-                            type="date"
-                            required
-                            class="h-9 w-36"
-                            :default-value="filters?.date_from"
-                        />
-                    </div>
-                    <div class="grid gap-1.5">
-                        <Label for="date_to" class="text-xs font-medium">
-                            {{ t('To') }}
-                        </Label>
-                        <Input
-                            id="date_to"
-                            name="date_to"
-                            type="date"
-                            required
-                            class="h-9 w-36"
-                            :default-value="filters?.date_to"
-                        />
-                    </div>
-                    <div class="grid gap-1.5">
-                        <Label for="new_sheet_project" class="text-xs font-medium">
-                            {{ t('Project') }}
-                        </Label>
-                        <select
-                            id="new_sheet_project"
-                            v-model="newSheetProjectId"
-                            name="project_id"
-                            :disabled="newSheetType !== 'project'"
-                            :required="newSheetType === 'project'"
-                            class="h-9 min-w-[9rem] rounded-md border border-input bg-background px-3 text-sm shadow-xs disabled:opacity-50"
-                        >
-                            <option value="">{{ t('Select project') }}</option>
-                            <option
-                                v-for="project in projects"
-                                :key="project.id"
-                                :value="project.id"
-                            >
-                                {{ project.code }}
-                            </option>
-                        </select>
-                    </div>
-                    <Button type="submit" class="h-9 gap-1.5 shadow-sm">
-                        <Plus class="size-3.5" />
-                        {{ t('New sheet') }}
-                    </Button>
-                </form>
+                    <Plus />
+                    {{ t('New sheet') }}
+                </button>
             </Can>
 
                 <div class="hero-cards">
@@ -549,12 +500,12 @@ const sheetActions = (sheet: AttendanceSheet): RowActionItem[] => [
                     <thead>
                         <tr>
                             <TableIndexTh />
-                            <th>{{ t('Sheet') }}</th>
-                            <th>{{ t('Type') }}</th>
-                            <th>{{ t('Date range') }}</th>
-                            <th>{{ t('Project') }}</th>
-                            <th>{{ t('Staff') }}</th>
-                            <th>{{ t('Status') }}</th>
+                            <SortableTh column="title">{{ t('Sheet') }}</SortableTh>
+                            <SortableTh column="type">{{ t('Type') }}</SortableTh>
+                            <SortableTh column="range">{{ t('Date range') }}</SortableTh>
+                            <SortableTh column="project">{{ t('Project') }}</SortableTh>
+                            <SortableTh column="staff">{{ t('Staff') }}</SortableTh>
+                            <SortableTh column="status">{{ t('Status') }}</SortableTh>
                             <th class="end">{{ t('Actions') }}</th>
                         </tr>
                     </thead>
@@ -606,5 +557,83 @@ const sheetActions = (sheet: AttendanceSheet): RowActionItem[] => [
                 <V2Pager :items="sheets" :only="onlyKeys" />
             </template>
         </V2TablePanel>
+
+        <Dialog :open="showSheetForm" @update:open="showSheetForm = $event">
+            <DialogContent class="sm:max-w-lg">
+                <form method="get" action="/hr/attendance/create">
+                    <DialogHeader>
+                        <DialogTitle>{{ t('New sheet') }}</DialogTitle>
+                    </DialogHeader>
+
+                    <div class="grid gap-3 py-4 sm:grid-cols-2">
+                        <div class="grid gap-2">
+                            <Label for="new_attendance_type">{{ t('Type') }}</Label>
+                            <select
+                                id="new_attendance_type"
+                                v-model="newSheetType"
+                                name="attendance_type"
+                                class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value="general">{{ t('General') }}</option>
+                                <option value="project">{{ t('Project') }}</option>
+                            </select>
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="new_sheet_project">{{ t('Project') }}</Label>
+                            <select
+                                id="new_sheet_project"
+                                v-model="newSheetProjectId"
+                                name="project_id"
+                                :disabled="newSheetType !== 'project'"
+                                :required="newSheetType === 'project'"
+                                class="h-9 rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
+                            >
+                                <option value="">{{ t('Select project') }}</option>
+                                <option
+                                    v-for="project in projects"
+                                    :key="project.id"
+                                    :value="project.id"
+                                >
+                                    {{ project.code }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="date_from">{{ t('From') }}</Label>
+                            <Input
+                                id="date_from"
+                                name="date_from"
+                                type="date"
+                                required
+                                :default-value="filters?.date_from"
+                            />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="date_to">{{ t('To') }}</Label>
+                            <Input
+                                id="date_to"
+                                name="date_to"
+                                type="date"
+                                required
+                                :default-value="filters?.date_to"
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter class="gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="showSheetForm = false"
+                        >
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit">
+                            {{ t('New sheet') }}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     </V2ListPage>
 </template>

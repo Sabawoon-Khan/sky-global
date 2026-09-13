@@ -2,17 +2,21 @@
 
 namespace App\Models;
 
+use App\Concerns\HasAttachments;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class StatusChangeLog extends Model
 {
+    use HasAttachments;
+
     protected $fillable = [
         'subject_type',
         'subject_id',
         'from_status',
         'to_status',
+        'reason',
         'changed_by',
     ];
 

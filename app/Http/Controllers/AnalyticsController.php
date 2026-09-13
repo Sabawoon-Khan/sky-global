@@ -31,12 +31,40 @@ class AnalyticsController extends Controller
     {
         $this->authorizePermission($request, 'finance.view');
 
-        $stats = $analytics->dashboard();
+        return Inertia::render(
+            'mis/analytics/Finance',
+            $analytics->financeReport($this->resolveYear($request)),
+        );
+    }
 
-        return Inertia::render('mis/analytics/Finance', [
-            'stats' => $stats['finance'] ?? [],
-            'projectProfitability' => $analytics->projectProfitability(),
-            'charts' => $analytics->chartData(),
-        ]);
+    public function financePrint(Request $request, AnalyticsService $analytics): Response
+    {
+        $this->authorizePermission($request, 'finance.view');
+
+        return Inertia::render(
+            'mis/analytics/FinancePrint',
+            $analytics->financeReport($this->resolveYear($request)),
+        );
+    }
+
+    private function resolveYear(Request $request): ?int
+    {
+        $year = $request->string('year')->toString();
+
+        if ($year === 'all') {
+            return null;
+        }
+
+        if ($year === '' || ! ctype_digit($year)) {
+            return now()->year;
+        }
+
+        $value = (int) $year;
+
+        if ($value < 2000 || $value > 2100) {
+            return now()->year;
+        }
+
+        return $value;
     }
 }

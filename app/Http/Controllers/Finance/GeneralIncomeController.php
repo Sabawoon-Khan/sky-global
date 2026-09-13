@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Finance;
 
+use App\Http\Controllers\Concerns\AppliesListFilters;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
+use App\Models\Finance\FinanceCategory;
 use App\Models\Finance\GeneralIncome;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,14 +15,21 @@ use Inertia\Response;
 
 class GeneralIncomeController extends Controller
 {
-    use AuthorizesMisPermissions, StoresOptionalAttachments;
+    use AppliesListFilters, AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
         $this->authorizePermission($request, 'finance.view');
 
-        $generalIncomes = GeneralIncome::query()
-            ->with('attachments')
+        $filters = $this->listFilters($request, ['pending', 'approved', 'rejected', 'recorded']);
+
+        $query = GeneralIncome::query()->with('attachments');
+        $this->applyListFilters($query, $filters, [
+            'search_columns' => ['description', 'reference_number'],
+            'pending_null' => true,
+        ]);
+
+        $generalIncomes = (clone $query)
             ->latest('transaction_date')
             ->paginate(20)
             ->withQueryString()
@@ -38,9 +47,11 @@ class GeneralIncomeController extends Controller
 
         return Inertia::render('mis/finance/GeneralIncome/Index', [
             'generalIncomes' => $generalIncomes,
+            'categories' => FinanceCategory::options(),
+            'filters' => $filters,
             'stats' => [
-                'total' => (float) GeneralIncome::query()->sum('amount'),
-                'count' => GeneralIncome::query()->count(),
+                'total' => (float) (clone $query)->sum('amount'),
+                'count' => (clone $query)->count(),
             ],
         ]);
     }
@@ -67,6 +78,12 @@ class GeneralIncomeController extends Controller
         ]);
         $this->storeOptionalAttachment($request, $income);
 
+        $this->notifyMisCreated(
+            'finance',
+            $income->description ?: __('General income'),
+            route('finance.general-income', [], false),
+        );
+
         return back()->with('success', 'General income recorded.');
     }
 
@@ -87,6 +104,12 @@ class GeneralIncomeController extends Controller
 
         $generalIncome->update($validated);
 
+        $this->notifyMisUpdated(
+            'finance',
+            $generalIncome->description ?: __('General income'),
+            route('finance.general-income', [], false),
+        );
+
         return back()->with('success', 'General income updated.');
     }
 
@@ -94,7 +117,10 @@ class GeneralIncomeController extends Controller
     {
         $this->authorizePermission($request, 'finance.delete');
 
+        $label = $generalIncome->description ?: __('General income');
         $generalIncome->delete();
+
+        $this->notifyMisDeleted('finance', $label, route('finance.general-income', [], false));
 
         return back()->with('success', 'General income deleted.');
     }

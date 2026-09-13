@@ -8,6 +8,7 @@ import {
     Package,
     Paperclip,
     Pencil,
+    Plus,
     Shield,
     Trash2,
     Users,
@@ -31,6 +32,7 @@ import DonutChart from '@/components/charts/DonutChart.vue';
 import RingProgress from '@/components/charts/RingProgress.vue';
 import MisTabs from '@/components/MisTabs.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
+import FinanceCategoryField from '@/components/FinanceCategoryField.vue';
 import SecurityScopeField from '@/components/SecurityScopeField.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +58,8 @@ import ProjectController from '@/actions/App/Http/Controllers/Project/ProjectCon
 import { formatAfn, formatDate } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { useMisPage } from '@/composables/useMisPage';
+import { provideTableSort } from '@/composables/useTableSort';
+import SortableTh from '@/components/SortableTh.vue';
 
 interface Organization {
     id: number;
@@ -84,6 +88,7 @@ interface FinanceRow {
     amount: number;
     currency: string;
     description: string | null;
+    category?: string | null;
     transaction_date: string;
     attachments?: FinanceAttachment[];
 }
@@ -233,6 +238,11 @@ const props = defineProps<{
     contractors?: PersonOption[];
     currencies?: string[];
     stockItems?: StockItemOption[];
+    financeCategories?: Array<{
+        id: number;
+        name: string;
+        applies_to: 'income' | 'expense' | 'both';
+    }>;
 }>();
 
 const { t, can, gateActions } = useMisPage();
@@ -334,6 +344,14 @@ const editingFinance = ref<{
     row: FinanceRow;
     type: 'income' | 'expense';
 } | null>(null);
+const showIncomeForm = ref(false);
+const showExpenseForm = ref(false);
+const showCompetitorForm = ref(false);
+const showAssignForm = ref(false);
+const showIssueStockForm = ref(false);
+const showShareholderForm = ref(false);
+const showReportForm = ref(false);
+const showAttachmentForm = ref(false);
 
 const editingIssue = ref<ProjectIssue | null>(null);
 
@@ -341,6 +359,19 @@ const returningIssue = ref<ProjectEquipmentIssue | null>(null);
 const expandedEquipmentIds = ref<number[]>([]);
 
 const equipmentIssues = computed(() => props.project.equipment_issues ?? []);
+
+const { sortedRows: sortedEquipmentIssues } = provideTableSort(
+    () => equipmentIssues.value,
+    {
+        accessors: {
+            item: (row) => row.equipment_catalog?.name,
+            issued: (row) => row.quantity,
+            returned: (row) => row.quantity_returned,
+            on_site: (row) => row.quantity - row.quantity_returned,
+            status: (row) => row.quantity - row.quantity_returned,
+        },
+    },
+);
 
 const equipmentSummary = computed(() => {
     const issues = equipmentIssues.value;
@@ -780,7 +811,6 @@ const closeIssueEdit = (): void => {
                 <MisChartCard
                     class="xl:col-span-7"
                     :title="t('Income vs expenses')"
-                    :description="t('Recent project cash movement')"
                     type="bar"
                     :labels="monthlyFinanceChart.labels"
                     :datasets="monthlyFinanceChart.datasets"
@@ -790,7 +820,6 @@ const closeIssueEdit = (): void => {
                 <V2Panel
                     class="xl:col-span-5"
                     :title="t('Finance mix')"
-                    :description="t('Share of income and spend')"
                 >
                     <div class="relative mx-auto h-[220px] w-full max-w-[260px]">
                         <DonutChart
@@ -809,7 +838,6 @@ const closeIssueEdit = (): void => {
                 <V2Panel
                     class="xl:col-span-5"
                     :title="t('Project info')"
-                    :description="t('Site and security scope')"
                 >
                     <ul class="overview-meta">
                         <li>
@@ -861,7 +889,6 @@ const closeIssueEdit = (): void => {
                 <MisChartCard
                     class="xl:col-span-7"
                     :title="t('Bid comparison')"
-                    :description="t('Our bid against recorded competitors')"
                     type="bar"
                     orientation="horizontal"
                     :labels="competitorChart.labels"
@@ -875,7 +902,6 @@ const closeIssueEdit = (): void => {
                 <V2Panel
                     class="xl:col-span-5"
                     :title="t('Recent activity')"
-                    :description="t('Latest project events')"
                 >
                     <div v-if="!recentActivity.length" class="py-8 text-center text-sm text-muted-foreground">
                         {{ t('No activity yet.') }}
@@ -896,7 +922,6 @@ const closeIssueEdit = (): void => {
                     v-if="!isBiddingPhase || project.status === 'won'"
                     class="xl:col-span-7"
                     :title="t('Contract (when won)')"
-                    :description="t('Keep contract terms up to date')"
                 >
                     <Form
                         v-if="can('projects.edit')"
@@ -968,7 +993,6 @@ const closeIssueEdit = (): void => {
                     v-if="project.status === 'lost'"
                     class="xl:col-span-7 border-destructive/20"
                     :title="t('Loss details')"
-                    :description="t('Why this bid was lost')"
                 >
                     <p v-if="project.loss_reason" class="text-sm">{{ project.loss_reason }}</p>
                     <p v-if="project.winning_competitor_name" class="mt-2 text-sm text-muted-foreground">
@@ -1044,8 +1068,8 @@ const closeIssueEdit = (): void => {
         </Card>
 
         <!-- Competitors -->
-        <div v-else-if="activeTab === 'competitors'" class="grid gap-3 lg:grid-cols-3">
-            <Card class="lg:col-span-2">
+        <div v-else-if="activeTab === 'competitors'" class="space-y-3">
+            <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="text-base">{{ t('Other bidders (optional)') }}</CardTitle>
                 </CardHeader>
@@ -1081,37 +1105,22 @@ const closeIssueEdit = (): void => {
                 </CardContent>
             </Card>
             <Can permission="bidding.view_competitors">
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-base">{{ t('Add competitor') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Form
-                        :action="`/mis/projects/${project.id}/competitors`"
-                        method="post"
-                        class="grid gap-2"
-                        :options="{ preserveScroll: true, forceFormData: true }"
-                        validate-files
-                        v-slot="{ processing }"
-                    >
-                        <Input name="competitor_name" :placeholder="t('Company name')" required />
-                        <Input name="bid_amount" type="number" min="0" step="0.01" :placeholder="t('Amount (AFN)')" />
-                        <input type="hidden" name="currency" value="AFN" />
-                        <label class="flex items-center gap-2 text-sm">
-                            <input type="checkbox" name="is_estimated" value="1" />
-                            Estimated price
-                        </label>
-                        <OptionalAttachmentField />
-                        <Button type="submit" size="sm" :disabled="processing">{{ t('Add') }}</Button>
-                    </Form>
-                </CardContent>
-            </Card>
+            <div class="flex justify-end">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    @click="showCompetitorForm = true"
+                >
+                    <Plus class="size-4" />
+                    {{ t('Add competitor') }}
+                </Button>
+            </div>
             </Can>
         </div>
 
         <!-- Personnel -->
-        <div v-else-if="activeTab === 'personnel'" class="grid gap-3 lg:grid-cols-3">
-            <Card class="lg:col-span-2">
+        <div v-else-if="activeTab === 'personnel'" class="grid gap-3">
+            <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="text-base">{{ t('Assigned Personnel') }}</CardTitle>
                 </CardHeader>
@@ -1161,57 +1170,16 @@ const closeIssueEdit = (): void => {
                 </CardContent>
             </Card>
             <Can permission="projects.create">
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-base">{{ t('Assign person') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Form
-                        :action="`/mis/projects/${project.id}/deployments`"
-                        method="post"
-                        class="grid gap-2"
-                        :options="{ preserveScroll: true }"
-                        v-slot="{ errors, processing }"
-                        @success="setActiveTab('personnel')"
-                    >
-                        <input type="hidden" name="personnel_type" :value="deploymentPersonnelType" />
-                        <select
-                            v-model="deploymentPersonnelType"
-                            class="h-9 rounded-md border border-input px-3 text-sm"
-                        >
-                            <option :value="EMPLOYEE_TYPE">{{ t('Employee') }}</option>
-                            <option :value="CONTRACTOR_TYPE">{{ t('Contractor') }}</option>
-                        </select>
-                        <select
-                            name="personnel_id"
-                            required
-                            class="h-9 rounded-md border border-input px-3 text-sm"
-                        >
-                            <option value="" disabled selected>{{ t('Select person') }}</option>
-                            <option
-                                v-for="person in deploymentPersonnelType === EMPLOYEE_TYPE ? (employees ?? []) : (contractors ?? [])"
-                                :key="person.id"
-                                :value="person.id"
-                            >
-                                {{ person.first_name }} {{ person.last_name }}
-                            </option>
-                        </select>
-                        <InputError :message="errors.personnel_id" />
-                        <Input name="role" :placeholder="t('Role on site')" />
-                        <div class="grid gap-1">
-                            <Label for="deployment_start_date">{{ t('Start date') }}</Label>
-                            <Input id="deployment_start_date" name="start_date" type="date" />
-                        </div>
-                        <div class="grid gap-1">
-                            <Label for="deployment_end_date">{{ t('End date') }}</Label>
-                            <Input id="deployment_end_date" name="end_date" type="date" />
-                        </div>
-                        <Input name="monthly_rate" type="number" min="0" step="0.01" :placeholder="t('Monthly rate (AFN)')" />
-                        <input type="hidden" name="currency" value="AFN" />
-                        <Button type="submit" size="sm" :disabled="processing">{{ t('Assign') }}</Button>
-                    </Form>
-                </CardContent>
-            </Card>
+            <div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    @click="showAssignForm = true"
+                >
+                    <Plus class="size-4" />
+                    {{ t('Assign person') }}
+                </Button>
+            </div>
             </Can>
         </div>
 
@@ -1229,27 +1197,20 @@ const closeIssueEdit = (): void => {
                 </Badge>
             </div>
 
-            <div class="grid gap-4 lg:grid-cols-3">
+            <div class="space-y-4">
                 <V2Panel
-                    class="lg:col-span-2"
                     :title="t('Equipment on this project')"
-                    :description="t('Track items issued from the depot and returns to stock.')"
                 >
                     <MisEmptyState
                         v-if="!equipmentIssues.length"
                         :icon="Package"
                         :title="t('No equipment on site yet')"
-                        :description="t('Issue items from depot stock to assign them to this project.')"
                     >
                         <template v-if="can('inventory.create')" #actions>
                             <Button
                                 type="button"
                                 size="sm"
-                                @click="
-                                    document
-                                        .getElementById('issue-from-stock')
-                                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                                "
+                                @click="showIssueStockForm = true"
                             >
                                 {{ t('Issue from stock') }}
                             </Button>
@@ -1260,17 +1221,17 @@ const closeIssueEdit = (): void => {
                         <table class="w-full text-sm">
                             <thead class="border-b bg-muted/40 text-muted-foreground">
                                 <tr>
-                                    <th class="px-3 py-2.5 text-start font-medium">{{ t('Item') }}</th>
-                                    <th class="px-3 py-2.5 text-end font-medium">{{ t('Issued') }}</th>
-                                    <th class="px-3 py-2.5 text-end font-medium">{{ t('Returned') }}</th>
-                                    <th class="px-3 py-2.5 text-end font-medium">{{ t('On site') }}</th>
-                                    <th class="px-3 py-2.5 text-center font-medium">{{ t('Status') }}</th>
+                                    <SortableTh column="item" class="px-3 py-2.5 text-start font-medium">{{ t('Item') }}</SortableTh>
+                                    <SortableTh column="issued" align="end" class="px-3 py-2.5 text-end font-medium">{{ t('Issued') }}</SortableTh>
+                                    <SortableTh column="returned" align="end" class="px-3 py-2.5 text-end font-medium">{{ t('Returned') }}</SortableTh>
+                                    <SortableTh column="on_site" align="end" class="px-3 py-2.5 text-end font-medium">{{ t('On site') }}</SortableTh>
+                                    <SortableTh column="status" align="center" class="px-3 py-2.5 text-center font-medium">{{ t('Status') }}</SortableTh>
                                     <th class="px-3 py-2.5 text-end font-medium">{{ t('Actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y">
                                 <template
-                                    v-for="issue in equipmentIssues"
+                                    v-for="issue in sortedEquipmentIssues"
                                     :key="issue.id"
                                 >
                                     <tr class="hover:bg-muted/30">
@@ -1402,78 +1363,16 @@ const closeIssueEdit = (): void => {
                 </V2Panel>
 
                 <Can permission="inventory.create">
-                    <V2Panel
-                        id="issue-from-stock"
-                        :title="t('Issue from stock')"
-                        :description="t('Stock is reduced from the depot when you issue items.')"
-                    >
-                        <Form
-                            :action="`/mis/projects/${project.id}/equipment-issues`"
-                            method="post"
-                            class="grid gap-3"
-                            :options="{ preserveScroll: true, resetOnSuccess: true }"
-                            v-slot="{ errors, processing }"
-                            @success="setActiveTab('equipment')"
+                    <div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            @click="showIssueStockForm = true"
                         >
-                            <div class="grid gap-2">
-                                <Label for="issue-equipment-catalog">{{ t('Item') }}</Label>
-                                <select
-                                    id="issue-equipment-catalog"
-                                    name="equipment_catalog_id"
-                                    required
-                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                                >
-                                    <option value="" disabled selected>{{ t('Select item') }}</option>
-                                    <option
-                                        v-for="item in stockItems ?? []"
-                                        :key="item.id"
-                                        :value="item.id"
-                                        :disabled="item.quantity_on_hand < 1"
-                                    >
-                                        {{ item.name }}
-                                        <template v-if="item.category"> ({{ item.category }})</template>
-                                        — {{ item.quantity_on_hand }} {{ item.unit ?? 'pcs' }}
-                                    </option>
-                                </select>
-                                <InputError :message="errors.equipment_catalog_id" />
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="issue-quantity">{{ t('Quantity') }}</Label>
-                                <Input
-                                    id="issue-quantity"
-                                    name="quantity"
-                                    type="number"
-                                    min="1"
-                                    required
-                                    :placeholder="t('Quantity')"
-                                />
-                                <InputError :message="errors.quantity" />
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="issue-issued-at">{{ t('Issued at') }}</Label>
-                                <Input
-                                    id="issue-issued-at"
-                                    name="issued_at"
-                                    type="date"
-                                    :default-value="today"
-                                />
-                                <InputError :message="errors.issued_at" />
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="issue-notes">{{ t('Notes') }}</Label>
-                                <Textarea
-                                    id="issue-notes"
-                                    name="notes"
-                                    rows="2"
-                                    :placeholder="t('Notes')"
-                                />
-                                <InputError :message="errors.notes" />
-                            </div>
-                            <Button type="submit" :disabled="processing">
-                                {{ t('Issue to project') }}
-                            </Button>
-                        </Form>
-                    </V2Panel>
+                            <Plus class="size-4" />
+                            {{ t('Issue from stock') }}
+                        </Button>
+                    </div>
                 </Can>
             </div>
         </div>
@@ -1610,60 +1509,6 @@ const closeIssueEdit = (): void => {
                                     </Button>
                                 </Can>
                             </div>
-                            <Form
-                                v-if="
-                                    shareholderAction?.id === shareholder.id &&
-                                    shareholderAction.type === 'contribute'
-                                "
-                                :action="`/mis/projects/${project.id}/shareholders/${shareholder.id}/contribute`"
-                                method="post"
-                                class="mt-3 grid gap-2 rounded-md bg-muted/30 p-3 sm:grid-cols-3"
-                                :options="{ preserveScroll: true, resetOnSuccess: true }"
-                                v-slot="{ errors, processing }"
-                                @success="shareholderAction = null"
-                            >
-                                <div class="grid gap-1">
-                                    <Label>{{ t('Amount') }} *</Label>
-                                    <Input name="amount" type="number" min="0.01" step="0.01" required />
-                                    <InputError :message="errors.amount" />
-                                </div>
-                                <div class="grid gap-1">
-                                    <Label>{{ t('Date') }}</Label>
-                                    <Input name="transaction_date" type="date" />
-                                </div>
-                                <div class="flex items-end">
-                                    <Button type="submit" size="sm" :disabled="processing">
-                                        {{ t('Record') }}
-                                    </Button>
-                                </div>
-                            </Form>
-                            <Form
-                                v-if="
-                                    shareholderAction?.id === shareholder.id &&
-                                    shareholderAction.type === 'distribute'
-                                "
-                                :action="`/mis/projects/${project.id}/shareholders/${shareholder.id}/distribute`"
-                                method="post"
-                                class="mt-3 grid gap-2 rounded-md bg-muted/30 p-3 sm:grid-cols-3"
-                                :options="{ preserveScroll: true, resetOnSuccess: true }"
-                                v-slot="{ errors, processing }"
-                                @success="shareholderAction = null"
-                            >
-                                <div class="grid gap-1">
-                                    <Label>{{ t('Amount to return') }} *</Label>
-                                    <Input name="amount" type="number" min="0.01" step="0.01" required />
-                                    <InputError :message="errors.amount" />
-                                </div>
-                                <div class="grid gap-1">
-                                    <Label>{{ t('Date') }}</Label>
-                                    <Input name="transaction_date" type="date" />
-                                </div>
-                                <div class="flex items-end">
-                                    <Button type="submit" size="sm" :disabled="processing">
-                                        {{ t('Return') }}
-                                    </Button>
-                                </div>
-                            </Form>
                             <div
                                 v-if="shareholder.transactions?.length"
                                 class="mt-3 border-t pt-2 text-xs text-muted-foreground"
@@ -1685,49 +1530,16 @@ const closeIssueEdit = (): void => {
                     </CardContent>
                 </Card>
                 <Can permission="projects.create">
-                    <Card>
-                        <CardHeader class="pb-2">
-                            <CardTitle class="text-base">{{ t('Add shareholder') }}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Form
-                                :action="`/mis/projects/${project.id}/shareholders`"
-                                method="post"
-                                class="grid gap-2"
-                                :options="{ preserveScroll: true, resetOnSuccess: true }"
-                                v-slot="{ errors, processing }"
-                                @success="setActiveTab('shareholders')"
-                            >
-                                <Input name="name" required :placeholder="t('Full name')" />
-                                <InputError :message="errors.name" />
-                                <Input name="phone" :placeholder="t('Phone')" />
-                                <Input name="email" type="email" :placeholder="t('Email')" />
-                                <Input
-                                    name="share_percent"
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
-                                    required
-                                    :placeholder="t('Share %')"
-                                />
-                                <InputError :message="errors.share_percent" />
-                                <Input
-                                    name="invested_amount"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    :placeholder="t('Initial capital (AFN)')"
-                                />
-                                <input type="hidden" name="currency" value="AFN" />
-                                <Input name="transaction_date" type="date" />
-                                <Textarea name="notes" rows="2" :placeholder="t('Notes')" />
-                                <Button type="submit" size="sm" :disabled="processing">
-                                    {{ t('Add shareholder') }}
-                                </Button>
-                            </Form>
-                        </CardContent>
-                    </Card>
+                    <div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            @click="showShareholderForm = true"
+                        >
+                            <Plus class="size-4" />
+                            {{ t('Add shareholder') }}
+                        </Button>
+                    </div>
                 </Can>
             </div>
         </div>
@@ -1752,95 +1564,27 @@ const closeIssueEdit = (): void => {
             </Card>
 
             <Can permission="finance.create">
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-base">{{ t('Record payment') }}</CardTitle>
-                    <p class="text-xs text-muted-foreground">
-                        {{ t('Log a client payment received for this project (amount in AFN).') }}
-                    </p>
-                </CardHeader>
-                <CardContent>
-                    <Form
-                        :action="`/mis/projects/${project.id}/incomes`"
-                        method="post"
-                        class="grid gap-2"
-                        :options="{ preserveScroll: true, forceFormData: true }"
-                        validate-files
-                        v-slot="{ errors, processing }"
-                        @success="setActiveTab('finance')"
-                    >
-                        <Input
-                            name="amount"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            :placeholder="t('Amount (AFN)')"
-                            required
-                        />
-                        <InputError :message="errors.amount" />
-                        <Input
-                            name="transaction_date"
-                            type="date"
-                            :default-value="today"
-                            required
-                        />
-                        <InputError :message="errors.transaction_date" />
-                        <Textarea name="description" rows="3" :placeholder="t('Payment note (optional)')" />
-                        <InputError :message="errors.description" />
-                        <input type="hidden" name="currency" value="AFN" />
-                        <OptionalAttachmentField :label="t('Receipt')" :error="errors.attachment" />
-                        <Button type="submit" size="sm" :disabled="processing">
-                            {{ t('Record payment') }}
-                        </Button>
-                    </Form>
-                </CardContent>
-            </Card>
+            <div class="lg:col-span-3 flex flex-wrap gap-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    @click="showIncomeForm = true"
+                >
+                    <Plus class="size-4" />
+                    {{ t('Record payment') }}
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    @click="showExpenseForm = true"
+                >
+                    <Plus class="size-4" />
+                    {{ t('Add expense') }}
+                </Button>
+            </div>
             </Can>
 
-            <Can permission="finance.create">
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-base">{{ t('Add expense') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Form
-                        :action="`/mis/projects/${project.id}/expenses`"
-                        method="post"
-                        class="grid gap-2"
-                        :options="{ preserveScroll: true, forceFormData: true }"
-                        validate-files
-                        v-slot="{ errors, processing }"
-                        @success="setActiveTab('finance')"
-                    >
-                        <Input
-                            name="amount"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            :placeholder="t('Amount (AFN)')"
-                            required
-                        />
-                        <InputError :message="errors.amount" />
-                        <Input
-                            name="transaction_date"
-                            type="date"
-                            :default-value="today"
-                            required
-                        />
-                        <InputError :message="errors.transaction_date" />
-                        <Textarea name="description" rows="3" :placeholder="t('Description')" />
-                        <InputError :message="errors.description" />
-                        <input type="hidden" name="currency" value="AFN" />
-                        <OptionalAttachmentField :label="t('Receipt')" :error="errors.attachment" />
-                        <Button type="submit" size="sm" :disabled="processing">
-                            Record expense
-                        </Button>
-                    </Form>
-                </CardContent>
-            </Card>
-            </Can>
-
-            <Card>
+            <Card class="lg:col-span-3">
                 <CardHeader class="pb-2">
                     <CardTitle class="text-base">{{ t('Recent entries') }}</CardTitle>
                 </CardHeader>
@@ -1859,6 +1603,7 @@ const closeIssueEdit = (): void => {
                             </span>
                             <p class="text-xs text-muted-foreground">
                                 {{ formatDate(row.transaction_date) }}
+                                <span v-if="row.category"> · {{ row.category }}</span>
                                 <a
                                     v-for="file in row.attachments ?? []"
                                     :key="file.id"
@@ -1886,6 +1631,7 @@ const closeIssueEdit = (): void => {
                             </span>
                             <p class="text-xs text-muted-foreground">
                                 {{ formatDate(row.transaction_date) }}
+                                <span v-if="row.category"> · {{ row.category }}</span>
                                 <a
                                     v-for="file in row.attachments ?? []"
                                     :key="file.id"
@@ -1932,8 +1678,8 @@ const closeIssueEdit = (): void => {
         </Card>
 
         <!-- Reports / Issues -->
-        <div v-else-if="activeTab === 'issues'" class="grid gap-3 lg:grid-cols-3">
-            <Card class="lg:col-span-2">
+        <div v-else-if="activeTab === 'issues'" class="space-y-3">
+            <Card>
                 <CardHeader class="pb-2">
                     <CardTitle class="text-base">{{ t('Incident Reports') }}</CardTitle>
                 </CardHeader>
@@ -2001,20 +1747,364 @@ const closeIssueEdit = (): void => {
             </Card>
 
             <Can permission="projects.edit">
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-base">{{ t('New report') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Form
-                        :action="`/mis/projects/${project.id}/issues`"
-                        method="post"
-                        class="grid gap-2"
-                        :options="{ preserveScroll: true, forceFormData: true }"
-                        validate-files
-                        v-slot="{ errors, processing }"
-                        @success="setActiveTab('issues')"
-                    >
+            <div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    @click="showReportForm = true"
+                >
+                    <Plus class="size-4" />
+                    {{ t('New report') }}
+                </Button>
+            </div>
+            </Can>
+        </div>
+
+        <!-- Attachments -->
+        <div v-else-if="activeTab === 'attachments'" class="space-y-3">
+            <EntityAttachments
+                :attachments="project.attachments"
+            />
+            <Can permission="projects.edit">
+            <div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    @click="showAttachmentForm = true"
+                >
+                    <Plus class="size-4" />
+                    {{ t('Add attachment') }}
+                </Button>
+            </div>
+            </Can>
+        </div>
+
+        <Dialog
+            :open="showCompetitorForm"
+            @update:open="showCompetitorForm = $event"
+        >
+            <DialogContent class="sm:max-w-lg">
+                <Form
+                    :action="`/mis/projects/${project.id}/competitors`"
+                    method="post"
+                    :options="{ preserveScroll: true, forceFormData: true }"
+                    validate-files
+                    v-slot="{ processing }"
+                    @success="showCompetitorForm = false"
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Add competitor') }}</DialogTitle>
+                    </DialogHeader>
+                    <div class="grid gap-3 py-4">
+                        <Input name="competitor_name" :placeholder="t('Company name')" required />
+                        <Input name="bid_amount" type="number" min="0" step="0.01" :placeholder="t('Amount (AFN)')" />
+                        <input type="hidden" name="currency" value="AFN" />
+                        <label class="flex items-center gap-2 text-sm">
+                            <input type="checkbox" name="is_estimated" value="1" />
+                            Estimated price
+                        </label>
+                        <OptionalAttachmentField />
+                    </div>
+                    <DialogFooter class="gap-2">
+                        <Button type="button" variant="secondary" @click="showCompetitorForm = false">
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">{{ t('Add') }}</Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog :open="showAssignForm" @update:open="showAssignForm = $event">
+            <DialogContent class="sm:max-w-lg">
+                <Form
+                    :action="`/mis/projects/${project.id}/deployments`"
+                    method="post"
+                    :options="{ preserveScroll: true }"
+                    v-slot="{ errors, processing }"
+                    @success="
+                        () => {
+                            showAssignForm = false;
+                            setActiveTab('personnel');
+                        }
+                    "
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Assign person') }}</DialogTitle>
+                    </DialogHeader>
+                    <div class="grid gap-3 py-4">
+                        <input type="hidden" name="personnel_type" :value="deploymentPersonnelType" />
+                        <select
+                            v-model="deploymentPersonnelType"
+                            class="h-9 rounded-md border border-input px-3 text-sm"
+                        >
+                            <option :value="EMPLOYEE_TYPE">{{ t('Employee') }}</option>
+                            <option :value="CONTRACTOR_TYPE">{{ t('Contractor') }}</option>
+                        </select>
+                        <select
+                            name="personnel_id"
+                            required
+                            class="h-9 rounded-md border border-input px-3 text-sm"
+                        >
+                            <option value="" disabled selected>{{ t('Select person') }}</option>
+                            <option
+                                v-for="person in deploymentPersonnelType === EMPLOYEE_TYPE ? (employees ?? []) : (contractors ?? [])"
+                                :key="person.id"
+                                :value="person.id"
+                            >
+                                {{ person.first_name }} {{ person.last_name }}
+                            </option>
+                        </select>
+                        <InputError :message="errors.personnel_id" />
+                        <Input name="role" :placeholder="t('Role on site')" />
+                        <div class="grid gap-1">
+                            <Label for="deployment_start_date">{{ t('Start date') }}</Label>
+                            <Input id="deployment_start_date" name="start_date" type="date" />
+                        </div>
+                        <div class="grid gap-1">
+                            <Label for="deployment_end_date">{{ t('End date') }}</Label>
+                            <Input id="deployment_end_date" name="end_date" type="date" />
+                        </div>
+                        <Input name="monthly_rate" type="number" min="0" step="0.01" :placeholder="t('Monthly rate (AFN)')" />
+                        <input type="hidden" name="currency" value="AFN" />
+                    </div>
+                    <DialogFooter class="gap-2">
+                        <Button type="button" variant="secondary" @click="showAssignForm = false">
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">{{ t('Assign') }}</Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog
+            :open="showIssueStockForm"
+            @update:open="showIssueStockForm = $event"
+        >
+            <DialogContent class="sm:max-w-lg">
+                <Form
+                    :action="`/mis/projects/${project.id}/equipment-issues`"
+                    method="post"
+                    :options="{ preserveScroll: true, resetOnSuccess: true }"
+                    v-slot="{ errors, processing }"
+                    @success="
+                        () => {
+                            showIssueStockForm = false;
+                            setActiveTab('equipment');
+                        }
+                    "
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Issue from stock') }}</DialogTitle>
+                        <DialogDescription>
+                            {{ t('Stock is reduced from the depot when you issue items.') }}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div class="grid gap-3 py-4">
+                        <div class="grid gap-2">
+                            <Label for="issue-equipment-catalog">{{ t('Item') }}</Label>
+                            <select
+                                id="issue-equipment-catalog"
+                                name="equipment_catalog_id"
+                                required
+                                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value="" disabled selected>{{ t('Select item') }}</option>
+                                <option
+                                    v-for="item in stockItems ?? []"
+                                    :key="item.id"
+                                    :value="item.id"
+                                    :disabled="item.quantity_on_hand < 1"
+                                >
+                                    {{ item.name }}
+                                    <template v-if="item.category"> ({{ item.category }})</template>
+                                    — {{ item.quantity_on_hand }} {{ item.unit ?? 'pcs' }}
+                                </option>
+                            </select>
+                            <InputError :message="errors.equipment_catalog_id" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="issue-quantity">{{ t('Quantity') }}</Label>
+                            <Input
+                                id="issue-quantity"
+                                name="quantity"
+                                type="number"
+                                min="1"
+                                required
+                                :placeholder="t('Quantity')"
+                            />
+                            <InputError :message="errors.quantity" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="issue-issued-at">{{ t('Issued at') }}</Label>
+                            <Input
+                                id="issue-issued-at"
+                                name="issued_at"
+                                type="date"
+                                :default-value="today"
+                            />
+                            <InputError :message="errors.issued_at" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="issue-notes">{{ t('Notes') }}</Label>
+                            <Textarea
+                                id="issue-notes"
+                                name="notes"
+                                rows="2"
+                                :placeholder="t('Notes')"
+                            />
+                            <InputError :message="errors.notes" />
+                        </div>
+                    </div>
+                    <DialogFooter class="gap-2">
+                        <Button type="button" variant="secondary" @click="showIssueStockForm = false">
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">
+                            {{ t('Issue to project') }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog
+            :open="showShareholderForm"
+            @update:open="showShareholderForm = $event"
+        >
+            <DialogContent class="sm:max-w-lg">
+                <Form
+                    :action="`/mis/projects/${project.id}/shareholders`"
+                    method="post"
+                    :options="{ preserveScroll: true, resetOnSuccess: true }"
+                    v-slot="{ errors, processing }"
+                    @success="
+                        () => {
+                            showShareholderForm = false;
+                            setActiveTab('shareholders');
+                        }
+                    "
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Add shareholder') }}</DialogTitle>
+                    </DialogHeader>
+                    <div class="grid gap-3 py-4">
+                        <Input name="name" required :placeholder="t('Full name')" />
+                        <InputError :message="errors.name" />
+                        <Input name="phone" :placeholder="t('Phone')" />
+                        <Input name="email" type="email" :placeholder="t('Email')" />
+                        <Input
+                            name="share_percent"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            required
+                            :placeholder="t('Share %')"
+                        />
+                        <InputError :message="errors.share_percent" />
+                        <Input
+                            name="invested_amount"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            :placeholder="t('Initial capital (AFN)')"
+                        />
+                        <input type="hidden" name="currency" value="AFN" />
+                        <Input name="transaction_date" type="date" />
+                        <Textarea name="notes" rows="2" :placeholder="t('Notes')" />
+                    </div>
+                    <DialogFooter class="gap-2">
+                        <Button type="button" variant="secondary" @click="showShareholderForm = false">
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">
+                            {{ t('Add shareholder') }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog
+            :open="shareholderAction !== null"
+            @update:open="(open) => !open && (shareholderAction = null)"
+        >
+            <DialogContent v-if="shareholderAction">
+                <Form
+                    :action="
+                        shareholderAction.type === 'contribute'
+                            ? `/mis/projects/${project.id}/shareholders/${shareholderAction.id}/contribute`
+                            : `/mis/projects/${project.id}/shareholders/${shareholderAction.id}/distribute`
+                    "
+                    method="post"
+                    :options="{ preserveScroll: true, resetOnSuccess: true }"
+                    v-slot="{ errors, processing }"
+                    @success="shareholderAction = null"
+                >
+                    <DialogHeader>
+                        <DialogTitle>
+                            {{
+                                shareholderAction.type === 'contribute'
+                                    ? t('Add capital')
+                                    : t('Return share')
+                            }}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div class="grid gap-3 py-4">
+                        <div class="grid gap-2">
+                            <Label>
+                                {{
+                                    shareholderAction.type === 'contribute'
+                                        ? t('Amount')
+                                        : t('Amount to return')
+                                }}
+                                *
+                            </Label>
+                            <Input name="amount" type="number" min="0.01" step="0.01" required />
+                            <InputError :message="errors.amount" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label>{{ t('Date') }}</Label>
+                            <Input name="transaction_date" type="date" />
+                        </div>
+                    </div>
+                    <DialogFooter class="gap-2">
+                        <Button type="button" variant="secondary" @click="shareholderAction = null">
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">
+                            {{
+                                shareholderAction.type === 'contribute'
+                                    ? t('Record')
+                                    : t('Return')
+                            }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog :open="showReportForm" @update:open="showReportForm = $event">
+            <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                <Form
+                    :action="`/mis/projects/${project.id}/issues`"
+                    method="post"
+                    :options="{ preserveScroll: true, forceFormData: true }"
+                    validate-files
+                    v-slot="{ errors, processing }"
+                    @success="
+                        () => {
+                            showReportForm = false;
+                            setActiveTab('issues');
+                        }
+                    "
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('New report') }}</DialogTitle>
+                    </DialogHeader>
+                    <div class="grid gap-3 py-4">
                         <Input name="title" :placeholder="t('Brief title')" required />
                         <InputError :message="errors.title" />
                         <select name="category" class="h-9 rounded-md border border-input px-3 text-sm">
@@ -2044,41 +2134,46 @@ const closeIssueEdit = (): void => {
                         </select>
                         <InputError :message="errors.severity" />
                         <OptionalAttachmentField :error="errors.attachment" />
-                        <Button type="submit" size="sm" :disabled="processing">
+                    </div>
+                    <DialogFooter class="gap-2">
+                        <Button type="button" variant="secondary" @click="showReportForm = false">
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">
                             {{ t('Submit report') }}
                         </Button>
-                    </Form>
-                </CardContent>
-            </Card>
-            </Can>
-        </div>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
 
-        <!-- Attachments -->
-        <div v-else-if="activeTab === 'attachments'" class="grid gap-3 lg:grid-cols-3">
-            <EntityAttachments
-                class="lg:col-span-2"
-                :attachments="project.attachments"
-            />
-            <Can permission="projects.edit">
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardTitle class="text-base">{{ t('Add attachment') }}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Form
-                        v-bind="ProjectController.update.form(project.id)"
-                        class="grid gap-2"
-                        :options="{ preserveScroll: true, forceFormData: true }"
-                        validate-files
-                        v-slot="{ processing }"
-                    >
+        <Dialog
+            :open="showAttachmentForm"
+            @update:open="showAttachmentForm = $event"
+        >
+            <DialogContent class="sm:max-w-lg">
+                <Form
+                    v-bind="ProjectController.update.form(project.id)"
+                    :options="{ preserveScroll: true, forceFormData: true }"
+                    validate-files
+                    v-slot="{ processing }"
+                    @success="showAttachmentForm = false"
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Add attachment') }}</DialogTitle>
+                    </DialogHeader>
+                    <div class="grid gap-3 py-4">
                         <OptionalAttachmentField />
-                        <Button type="submit" size="sm" :disabled="processing">{{ t('Upload') }}</Button>
-                    </Form>
-                </CardContent>
-            </Card>
-            </Can>
-        </div>
+                    </div>
+                    <DialogFooter class="gap-2">
+                        <Button type="button" variant="secondary" @click="showAttachmentForm = false">
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">{{ t('Upload') }}</Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
 
         <Dialog
             :open="returningIssue !== null"
@@ -2158,6 +2253,152 @@ const closeIssueEdit = (): void => {
         </Dialog>
 
         <Dialog
+            :open="showIncomeForm"
+            @update:open="showIncomeForm = $event"
+        >
+            <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                <Form
+                    :action="`/mis/projects/${project.id}/incomes`"
+                    method="post"
+                    :options="{ preserveScroll: true, forceFormData: true }"
+                    validate-files
+                    v-slot="{ errors, processing }"
+                    @success="
+                        () => {
+                            showIncomeForm = false;
+                            setActiveTab('finance');
+                        }
+                    "
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Record payment') }}</DialogTitle>
+                    </DialogHeader>
+
+                    <div class="grid gap-3 py-4">
+                        <Input
+                            name="amount"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            :placeholder="t('Amount (AFN)')"
+                            required
+                        />
+                        <InputError :message="errors.amount" />
+                        <Input
+                            name="transaction_date"
+                            type="date"
+                            :default-value="today"
+                            required
+                        />
+                        <InputError :message="errors.transaction_date" />
+                        <FinanceCategoryField
+                            applies-to="income"
+                            :categories="financeCategories ?? []"
+                            :error="errors.category"
+                        />
+                        <Textarea
+                            name="description"
+                            rows="3"
+                            :placeholder="t('Payment note (optional)')"
+                        />
+                        <InputError :message="errors.description" />
+                        <input type="hidden" name="currency" value="AFN" />
+                        <OptionalAttachmentField
+                            :label="t('Receipt')"
+                            :error="errors.attachment"
+                        />
+                    </div>
+
+                    <DialogFooter class="gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="showIncomeForm = false"
+                        >
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">
+                            {{ t('Record payment') }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog
+            :open="showExpenseForm"
+            @update:open="showExpenseForm = $event"
+        >
+            <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                <Form
+                    :action="`/mis/projects/${project.id}/expenses`"
+                    method="post"
+                    :options="{ preserveScroll: true, forceFormData: true }"
+                    validate-files
+                    v-slot="{ errors, processing }"
+                    @success="
+                        () => {
+                            showExpenseForm = false;
+                            setActiveTab('finance');
+                        }
+                    "
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Add expense') }}</DialogTitle>
+                    </DialogHeader>
+
+                    <div class="grid gap-3 py-4">
+                        <Input
+                            name="amount"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            :placeholder="t('Amount (AFN)')"
+                            required
+                        />
+                        <InputError :message="errors.amount" />
+                        <Input
+                            name="transaction_date"
+                            type="date"
+                            :default-value="today"
+                            required
+                        />
+                        <InputError :message="errors.transaction_date" />
+                        <FinanceCategoryField
+                            applies-to="expense"
+                            :categories="financeCategories ?? []"
+                            :error="errors.category"
+                        />
+                        <Textarea
+                            name="description"
+                            rows="3"
+                            :placeholder="t('Description')"
+                        />
+                        <InputError :message="errors.description" />
+                        <input type="hidden" name="currency" value="AFN" />
+                        <OptionalAttachmentField
+                            :label="t('Receipt')"
+                            :error="errors.attachment"
+                        />
+                    </div>
+
+                    <DialogFooter class="gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="showExpenseForm = false"
+                        >
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">
+                            {{ t('Add expense') }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog
             :open="editingFinance !== null"
             @update:open="(open) => !open && closeFinanceEdit()"
         >
@@ -2221,6 +2462,13 @@ const closeIssueEdit = (): void => {
                             />
                             <InputError :message="errors.description" />
                         </div>
+                        <FinanceCategoryField
+                            :applies-to="editingFinance.type === 'income' ? 'income' : 'expense'"
+                            :categories="financeCategories ?? []"
+                            :default-value="editingFinance.row.category"
+                            :error="errors.category"
+                            :manage="false"
+                        />
                         <input
                             type="hidden"
                             name="currency"

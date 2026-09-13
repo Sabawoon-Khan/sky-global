@@ -58,8 +58,29 @@ export function personnelStatusActions(options: {
     name: string;
     status: string;
     t?: Translate;
+    blockable?: boolean;
 }): RowActionItem[] {
-    const { url, name, status, t } = options;
+    const { url, name, status, t, blockable = false } = options;
+
+    const blockAction = (): RowActionItem => ({
+        label: tr(t, 'Block'),
+        icon: Ban,
+        variant: 'destructive',
+        href: url,
+        method: 'put',
+        data: { status: 'blocked' },
+        form: 'block',
+        confirm: {
+            title: tr(t, 'Block employee'),
+            description: tr(
+                t,
+                'Block ":name"? Provide a reason and a supporting file.',
+                { name },
+            ),
+            confirmLabel: tr(t, 'Block'),
+        },
+        confirmVariant: 'destructive',
+    });
 
     if (status === 'active') {
         return [
@@ -77,6 +98,7 @@ export function personnelStatusActions(options: {
                 },
                 confirmVariant: 'default',
             },
+            ...(blockable ? [blockAction()] : []),
         ];
     }
 
@@ -89,6 +111,28 @@ export function personnelStatusActions(options: {
                 href: url,
                 method: 'put',
                 data: { status: 'active' },
+            },
+            ...(blockable ? [blockAction()] : []),
+        ];
+    }
+
+    if (status === 'blocked') {
+        return [
+            {
+                label: tr(t, 'Unblock'),
+                icon: UserCheck,
+                separator: true,
+                href: url,
+                method: 'put',
+                data: { status: 'active' },
+                confirm: {
+                    title: tr(t, 'Unblock employee'),
+                    description: tr(t, 'Unblock ":name"? They will be marked active.', {
+                        name,
+                    }),
+                    confirmLabel: tr(t, 'Unblock'),
+                },
+                confirmVariant: 'default',
             },
         ];
     }

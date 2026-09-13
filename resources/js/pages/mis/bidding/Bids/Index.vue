@@ -5,12 +5,14 @@ import StatusBadge from '@/components/StatusBadge.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
 import TableToolbar from '@/components/TableToolbar.vue';
+import SortableTh from '@/components/SortableTh.vue';
 import {
     V2FilterBar,
     V2Hero,
     V2IndicatorCard,
     V2ListPage,
     V2Pager,
+    V2SelectFilter,
     V2StatCard,
     V2StatGrid,
     V2TablePanel,
@@ -73,19 +75,37 @@ const props = defineProps<{
         status: ChartPoint[];
         monthly: ChartPoint[];
     };
-    filters?: { search?: string; status?: string };
+    filters?: {
+        search?: string;
+        status?: string;
+        date_from?: string;
+        date_to?: string;
+    };
 }>();
 
 const onlyKeys = ['bids', 'stats', 'chart', 'filters'];
 
 const { filters, pending, apply, clear } = useMisFilters(
     '/bidding/bids',
-    { search: props.filters?.search ?? '' },
-    { search: '' },
+    {
+        search: props.filters?.search ?? '',
+        status: props.filters?.status ?? '',
+        date_from: props.filters?.date_from ?? '',
+        date_to: props.filters?.date_to ?? '',
+    },
+    { search: '', status: '', date_from: '', date_to: '' },
     { only: onlyKeys, liveKeys: ['search'] },
 );
 
-const { sortedRows } = provideTableSort(() => props.bids.data);
+const { sortedRows } = provideTableSort(() => props.bids.data, {
+    accessors: {
+        bid_number: (row) => row.bid_number ?? row.id,
+        opportunity: (row) => row.procurement_opportunity?.title,
+        submitted: (row) => row.submitted_at,
+        amount: (row) => row.our_total_amount,
+        status: (row) => row.status,
+    },
+});
 const { t, can } = useMisPage();
 
 defineOptions({
@@ -168,9 +188,6 @@ const monthlyBars = computed(() => {
         <V2Hero image="/images/gs-hero-operations.png">
             <template #eyebrow>{{ t('Bidding') }}</template>
             <template #title>{{ t('Bids') }}</template>
-            <template #description>
-                {{ t('Submitted proposals linked to opportunities.') }}
-            </template>
             <template #side>
                 <Link
                     v-if="can('bidding.create')"
@@ -302,6 +319,35 @@ const monthlyBars = computed(() => {
                             @clear="clear"
                         />
                     </div>
+                    <label class="filter-select">
+                        <span>{{ t('From') }}</span>
+                        <input
+                            v-model="filters.date_from"
+                            type="date"
+                            @change="apply()"
+                        />
+                    </label>
+                    <label class="filter-select">
+                        <span>{{ t('To') }}</span>
+                        <input
+                            v-model="filters.date_to"
+                            type="date"
+                            @change="apply()"
+                        />
+                    </label>
+                    <V2SelectFilter
+                        v-model="filters.status"
+                        :label="t('Status')"
+                        @change="(value) => apply({ status: value })"
+                    >
+                        <option value="">{{ t('All statuses') }}</option>
+                        <option value="draft">{{ t('Draft') }}</option>
+                        <option value="submitted">{{ t('Submitted') }}</option>
+                        <option value="under_review">{{ t('Under review') }}</option>
+                        <option value="won">{{ t('Won') }}</option>
+                        <option value="lost">{{ t('Lost') }}</option>
+                        <option value="cancelled">{{ t('Cancelled') }}</option>
+                    </V2SelectFilter>
                     <template #columns>
                         <TableToolbar />
                     </template>
@@ -313,11 +359,11 @@ const monthlyBars = computed(() => {
                     <thead>
                         <tr>
                             <TableIndexTh />
-                            <th>{{ t('Bid #') }}</th>
-                            <th>{{ t('Opportunity') }}</th>
-                            <th>{{ t('Submitted') }}</th>
-                            <th>{{ t('Our Amount') }}</th>
-                            <th>{{ t('Status') }}</th>
+                            <SortableTh column="bid_number">{{ t('Bid #') }}</SortableTh>
+                            <SortableTh column="opportunity">{{ t('Opportunity') }}</SortableTh>
+                            <SortableTh column="submitted">{{ t('Submitted') }}</SortableTh>
+                            <SortableTh column="amount">{{ t('Our Amount') }}</SortableTh>
+                            <SortableTh column="status">{{ t('Status') }}</SortableTh>
                         </tr>
                     </thead>
                     <tbody>

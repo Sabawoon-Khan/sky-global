@@ -15,6 +15,8 @@ import {
     V2StatGrid,
 } from '@/components/v2';
 import { useMisPage } from '@/composables/useMisPage';
+import { provideTableSort } from '@/composables/useTableSort';
+import SortableTh from '@/components/SortableTh.vue';
 import { formatCurrency } from '@/lib/format';
 
 interface Organization {
@@ -68,6 +70,14 @@ interface Props {
 const props = defineProps<Props>();
 
 const { t } = useMisPage();
+
+const { sortedRows } = provideTableSort(() => props.bid.line_items ?? [], {
+    accessors: {
+        description: (row) => row.description,
+        quantity: (row) => row.quantity,
+        total: (row) => row.total,
+    },
+});
 
 defineOptions({
     layout: {
@@ -181,20 +191,20 @@ const statusVariant = (
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b text-left text-muted-foreground">
-                                    <th class="pb-2 pr-4 font-medium">
+                                    <SortableTh column="description" class="pb-2 pr-4 font-medium">
                                         {{ t('Description') }}
-                                    </th>
-                                    <th class="pb-2 pr-4 text-right font-medium">
+                                    </SortableTh>
+                                    <SortableTh column="quantity" align="end" class="pb-2 pr-4 text-right font-medium">
                                         {{ t('Qty') }}
-                                    </th>
-                                    <th class="pb-2 text-right font-medium">
+                                    </SortableTh>
+                                    <SortableTh column="total" align="end" class="pb-2 text-right font-medium">
                                         {{ t('Total') }}
-                                    </th>
+                                    </SortableTh>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr
-                                    v-for="item in bid.line_items"
+                                    v-for="item in sortedRows"
                                     :key="item.id"
                                     class="border-b last:border-0"
                                 >

@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -125,10 +124,7 @@ const formatModuleLabel = (module: string): string =>
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Add Role') }}</CardTitle>
-                    <CardDescription>
-                        {{ t('Create a new role with specific permissions') }}
-                    </CardDescription>
-                </CardHeader>
+            </CardHeader>
                 <CardContent class="grid gap-6">
                     <div class="grid gap-2">
                         <Label for="role-name">{{ t('Name') }} *</Label>

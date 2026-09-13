@@ -16,8 +16,11 @@ createInertiaApp({
             case name === 'Welcome':
             case name === 'mis/hr/Attendance/Print':
             case name === 'mis/hr/Payroll/Print':
+            case name === 'mis/finance/TaxPrint':
+            case name === 'mis/finance/InvoicePrint':
+            case name === 'mis/finance/QuotationPrint':
+            case name === 'mis/analytics/FinancePrint':
             case name.startsWith('errors/'):
-            case name === 'mis/hr/Payroll/Print':
                 return null;
             case name.startsWith('website/'):
                 return WebsiteLayout;

@@ -2,18 +2,17 @@
 
 namespace App\Models\Procurement;
 
+use App\Concerns\LogsCrudActivity;
 use App\Models\Project\Project;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\Activitylog\Models\Concerns\LogsActivity;
-use Spatie\Activitylog\Support\LogOptions;
 
 class Bid extends Model
 {
-    use LogsActivity, SoftDeletes;
+    use LogsCrudActivity, SoftDeletes;
 
     protected $fillable = [
         'procurement_opportunity_id',
@@ -37,13 +36,6 @@ class Bid extends Model
             'our_total_amount' => 'decimal:2',
             'winning_amount' => 'decimal:2',
         ];
-    }
-
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->logOnly(['status', 'submitted_at', 'our_total_amount', 'project_id'])
-            ->logOnlyDirty();
     }
 
     public function procurementOpportunity(): BelongsTo

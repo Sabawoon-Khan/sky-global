@@ -17,6 +17,8 @@ export interface RowActionItem {
     };
     confirmVariant?: 'destructive' | 'default';
     separator?: boolean;
+    /** Opens the block-employee form (reason + file) instead of a confirm dialog. */
+    form?: 'block';
     /** Use a native browser navigation for file downloads instead of Inertia. */
     download?: boolean;
 }

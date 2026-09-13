@@ -45,6 +45,12 @@ class TrainingSessionController extends Controller
 
         TrainingSession::query()->create($validated);
 
+        $this->notifyMisCreated(
+            'hr',
+            $validated['title'],
+            route('equipment.training.index', [], false),
+        );
+
         return back()->with('success', 'Training session scheduled.');
     }
 }

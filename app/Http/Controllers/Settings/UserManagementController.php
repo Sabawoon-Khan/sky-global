@@ -23,6 +23,8 @@ class UserManagementController extends Controller
 
         $search = $request->string('search')->trim()->toString();
         $currentUserId = $request->user()->id;
+        $roleId = $request->integer('role_id') ?: null;
+        $isActive = $request->string('is_active')->trim()->toString();
 
         $users = User::query()
             ->with([
@@ -33,6 +35,8 @@ class UserManagementController extends Controller
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             }))
+            ->when($roleId, fn ($q) => $q->whereHas('roles', fn ($roles) => $roles->where('roles.id', $roleId)))
+            ->when($isActive !== '', fn ($q) => $q->where('is_active', $isActive === '1'))
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
@@ -51,7 +55,11 @@ class UserManagementController extends Controller
         return Inertia::render('settings/Users/Index', [
             'users' => $users,
             'roles' => Role::query()->orderBy('name')->get(['id', 'name']),
-            'filters' => ['search' => $search ?: null],
+            'filters' => [
+                'search' => $search ?: null,
+                'role_id' => $roleId,
+                'is_active' => $isActive !== '' ? $isActive : null,
+            ],
         ]);
     }
 
@@ -83,6 +91,12 @@ class UserManagementController extends Controller
 
         $user->logStatusChange('active', null, $request->user());
 
+        $this->notifyMisCreated(
+            'settings',
+            $user->name,
+            route('settings.users.index', [], false),
+        );
+
         return redirect()
             ->route('settings.users.index')
             ->with('success', 'User created.');
@@ -105,8 +119,10 @@ class UserManagementController extends Controller
         if (array_key_exists('is_active', $validated)) {
             if ($validated['is_active']) {
                 $user->enable($request->user());
+                $this->notifyMisStatus('settings', $user->name, 'active', route('settings.users.index', [], false));
             } else {
                 $user->disable($request->user());
+                $this->notifyMisStatus('settings', $user->name, 'inactive', route('settings.users.index', [], false));
             }
         }
 
@@ -114,6 +130,10 @@ class UserManagementController extends Controller
             $user->update(['password' => $validated['password']]);
 
             return back()->with('success', 'Password updated.');
+        }
+
+        if (! array_key_exists('is_active', $validated)) {
+            $this->notifyMisUpdated('settings', $user->name, route('settings.users.index', [], false));
         }
 
         return back()->with('success', 'User updated.');

@@ -6,12 +6,14 @@ import StatusBadge from '@/components/StatusBadge.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
 import TableToolbar from '@/components/TableToolbar.vue';
+import SortableTh from '@/components/SortableTh.vue';
 import {
     V2FilterBar,
     V2Hero,
     V2IndicatorCard,
     V2ListPage,
     V2Pager,
+    V2SelectFilter,
     V2StatCard,
     V2StatGrid,
     V2TablePanel,
@@ -68,12 +70,21 @@ const onlyKeys = ['contractors', 'stats', 'chart', 'filters'];
 
 const { filters, pending, apply, clear } = useMisFilters(
     '/hr/contractors',
-    { search: props.filters?.search ?? '' },
-    { search: '' },
+    {
+        search: props.filters?.search ?? '',
+        status: props.filters?.status ?? '',
+    },
+    { search: '', status: '' },
     { only: onlyKeys, liveKeys: ['search'] },
 );
 
-const { sortedRows } = provideTableSort(() => props.contractors.data);
+const { sortedRows } = provideTableSort(() => props.contractors.data, {
+    accessors: {
+        name: (row) => `${row.first_name} ${row.last_name}`,
+        contact: (row) => row.phone || row.email,
+        status: (row) => row.status,
+    },
+});
 const { t, viewAction, editAction, gateActions, can } = useMisPage();
 
 defineOptions({
@@ -172,9 +183,6 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
         <V2Hero image="/images/gs-hero-people.png">
             <template #eyebrow>{{ t('HR') }}</template>
             <template #title>{{ t('Contractors') }}</template>
-            <template #description>
-                {{ t('External personnel and contract-based staff.') }}
-            </template>
             <template #side>
                 <Link
                     v-if="can('hr.create')"
@@ -306,6 +314,16 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
                             @clear="clear"
                         />
                     </div>
+                    <V2SelectFilter
+                        v-model="filters.status"
+                        :label="t('Status')"
+                        @change="(value) => apply({ status: value })"
+                    >
+                        <option value="">{{ t('All statuses') }}</option>
+                        <option value="active">{{ t('Active') }}</option>
+                        <option value="inactive">{{ t('Inactive') }}</option>
+                        <option value="terminated">{{ t('Terminated') }}</option>
+                    </V2SelectFilter>
                     <template #columns>
                         <TableToolbar />
                     </template>
@@ -317,9 +335,9 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
                     <thead>
                         <tr>
                             <TableIndexTh />
-                            <th>{{ t('Name') }}</th>
-                            <th>{{ t('Contact') }}</th>
-                            <th>{{ t('Status') }}</th>
+                            <SortableTh column="name">{{ t('Name') }}</SortableTh>
+                            <SortableTh column="contact">{{ t('Contact') }}</SortableTh>
+                            <SortableTh column="status">{{ t('Status') }}</SortableTh>
                             <th class="end">{{ t('Actions') }}</th>
                         </tr>
                     </thead>

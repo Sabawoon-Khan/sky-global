@@ -28,6 +28,8 @@ class BidController extends Controller
 
         $search = $request->string('search')->trim()->toString();
         $status = $request->string('status')->trim()->toString();
+        $dateFrom = $request->filled('date_from') ? $request->date('date_from')?->toDateString() : null;
+        $dateTo = $request->filled('date_to') ? $request->date('date_to')?->toDateString() : null;
 
         $bids = Bid::query()
             ->with(['procurementOpportunity.organization'])
@@ -36,6 +38,8 @@ class BidController extends Controller
                     ->orWhereHas('procurementOpportunity', fn ($oq) => $oq->where('title', 'like', "%{$search}%"));
             }))
             ->when($status, fn ($query) => $query->where('status', $status))
+            ->when($dateFrom, fn ($query) => $query->whereDate('submitted_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($query) => $query->whereDate('submitted_at', '<=', $dateTo))
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -70,6 +74,8 @@ class BidController extends Controller
             'filters' => [
                 'search' => $search ?: null,
                 'status' => $status ?: null,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
             ],
         ]);
     }
