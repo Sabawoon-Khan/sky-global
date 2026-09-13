@@ -1,16 +1,27 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import MisPagination from '@/components/MisPagination.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { V2Hero, V2ListPage, V2StatCard, V2StatGrid } from '@/components/v2';
+import SortableTh from '@/components/SortableTh.vue';
 import { useMisPage } from '@/composables/useMisPage';
+import { provideTableSort } from '@/composables/useTableSort';
 import { formatAfn, formatDate, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { approvalStatusActions } from '@/lib/status-actions';
@@ -41,6 +52,18 @@ const props = defineProps<{
 }>();
 
 const { t, editAction, deleteAction, gateActions } = useMisPage();
+const viewingRecord = ref<Expense | null>(null);
+
+const { sortedRows } = provideTableSort(() => props.expenses.data, {
+    accessors: {
+        description: (row) => row.description,
+        project: (row) => row.project?.code ?? row.project?.name,
+        date: (row) => row.transaction_date,
+        status: (row) => row.status,
+        attachment: (row) => row.attachments?.[0]?.original_filename,
+        amount: (row) => row.amount,
+    },
+});
 
 defineOptions({
     layout: {
@@ -87,9 +110,6 @@ const expenseActions = (item: Expense): RowActionItem[] => [
         <V2Hero image="/images/gs-hero-dashboard.png">
             <template #eyebrow>{{ t('Finance') }}</template>
             <template #title>{{ t('Project Expenses') }}</template>
-            <template #description>
-                {{ t('Expenses recorded against projects.') }}
-            </template>
             <template #stats>
                 <V2StatGrid>
                     <V2StatCard
@@ -132,24 +152,24 @@ const expenseActions = (item: Expense): RowActionItem[] => [
                                 class="border-b bg-muted/40 text-start text-muted-foreground"
                             >
                                 <tr>
-                                    <th class="px-3 py-2 font-medium">
+                                    <SortableTh column="description" class="px-3 py-2 font-medium">
                                         {{ t('Description') }}
-                                    </th>
-                                    <th class="px-3 py-2 font-medium">
+                                    </SortableTh>
+                                    <SortableTh column="project" class="px-3 py-2 font-medium">
                                         {{ t('Project') }}
-                                    </th>
-                                    <th class="px-3 py-2 font-medium">
+                                    </SortableTh>
+                                    <SortableTh column="date" class="px-3 py-2 font-medium">
                                         {{ t('Date') }}
-                                    </th>
-                                    <th class="px-3 py-2 font-medium">
+                                    </SortableTh>
+                                    <SortableTh column="status" class="px-3 py-2 font-medium">
                                         {{ t('Status') }}
-                                    </th>
-                                    <th class="px-3 py-2 font-medium">
+                                    </SortableTh>
+                                    <SortableTh column="attachment" class="px-3 py-2 font-medium">
                                         {{ t('Attachment') }}
-                                    </th>
-                                    <th class="px-3 py-2 text-end font-medium">
+                                    </SortableTh>
+                                    <SortableTh column="amount" align="end" class="px-3 py-2 text-end font-medium">
                                         {{ t('Amount') }}
-                                    </th>
+                                    </SortableTh>
                                     <th class="px-3 py-2 text-end font-medium">
                                         {{ t('Actions') }}
                                     </th>
@@ -157,9 +177,10 @@ const expenseActions = (item: Expense): RowActionItem[] => [
                             </thead>
                             <tbody class="divide-y">
                                 <tr
-                                    v-for="item in props.expenses.data"
+                                    v-for="item in sortedRows"
                                     :key="item.id"
-                                    class="hover:bg-muted/30"
+                                    class="cursor-pointer hover:bg-muted/30"
+                                    @click="viewingRecord = item"
                                 >
                                     <td class="px-3 py-2">
                                         {{ item.description }}
@@ -187,6 +208,7 @@ const expenseActions = (item: Expense): RowActionItem[] => [
                                                 item.attachments[0]
                                                     .original_filename
                                             "
+                                            @click.stop
                                         >
                                             <Paperclip
                                                 class="size-3.5 shrink-0"
@@ -209,7 +231,7 @@ const expenseActions = (item: Expense): RowActionItem[] => [
                                     <td class="px-3 py-2 text-end font-medium">
                                         {{ money(item.amount) }}
                                     </td>
-                                    <td class="px-3 py-2 text-end">
+                                    <td class="px-3 py-2 text-end" @click.stop>
                                         <RowActionsMenu
                                             :actions="expenseActions(item)"
                                         />
@@ -224,5 +246,70 @@ const expenseActions = (item: Expense): RowActionItem[] => [
                 </div>
             </CardContent>
         </Card>
+
+        <Dialog
+            :open="viewingRecord !== null"
+            @update:open="(open) => !open && (viewingRecord = null)"
+        >
+            <DialogContent v-if="viewingRecord" class="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>{{ t('Description') }}</DialogTitle>
+                </DialogHeader>
+                <div class="space-y-4 py-2">
+                    <p class="whitespace-pre-wrap text-sm leading-relaxed">
+                        {{ viewingRecord.description || '—' }}
+                    </p>
+                    <dl class="grid gap-3 text-sm sm:grid-cols-2">
+                        <div>
+                            <dt class="text-muted-foreground">{{ t('Project') }}</dt>
+                            <dd class="font-medium">
+                                {{ viewingRecord.project?.code ?? '—' }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-muted-foreground">{{ t('Date') }}</dt>
+                            <dd class="font-medium">
+                                {{ formatDate(viewingRecord.transaction_date) }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-muted-foreground">{{ t('Status') }}</dt>
+                            <dd>
+                                <Badge variant="outline">
+                                    {{ viewingRecord.status ?? t('pending') }}
+                                </Badge>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-muted-foreground">{{ t('Amount') }}</dt>
+                            <dd class="font-medium tabular-nums">
+                                {{ money(viewingRecord.amount) }}
+                            </dd>
+                        </div>
+                    </dl>
+                    <div v-if="viewingRecord.attachments?.length">
+                        <p class="mb-1 text-sm text-muted-foreground">
+                            {{ t('Attachment') }}
+                        </p>
+                        <a
+                            :href="viewingRecord.attachments[0].download_url"
+                            class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                        >
+                            <Paperclip class="size-3.5 shrink-0" />
+                            {{ viewingRecord.attachments[0].original_filename }}
+                        </a>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        @click="viewingRecord = null"
+                    >
+                        {{ t('Close') }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </V2ListPage>
 </template>

@@ -8,12 +8,12 @@ import InputError from '@/components/InputError.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
+import SortableTh from '@/components/SortableTh.vue';
 import {
     V2FilterBar,
     V2Hero,
     V2ListPage,
     V2Pager,
-    V2Panel,
     V2TablePanel,
 } from '@/components/v2';
 import { indexTableColumn } from '@/composables/useTableColumns';
@@ -23,6 +23,12 @@ import { formatCurrency, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -91,7 +97,17 @@ const onlyKeys = [
     'filters',
 ];
 
-const { sortedRows } = provideTableSort(() => props.adjustments.data);
+const { sortedRows } = provideTableSort(() => props.adjustments.data, {
+    accessors: {
+        personnel: (row) =>
+            `${row.personnel?.first_name ?? ''} ${row.personnel?.last_name ?? ''}`.trim(),
+        project: (row) => row.project?.code ?? row.project?.name,
+        type: (row) => row.type,
+        amount: (row) => row.amount,
+        status: (row) => (row.applied_at ? 1 : 0),
+        notes: (row) => row.notes,
+    },
+});
 
 const tableColumns = computed(() => [
     indexTableColumn(),
@@ -115,6 +131,7 @@ defineOptions({
 
 const personnelType = ref(EMPLOYEE_TYPE);
 const bulkMode = ref(false);
+const showAdjustmentForm = ref(false);
 const bulkEntries = ref<Record<number, { amount: string; notes: string }>>({});
 
 const personnelOptions = computed(() =>
@@ -206,41 +223,49 @@ const amountTone = (type: string): 'positive' | 'negative' | 'neutral' =>
         <V2Hero image="/images/gs-hero-people.png">
             <template #eyebrow>{{ t('HR') }}</template>
             <template #title>{{ t('Payroll Adjustments') }}</template>
-            <template #description>
-                {{
-                    t('Bonuses, deductions, and one-off pay changes before payroll runs.')
-                }}
+            <template #side>
+                <Can permission="hr.create">
+                    <button
+                        type="button"
+                        class="create-btn"
+                        @click="showAdjustmentForm = true"
+                    >
+                        <Plus />
+                        {{ t('New adjustment') }}
+                    </button>
+                </Can>
             </template>
         </V2Hero>
 
-        <div class="grid gap-6 xl:grid-cols-3">
-            <Can permission="hr.create">
-                <V2Panel
-                    class="xl:col-span-1"
-                    :title="bulkMode ? t('Bulk adjustments') : t('New adjustment')"
-                >
-                    <template #actions>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            @click="bulkMode = !bulkMode"
-                        >
-                            {{
-                                bulkMode
-                                    ? t('Single entry')
-                                    : t('Bulk mode')
-                            }}
-                        </Button>
-                    </template>
+        <Dialog
+            :open="showAdjustmentForm"
+            @update:open="showAdjustmentForm = $event"
+        >
+            <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>
+                        {{ bulkMode ? t('Bulk adjustments') : t('New adjustment') }}
+                    </DialogTitle>
+                </DialogHeader>
 
+                <div class="flex justify-end">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        @click="bulkMode = !bulkMode"
+                    >
+                        {{ bulkMode ? t('Single entry') : t('Bulk mode') }}
+                    </Button>
+                </div>
                     <Form
                         v-if="bulkMode"
                         action="/hr/payroll-adjustments/bulk"
                         method="post"
-                        class="grid gap-4"
+                        class="grid gap-4 py-2"
                         :options="{ preserveScroll: true, resetOnSuccess: true }"
                         v-slot="{ errors, processing }"
+                        @success="showAdjustmentForm = false"
                     >
                         <input type="hidden" name="personnel_type" :value="personnelType" />
                         <template v-for="(entry, personId) in bulkEntries" :key="personId">
@@ -305,9 +330,10 @@ const amountTone = (type: string): 'positive' | 'negative' | 'neutral' =>
                         v-else
                         action="/hr/payroll-adjustments"
                         method="post"
-                        class="grid gap-4"
+                        class="grid gap-4 py-2"
                         :options="{ preserveScroll: true, resetOnSuccess: true }"
                         v-slot="{ errors, processing }"
+                        @success="showAdjustmentForm = false"
                     >
                         <input type="hidden" name="personnel_type" :value="personnelType" />
 
@@ -433,14 +459,13 @@ const amountTone = (type: string): 'positive' | 'negative' | 'neutral' =>
                             {{ t('Save adjustment') }}
                         </Button>
                     </Form>
-                </V2Panel>
-            </Can>
+            </DialogContent>
+        </Dialog>
 
-            <V2TablePanel
-                class="xl:col-span-2"
-                table-id="hr-payroll-adjustments"
-                :columns="tableColumns"
-            >
+        <V2TablePanel
+            table-id="hr-payroll-adjustments"
+            :columns="tableColumns"
+        >
                 <template #filters>
                     <V2FilterBar>
                         <form
@@ -478,12 +503,12 @@ const amountTone = (type: string): 'positive' | 'negative' | 'neutral' =>
                         <thead>
                             <tr>
                                 <TableIndexTh />
-                                <th>{{ t('Personnel') }}</th>
-                                <th>{{ t('Project') }}</th>
-                                <th>{{ t('Type') }}</th>
-                                <th class="end">{{ t('Amount') }}</th>
-                                <th>{{ t('Status') }}</th>
-                                <th>{{ t('Notes') }}</th>
+                                <SortableTh column="personnel">{{ t('Personnel') }}</SortableTh>
+                                <SortableTh column="project">{{ t('Project') }}</SortableTh>
+                                <SortableTh column="type">{{ t('Type') }}</SortableTh>
+                                <SortableTh column="amount" align="end" class="end">{{ t('Amount') }}</SortableTh>
+                                <SortableTh column="status">{{ t('Status') }}</SortableTh>
+                                <SortableTh column="notes">{{ t('Notes') }}</SortableTh>
                                 <th class="end">{{ t('Actions') }}</th>
                             </tr>
                         </thead>
@@ -560,6 +585,5 @@ const amountTone = (type: string): 'positive' | 'negative' | 'neutral' =>
                     <V2Pager :items="adjustments" :only="onlyKeys" />
                 </template>
             </V2TablePanel>
-        </div>
     </V2ListPage>
 </template>

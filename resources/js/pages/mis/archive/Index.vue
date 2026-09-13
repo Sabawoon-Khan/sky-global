@@ -5,6 +5,7 @@ import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
 import TableToolbar from '@/components/TableToolbar.vue';
+import SortableTh from '@/components/SortableTh.vue';
 import {
     V2FilterBar,
     V2Hero,
@@ -76,7 +77,17 @@ const { filters, pending, apply, clear } = useMisFilters(
     { only: onlyKeys, liveKeys: ['search'] },
 );
 
-const { sortedRows } = provideTableSort(() => props.documents.data);
+const { sortedRows } = provideTableSort(() => props.documents.data, {
+    accessors: {
+        reference: (row) => row.reference_number,
+        title: (row) => row.title,
+        category: (row) => row.document_category?.name,
+        linked: (row) => row.organization?.name || row.project?.code,
+        date: (row) => row.document_date,
+        attachment: (row) => row.original_filename,
+        direction: (row) => row.direction,
+    },
+});
 const { t, viewAction, editAction, deleteAction, can } = useMisPage();
 
 defineOptions({
@@ -179,9 +190,6 @@ const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
         <V2Hero image="/images/gs-hero-operations.png">
             <template #eyebrow>{{ t('Records') }}</template>
             <template #title>{{ t('Document Archive') }}</template>
-            <template #description>
-                {{ t('Registered correspondence and files.') }}
-            </template>
             <template #side>
                 <Link
                     v-if="can('archive.create')"
@@ -324,13 +332,13 @@ const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
                     <thead>
                         <tr>
                             <TableIndexTh />
-                            <th>{{ t('Reference') }}</th>
-                            <th>{{ t('Title') }}</th>
-                            <th>{{ t('Category') }}</th>
-                            <th>{{ t('Linked To') }}</th>
-                            <th>{{ t('Date') }}</th>
-                            <th>{{ t('Attachment') }}</th>
-                            <th>{{ t('Direction') }}</th>
+                            <SortableTh column="reference">{{ t('Reference') }}</SortableTh>
+                            <SortableTh column="title">{{ t('Title') }}</SortableTh>
+                            <SortableTh column="category">{{ t('Category') }}</SortableTh>
+                            <SortableTh column="linked">{{ t('Linked To') }}</SortableTh>
+                            <SortableTh column="date">{{ t('Date') }}</SortableTh>
+                            <SortableTh column="attachment">{{ t('Attachment') }}</SortableTh>
+                            <SortableTh column="direction">{{ t('Direction') }}</SortableTh>
                             <th class="end">{{ t('Actions') }}</th>
                         </tr>
                     </thead>

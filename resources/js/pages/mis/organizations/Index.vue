@@ -5,6 +5,7 @@ import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
 import TableToolbar from '@/components/TableToolbar.vue';
+import SortableTh from '@/components/SortableTh.vue';
 import {
     V2FilterBar,
     V2Hero,
@@ -100,7 +101,16 @@ const { filters, pending, apply } = useMisFilters(
     { only: onlyKeys, liveKeys: ['search'] },
 );
 
-const { sortedRows } = provideTableSort(() => props.organizations.data);
+const { sortedRows } = provideTableSort(() => props.organizations.data, {
+    accessors: {
+        name: (row) => row.name,
+        type: (row) => row.organization_type?.name,
+        location: (row) => row.province || row.address,
+        contact: (row) => row.phone || row.email,
+        activity: (row) => row.projects_count,
+        status: (row) => (row.is_active ? 1 : 0),
+    },
+});
 const { t, viewAction, editAction, deleteAction, gateActions, can } =
     useMisPage();
 
@@ -235,13 +245,6 @@ function onTypeChange(value: string) {
         <V2Hero image="/images/gs-hero-operations.png">
             <template #eyebrow>{{ t('CRM') }}</template>
             <template #title>{{ t('Organizations') }}</template>
-            <template #description>
-                {{
-                    t(
-                        'Clients, partners, and bidders you serve or compete with.',
-                    )
-                }}
-            </template>
             <template #side>
                 <Link
                     v-if="can('bidding.create')"
@@ -422,12 +425,12 @@ function onTypeChange(value: string) {
                     <thead>
                         <tr>
                             <TableIndexTh />
-                            <th>{{ t('Organization') }}</th>
-                            <th>{{ t('Type') }}</th>
-                            <th>{{ t('Location') }}</th>
-                            <th>{{ t('Contact') }}</th>
-                            <th>{{ t('Activity') }}</th>
-                            <th>{{ t('Status') }}</th>
+                            <SortableTh column="name">{{ t('Organization') }}</SortableTh>
+                            <SortableTh column="type">{{ t('Type') }}</SortableTh>
+                            <SortableTh column="location">{{ t('Location') }}</SortableTh>
+                            <SortableTh column="contact">{{ t('Contact') }}</SortableTh>
+                            <SortableTh column="activity">{{ t('Activity') }}</SortableTh>
+                            <SortableTh column="status">{{ t('Status') }}</SortableTh>
                             <th class="end">{{ t('Actions') }}</th>
                         </tr>
                     </thead>

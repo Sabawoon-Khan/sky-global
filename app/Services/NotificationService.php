@@ -10,6 +10,8 @@ use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class NotificationService
 {
@@ -21,9 +23,15 @@ class NotificationService
     /**
      * @param  iterable<User>|Collection<int, User>|EloquentCollection<int, User>  $users
      */
-    public function notifyUsers(iterable $users, NotificationPayload $payload): void
+    public function notifyUsers(iterable $users, NotificationPayload $payload, ?User $except = null): void
     {
         $users = $users instanceof Collection ? $users : collect($users);
+
+        if ($except !== null) {
+            $users = $users->reject(fn (User $user) => (int) $user->id === (int) $except->id);
+        }
+
+        $users = $users->values();
 
         if ($users->isEmpty()) {
             return;
@@ -35,23 +43,35 @@ class NotificationService
     /**
      * @param  string|array<int, string>  $roles
      */
-    public function notifyRole(string|array $roles, NotificationPayload $payload): void
+    public function notifyRole(string|array $roles, NotificationPayload $payload, ?User $except = null): void
     {
         $roles = Arr::wrap($roles);
-        $users = User::role($roles)->where('is_active', true)->get();
+        $existing = Role::query()->whereIn('name', $roles)->pluck('name')->all();
 
-        $this->notifyUsers($users, $this->withAudience($payload, roles: $roles));
+        if ($existing === []) {
+            return;
+        }
+
+        $users = User::role($existing)->where('is_active', true)->get();
+
+        $this->notifyUsers($users, $this->withAudience($payload, roles: $existing), $except);
     }
 
     /**
      * @param  string|array<int, string>  $permissions
      */
-    public function notifyPermission(string|array $permissions, NotificationPayload $payload): void
+    public function notifyPermission(string|array $permissions, NotificationPayload $payload, ?User $except = null): void
     {
         $permissions = Arr::wrap($permissions);
-        $users = User::permission($permissions)->where('is_active', true)->get();
+        $existing = Permission::query()->whereIn('name', $permissions)->pluck('name')->all();
 
-        $this->notifyUsers($users, $this->withAudience($payload, permissions: $permissions));
+        if ($existing === []) {
+            return;
+        }
+
+        $users = User::permission($existing)->where('is_active', true)->get();
+
+        $this->notifyUsers($users, $this->withAudience($payload, permissions: $existing), $except);
     }
 
     public function unreadCount(User $user): int

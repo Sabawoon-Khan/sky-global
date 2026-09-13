@@ -83,6 +83,12 @@ class UserManagementController extends Controller
 
         $user->logStatusChange('active', null, $request->user());
 
+        $this->notifyMisCreated(
+            'settings',
+            $user->name,
+            route('settings.users.index', [], false),
+        );
+
         return redirect()
             ->route('settings.users.index')
             ->with('success', 'User created.');
@@ -105,8 +111,10 @@ class UserManagementController extends Controller
         if (array_key_exists('is_active', $validated)) {
             if ($validated['is_active']) {
                 $user->enable($request->user());
+                $this->notifyMisStatus('settings', $user->name, 'active', route('settings.users.index', [], false));
             } else {
                 $user->disable($request->user());
+                $this->notifyMisStatus('settings', $user->name, 'inactive', route('settings.users.index', [], false));
             }
         }
 
@@ -114,6 +122,10 @@ class UserManagementController extends Controller
             $user->update(['password' => $validated['password']]);
 
             return back()->with('success', 'Password updated.');
+        }
+
+        if (! array_key_exists('is_active', $validated)) {
+            $this->notifyMisUpdated('settings', $user->name, route('settings.users.index', [], false));
         }
 
         return back()->with('success', 'User updated.');

@@ -6,6 +6,7 @@ import StatusBadge from '@/components/StatusBadge.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
 import TableToolbar from '@/components/TableToolbar.vue';
+import SortableTh from '@/components/SortableTh.vue';
 import {
     V2FilterBar,
     V2Hero,
@@ -73,7 +74,13 @@ const { filters, pending, apply, clear } = useMisFilters(
     { only: onlyKeys, liveKeys: ['search'] },
 );
 
-const { sortedRows } = provideTableSort(() => props.contractors.data);
+const { sortedRows } = provideTableSort(() => props.contractors.data, {
+    accessors: {
+        name: (row) => `${row.first_name} ${row.last_name}`,
+        contact: (row) => row.phone || row.email,
+        status: (row) => row.status,
+    },
+});
 const { t, viewAction, editAction, gateActions, can } = useMisPage();
 
 defineOptions({
@@ -172,9 +179,6 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
         <V2Hero image="/images/gs-hero-people.png">
             <template #eyebrow>{{ t('HR') }}</template>
             <template #title>{{ t('Contractors') }}</template>
-            <template #description>
-                {{ t('External personnel and contract-based staff.') }}
-            </template>
             <template #side>
                 <Link
                     v-if="can('hr.create')"
@@ -317,9 +321,9 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
                     <thead>
                         <tr>
                             <TableIndexTh />
-                            <th>{{ t('Name') }}</th>
-                            <th>{{ t('Contact') }}</th>
-                            <th>{{ t('Status') }}</th>
+                            <SortableTh column="name">{{ t('Name') }}</SortableTh>
+                            <SortableTh column="contact">{{ t('Contact') }}</SortableTh>
+                            <SortableTh column="status">{{ t('Status') }}</SortableTh>
                             <th class="end">{{ t('Actions') }}</th>
                         </tr>
                     </thead>

@@ -6,6 +6,7 @@ import StatusBadge from '@/components/StatusBadge.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
 import TableToolbar from '@/components/TableToolbar.vue';
+import SortableTh from '@/components/SortableTh.vue';
 import {
     V2FilterBar,
     V2Hero,
@@ -25,6 +26,7 @@ import type { RowActionItem } from '@/lib/row-actions';
 import { personnelStatusActions } from '@/lib/status-actions';
 import {
     Plus,
+    Ban,
     UserCheck,
     UserMinus,
     UserX,
@@ -60,6 +62,7 @@ const props = defineProps<{
         active: number;
         inactive: number;
         terminated: number;
+        blocked?: number;
         by_status?: Record<string, number>;
     };
     chart: {
@@ -78,7 +81,16 @@ const { filters, pending, apply, clear } = useMisFilters(
     { only: onlyKeys, liveKeys: ['search'] },
 );
 
-const { sortedRows } = provideTableSort(() => props.employees.data);
+const { sortedRows } = provideTableSort(() => props.employees.data, {
+    accessors: {
+        name: (row) => `${row.first_name} ${row.last_name}`,
+        designation: (row) => row.job_detail?.designation,
+        department: (row) => row.job_detail?.department?.name,
+        contact: (row) => row.phone || row.email,
+        type: (row) => (row.is_permanent ? 1 : 0),
+        status: (row) => row.status,
+    },
+});
 const { t, viewAction, editAction, gateActions, can } = useMisPage();
 
 defineOptions({
@@ -167,6 +179,7 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
             name: fullName(employee),
             status: employee.status,
             t,
+            blockable: true,
         }),
         'hr.edit',
     ),
@@ -180,9 +193,6 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
         <V2Hero image="/images/gs-hero-people.png">
             <template #eyebrow>{{ t('HR') }}</template>
             <template #title>{{ t('Employees') }}</template>
-            <template #description>
-                {{ t('Workforce roster — permanent and project-based staff.') }}
-            </template>
             <template #side>
                 <Link
                     v-if="can('hr.create')"
@@ -295,6 +305,14 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
                     >
                         <template #icon><UserX /></template>
                     </V2StatCard>
+                    <V2StatCard
+                        :delay="4"
+                        icon-tone="orange"
+                        :title="t('Blocked')"
+                        :value="formatNumber(stats.blocked ?? 0)"
+                    >
+                        <template #icon><Ban /></template>
+                    </V2StatCard>
                 </V2StatGrid>
             </template>
         </V2Hero>
@@ -325,12 +343,12 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
                     <thead>
                         <tr>
                             <TableIndexTh />
-                            <th>{{ t('Name') }}</th>
-                            <th>{{ t('Designation') }}</th>
-                            <th>{{ t('Department') }}</th>
-                            <th>{{ t('Contact') }}</th>
-                            <th>{{ t('Type') }}</th>
-                            <th>{{ t('Status') }}</th>
+                            <SortableTh column="name">{{ t('Name') }}</SortableTh>
+                            <SortableTh column="designation">{{ t('Designation') }}</SortableTh>
+                            <SortableTh column="department">{{ t('Department') }}</SortableTh>
+                            <SortableTh column="contact">{{ t('Contact') }}</SortableTh>
+                            <SortableTh column="type">{{ t('Type') }}</SortableTh>
+                            <SortableTh column="status">{{ t('Status') }}</SortableTh>
                             <th class="end">{{ t('Actions') }}</th>
                         </tr>
                     </thead>

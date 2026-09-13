@@ -34,6 +34,8 @@ import {
 } from '@/components/ui/card';
 import { V2DetailHero, V2ListPage } from '@/components/v2';
 import { useMisPage } from '@/composables/useMisPage';
+import { useTableSort } from '@/composables/useTableSort';
+import SortableTh from '@/components/SortableTh.vue';
 import { formatCurrency } from '@/lib/format';
 
 interface Agreement {
@@ -106,6 +108,24 @@ const props = defineProps<{
 }>();
 
 const { t, can } = useMisPage();
+
+const attendanceSort = useTableSort(() => props.attendances ?? [], {
+    accessors: {
+        period: (row) => `${row.year}-${String(row.month).padStart(2, '0')}`,
+        project: (row) => row.project?.code,
+        present: (row) => row.days_present,
+        status: (row) => row.status,
+    },
+});
+
+const adjustmentSort = useTableSort(() => props.payrollAdjustments ?? [], {
+    accessors: {
+        period: (row) => `${row.period_year}-${String(row.period_month).padStart(2, '0')}`,
+        type: (row) => row.type,
+        project: (row) => row.project?.code,
+        amount: (row) => row.amount,
+    },
+});
 
 defineOptions({
     layout: {
@@ -446,15 +466,15 @@ const agreementStartDate = computed(
                 <table v-else class="w-full text-sm">
                     <thead>
                         <tr class="border-b text-muted-foreground">
-                            <th class="pb-2 text-start">{{ t('Period') }}</th>
-                            <th class="pb-2 text-start">{{ t('Project') }}</th>
-                            <th class="pb-2 text-start">{{ t('Present') }}</th>
-                            <th class="pb-2 text-start">{{ t('Status') }}</th>
+                            <SortableTh column="period" class="pb-2 text-start" :sort-key="attendanceSort.sortKey" :sort-dir="attendanceSort.sortDir" @sort="attendanceSort.sortBy">{{ t('Period') }}</SortableTh>
+                            <SortableTh column="project" class="pb-2 text-start" :sort-key="attendanceSort.sortKey" :sort-dir="attendanceSort.sortDir" @sort="attendanceSort.sortBy">{{ t('Project') }}</SortableTh>
+                            <SortableTh column="present" class="pb-2 text-start" :sort-key="attendanceSort.sortKey" :sort-dir="attendanceSort.sortDir" @sort="attendanceSort.sortBy">{{ t('Present') }}</SortableTh>
+                            <SortableTh column="status" class="pb-2 text-start" :sort-key="attendanceSort.sortKey" :sort-dir="attendanceSort.sortDir" @sort="attendanceSort.sortBy">{{ t('Status') }}</SortableTh>
                         </tr>
                     </thead>
                     <tbody>
                         <tr
-                            v-for="a in attendances"
+                            v-for="a in attendanceSort.sortedRows"
                             :key="a.id"
                             class="border-b last:border-0"
                         >
@@ -477,15 +497,15 @@ const agreementStartDate = computed(
                 <table v-else class="w-full text-sm">
                     <thead>
                         <tr class="border-b text-muted-foreground">
-                            <th class="pb-2 text-start">{{ t('Period') }}</th>
-                            <th class="pb-2 text-start">{{ t('Type') }}</th>
-                            <th class="pb-2 text-start">{{ t('Project') }}</th>
-                            <th class="pb-2 text-end">{{ t('Amount') }}</th>
+                            <SortableTh column="period" class="pb-2 text-start" :sort-key="adjustmentSort.sortKey" :sort-dir="adjustmentSort.sortDir" @sort="adjustmentSort.sortBy">{{ t('Period') }}</SortableTh>
+                            <SortableTh column="type" class="pb-2 text-start" :sort-key="adjustmentSort.sortKey" :sort-dir="adjustmentSort.sortDir" @sort="adjustmentSort.sortBy">{{ t('Type') }}</SortableTh>
+                            <SortableTh column="project" class="pb-2 text-start" :sort-key="adjustmentSort.sortKey" :sort-dir="adjustmentSort.sortDir" @sort="adjustmentSort.sortBy">{{ t('Project') }}</SortableTh>
+                            <SortableTh column="amount" align="end" class="pb-2 text-end" :sort-key="adjustmentSort.sortKey" :sort-dir="adjustmentSort.sortDir" @sort="adjustmentSort.sortBy">{{ t('Amount') }}</SortableTh>
                         </tr>
                     </thead>
                     <tbody>
                         <tr
-                            v-for="adj in payrollAdjustments"
+                            v-for="adj in adjustmentSort.sortedRows"
                             :key="adj.id"
                             class="border-b last:border-0"
                         >

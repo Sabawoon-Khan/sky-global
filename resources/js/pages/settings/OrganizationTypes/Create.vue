@@ -65,9 +65,6 @@ defineOptions({
                             :model-value="slug"
                             @update:model-value="onSlugInput"
                         />
-                        <p class="text-sm text-muted-foreground">
-                            {{ t('Auto-generated from name. You can edit it.') }}
-                        </p>
                         <InputError :message="errors.slug" />
                     </div>
                     <div class="grid gap-2">

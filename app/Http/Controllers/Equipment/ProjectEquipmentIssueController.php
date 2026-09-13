@@ -62,6 +62,12 @@ class ProjectEquipmentIssueController extends Controller
             'message' => 'Items issued to project from stock.',
         ]);
 
+        $this->notifyMisCreated(
+            'inventory',
+            $project->name,
+            route('projects.show', $project, false),
+        );
+
         return back();
     }
 

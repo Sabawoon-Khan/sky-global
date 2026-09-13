@@ -44,6 +44,12 @@ class ProjectDeploymentController extends Controller
             ['deployment_id' => $deployment->id],
         );
 
+        $this->notifyMisCreated(
+            'projects',
+            __('Deployment'),
+            route('projects.show', $project, false),
+        );
+
         return back()->with('success', 'Deployment created.');
     }
 

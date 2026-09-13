@@ -11,14 +11,12 @@ import {
     Card,
     CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -106,10 +104,7 @@ const formTypeActions = (type: AttachmentTypeRecord): RowActionItem[] => [
                     <FileText class="size-5" />
                     {{ t('Form Types') }}
                 </CardTitle>
-                <CardDescription>
-                    {{ t('Configure HR document types such as guarantee forms, certificates, and clearances') }}
-                </CardDescription>
-                <CardAction>
+<CardAction>
                     <SettingsAddButton href="/settings/form-types/create">
                         {{ t('Add form type') }}
                     </SettingsAddButton>
@@ -169,9 +164,6 @@ const formTypeActions = (type: AttachmentTypeRecord): RowActionItem[] => [
             >
                 <DialogHeader>
                     <DialogTitle>{{ t('Edit form type') }}</DialogTitle>
-                    <DialogDescription>
-                        {{ t('Update settings for :name.', { name: editingType.name }) }}
-                    </DialogDescription>
                 </DialogHeader>
 
                 <div class="grid gap-4 py-4">

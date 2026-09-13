@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Finance;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
+use App\Models\Finance\FinanceCategory;
 use App\Models\Finance\GeneralExpense;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,6 +39,7 @@ class GeneralExpenseController extends Controller
 
         return Inertia::render('mis/finance/GeneralExpenses/Index', [
             'generalExpenses' => $generalExpenses,
+            'categories' => FinanceCategory::options(),
             'stats' => [
                 'total' => (float) GeneralExpense::query()->sum('amount'),
                 'count' => GeneralExpense::query()->count(),
@@ -69,6 +71,12 @@ class GeneralExpenseController extends Controller
         ]);
         $this->storeOptionalAttachment($request, $expense);
 
+        $this->notifyMisCreated(
+            'finance',
+            $expense->description ?: __('General expense'),
+            route('finance.general-expenses', [], false),
+        );
+
         return back()->with('success', 'General expense recorded.');
     }
 
@@ -92,6 +100,12 @@ class GeneralExpenseController extends Controller
 
         $generalExpense->update($validated);
 
+        $this->notifyMisUpdated(
+            'finance',
+            $generalExpense->description ?: __('General expense'),
+            route('finance.general-expenses', [], false),
+        );
+
         return back()->with('success', 'General expense updated.');
     }
 
@@ -99,7 +113,10 @@ class GeneralExpenseController extends Controller
     {
         $this->authorizePermission($request, 'finance.delete');
 
+        $label = $generalExpense->description ?: __('General expense');
         $generalExpense->delete();
+
+        $this->notifyMisDeleted('finance', $label, route('finance.general-expenses', [], false));
 
         return back()->with('success', 'General expense deleted.');
     }

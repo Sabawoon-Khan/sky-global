@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { ArrowLeft } from '@lucide/vue';
 import { computed } from 'vue';
+import MisExportActions from '@/components/mis/MisExportActions.vue';
 import { useLocale } from '@/composables/useLocale';
 import { useTranslations } from '@/composables/useTranslations';
 
@@ -28,7 +29,7 @@ const resolvedDir = computed(() => props.dir ?? localeDir.value);
 </script>
 
 <template>
-    <div class="v2-list-page v2-form-page" :dir="resolvedDir">
+    <div class="v2-list-page v2-form-page" data-export-root :dir="resolvedDir">
         <header class="v2-form-page-head">
             <div class="v2-form-page-copy">
                 <p v-if="eyebrow || $slots.eyebrow" class="v2-form-page-eyebrow">
@@ -42,10 +43,8 @@ const resolvedDir = computed(() => props.dir ?? localeDir.value);
                     <slot name="description">{{ description }}</slot>
                 </p>
             </div>
-            <div
-                v-if="backHref || $slots.actions"
-                class="v2-form-page-actions"
-            >
+            <div class="v2-form-page-actions no-print">
+                <MisExportActions variant="outline" />
                 <Link
                     v-if="backHref"
                     :href="backHref"

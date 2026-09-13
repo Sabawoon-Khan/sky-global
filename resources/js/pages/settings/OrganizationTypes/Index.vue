@@ -12,14 +12,12 @@ import {
     Card,
     CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -132,10 +130,7 @@ const organizationTypeActions = (type: OrganizationType): RowActionItem[] => [
                     <Tags class="size-5" />
                     {{ t('Types') }}
                 </CardTitle>
-                <CardDescription>
-                    {{ t('Configure client categories and classification colors') }}
-                </CardDescription>
-                <CardAction>
+<CardAction>
                     <SettingsAddButton href="/settings/organization-types/create">
                         {{ t('Add Type') }}
                     </SettingsAddButton>
@@ -199,9 +194,6 @@ const organizationTypeActions = (type: OrganizationType): RowActionItem[] => [
             >
                 <DialogHeader>
                     <DialogTitle>{{ t('Edit organization type') }}</DialogTitle>
-                    <DialogDescription>
-                        {{ t('Update the name, color, or description for :name.', { name: editingType.name }) }}
-                    </DialogDescription>
                 </DialogHeader>
 
                 <div class="grid gap-4 py-4">
@@ -229,9 +221,6 @@ const organizationTypeActions = (type: OrganizationType): RowActionItem[] => [
                             :model-value="slug"
                             @update:model-value="onSlugInput"
                         />
-                        <p class="text-sm text-muted-foreground">
-                            {{ t('Auto-generated from name. You can edit it.') }}
-                        </p>
                         <InputError :message="errors.slug" />
                     </div>
                     <div class="grid gap-2">

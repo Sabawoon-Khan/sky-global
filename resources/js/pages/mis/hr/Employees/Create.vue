@@ -46,7 +46,6 @@ defineOptions({
     <V2FormPage
         :title="t('Add Employee')"
         :eyebrow="t('HR')"
-        :description="t('Create a permanent or project-based employee record.')"
         back-href="/hr/employees"
     >
         <Form
@@ -179,9 +178,6 @@ defineOptions({
                                 <Label for="is_permanent" class="cursor-pointer font-medium">
                                     {{ t('Permanent staff') }}
                                 </Label>
-                                <p class="text-sm text-muted-foreground">
-                                    {{ t('Office-based employee included in general attendance, not assigned to projects.') }}
-                                </p>
                             </div>
                         </div>
                     </div>
@@ -193,16 +189,6 @@ defineOptions({
                     :currencies="currencies"
                     :errors="errors"
                 />
-            </V2FormSection>
-
-            <V2FormSection v-else :title="t('Project pay')">
-                <p class="text-sm text-muted-foreground">
-                    {{
-                        t(
-                            'Project-based employees are paid through their project assignment. After saving, assign them to a project and set the monthly rate there.',
-                        )
-                    }}
-                </p>
             </V2FormSection>
 
             <V2FormSection :title="t('Employee forms')">

@@ -35,6 +35,7 @@ class ProjectExpenseController extends Controller
             ->through(fn (ProjectExpense $expense) => [
                 'id' => $expense->id,
                 'description' => $expense->description,
+                'category' => $expense->category,
                 'amount' => (float) $expense->amount,
                 'amount_usd' => $expense->amount_usd !== null ? (float) $expense->amount_usd : null,
                 'currency' => $expense->currency,
@@ -66,6 +67,7 @@ class ProjectExpenseController extends Controller
             'exchange_rate' => ['nullable', 'numeric', 'min:0'],
             'amount_usd' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
+            'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],
@@ -89,6 +91,12 @@ class ProjectExpenseController extends Controller
             );
         }
 
+        $this->notifyMisCreated(
+            'finance',
+            $expense->description ?: __('Project expense'),
+            route('finance.expenses', [], false),
+        );
+
         return back()->with('success', 'Expense recorded.');
     }
 
@@ -103,6 +111,7 @@ class ProjectExpenseController extends Controller
             'exchange_rate' => ['nullable', 'numeric', 'min:0'],
             'amount_usd' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
+            'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['sometimes', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],
@@ -111,6 +120,12 @@ class ProjectExpenseController extends Controller
 
         $expense->update($validated);
 
+        $this->notifyMisUpdated(
+            'finance',
+            $expense->description ?: __('Project expense'),
+            route('finance.expenses', [], false),
+        );
+
         return back()->with('success', 'Expense updated.');
     }
 
@@ -118,7 +133,10 @@ class ProjectExpenseController extends Controller
     {
         $this->authorizePermission($request, 'finance.delete');
 
+        $label = $expense->description ?: __('Project expense');
         $expense->delete();
+
+        $this->notifyMisDeleted('finance', $label, route('finance.expenses', [], false));
 
         return back()->with('success', 'Expense deleted.');
     }

@@ -13,11 +13,14 @@ use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
 use App\Models\Organization;
 use App\Models\Project\Project;
-use App\Services\AfghanistanCompanyTaxService;
+use App\Services\DocumentNumberService;
+use App\Support\CompanyDocument;
+use App\Support\NumberToWords;
 use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -70,15 +73,6 @@ class InvoiceController extends Controller
                 'currency_breakdown' => $currencyBreakdown->values()->all(),
             ],
             'charts' => $this->buildOverviewCharts($totalIncome, $totalGeneralIncome, $totalExpenses, $totalGeneral),
-        ]);
-    }
-
-    public function tax(Request $request, AfghanistanCompanyTaxService $companyTax): Response
-    {
-        $this->authorizePermission($request, 'finance.view');
-
-        return Inertia::render('mis/finance/Tax', [
-            'tax' => $this->buildCompanyTaxReport($companyTax),
         ]);
     }
 
@@ -138,36 +132,60 @@ class InvoiceController extends Controller
         $validated = $request->validate([
             'project_id' => ['nullable', 'exists:projects,id'],
             'organization_id' => ['nullable', 'exists:organizations,id'],
-            'invoice_number' => ['required', 'string', 'max:100', 'unique:invoices,invoice_number'],
             'issue_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
-            'subtotal' => ['required', 'numeric', 'min:0'],
+            'period_start' => ['nullable', 'date'],
+            'period_end' => ['nullable', 'date', 'after_or_equal:period_start'],
+            'services' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string'],
+            'subtotal' => ['nullable', 'numeric', 'min:0'],
             'tax' => ['nullable', 'numeric', 'min:0'],
-            'total' => ['required', 'numeric', 'min:0'],
+            'total' => ['nullable', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
             'status' => ['nullable', 'string', 'in:draft,sent,paid,overdue,cancelled'],
             'line_items' => ['nullable', 'array'],
-            'line_items.*.description' => ['required_with:line_items', 'string', 'max:255'],
+            'line_items.*.description' => ['nullable', 'string', 'max:255'],
             'line_items.*.quantity' => ['nullable', 'numeric', 'min:0'],
             'line_items.*.unit_price' => ['nullable', 'numeric', 'min:0'],
-            'line_items.*.total' => ['nullable', 'numeric', 'min:0'],
+            'line_items.*.days' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $lineItems = $validated['line_items'] ?? [];
+        $lineItems = $this->normalizedInvoiceLines($validated['line_items'] ?? []);
         unset($validated['line_items']);
 
-        $invoice = Invoice::query()->create([
-            ...$validated,
-            'tax' => $validated['tax'] ?? 0,
-            'currency' => 'AFN',
-            'status' => $validated['status'] ?? 'draft',
-            'created_by' => $request->user()->id,
-        ]);
+        $totals = $this->totalsFromLines(
+            $lineItems,
+            (float) ($validated['subtotal'] ?? 0),
+            (float) ($validated['tax'] ?? 0),
+            (float) ($validated['total'] ?? 0),
+        );
 
-        foreach ($lineItems as $item) {
-            $invoice->lineItems()->create($item);
-        }
+        $invoice = DB::transaction(function () use ($request, $validated, $lineItems, $totals) {
+            $invoice = Invoice::query()->create([
+                ...$validated,
+                'invoice_number' => DocumentNumberService::nextInvoiceNumber(),
+                'subtotal' => $totals['subtotal'],
+                'tax' => $totals['tax'],
+                'total' => $totals['total'],
+                'currency' => strtoupper($validated['currency'] ?? 'USD'),
+                'status' => $validated['status'] ?? 'draft',
+                'created_by' => $request->user()->id,
+            ]);
+
+            foreach ($lineItems as $item) {
+                $invoice->lineItems()->create($item);
+            }
+
+            return $invoice;
+        });
+
         $this->storeOptionalAttachment($request, $invoice);
+
+        $this->notifyMisCreated(
+            'finance',
+            $invoice->invoice_number ?: __('Invoice'),
+            route('finance.invoices.print', $invoice, false),
+        );
 
         Inertia::flash('toast', [
             'type' => 'success',
@@ -184,34 +202,61 @@ class InvoiceController extends Controller
         $validated = $request->validate([
             'project_id' => ['nullable', 'exists:projects,id'],
             'organization_id' => ['nullable', 'exists:organizations,id'],
-            'invoice_number' => ['sometimes', 'required', 'string', 'max:100', 'unique:invoices,invoice_number,'.$invoice->id],
             'issue_date' => ['sometimes', 'date'],
             'due_date' => ['nullable', 'date'],
+            'period_start' => ['nullable', 'date'],
+            'period_end' => ['nullable', 'date'],
+            'services' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string'],
             'subtotal' => ['sometimes', 'numeric', 'min:0'],
             'tax' => ['nullable', 'numeric', 'min:0'],
             'total' => ['sometimes', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
             'status' => ['nullable', 'string', 'in:draft,sent,paid,overdue,cancelled'],
             'line_items' => ['nullable', 'array'],
-            'line_items.*.description' => ['required_with:line_items', 'string', 'max:255'],
+            'line_items.*.description' => ['nullable', 'string', 'max:255'],
             'line_items.*.quantity' => ['nullable', 'numeric', 'min:0'],
             'line_items.*.unit_price' => ['nullable', 'numeric', 'min:0'],
-            'line_items.*.total' => ['nullable', 'numeric', 'min:0'],
+            'line_items.*.days' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $lineItems = $validated['line_items'] ?? null;
+        $lineItems = array_key_exists('line_items', $validated)
+            ? $this->normalizedInvoiceLines($validated['line_items'] ?? [])
+            : null;
         unset($validated['line_items']);
 
-        $invoice->update([
-            ...$validated,
-            'currency' => 'AFN',
-        ]);
+        if (isset($validated['currency'])) {
+            $validated['currency'] = strtoupper($validated['currency']);
+        }
+
+        if (is_array($lineItems)) {
+            $totals = $this->totalsFromLines(
+                $lineItems,
+                (float) ($validated['subtotal'] ?? $invoice->subtotal),
+                (float) ($validated['tax'] ?? $invoice->tax),
+                (float) ($validated['total'] ?? $invoice->total),
+            );
+            $validated['subtotal'] = $totals['subtotal'];
+            $validated['tax'] = $totals['tax'];
+            $validated['total'] = $totals['total'];
+        }
+
+        $invoice->update($validated);
 
         if (is_array($lineItems)) {
             $invoice->lineItems()->delete();
             foreach ($lineItems as $item) {
                 $invoice->lineItems()->create($item);
             }
+        }
+
+        $invoiceLabel = $invoice->invoice_number ?: __('Invoice');
+        $invoiceUrl = route('finance.invoices.print', $invoice, false);
+
+        if (isset($validated['status']) && $invoice->wasChanged('status')) {
+            $this->notifyMisStatus('finance', $invoiceLabel, $invoice->status, $invoiceUrl);
+        } else {
+            $this->notifyMisUpdated('finance', $invoiceLabel, $invoiceUrl);
         }
 
         Inertia::flash('toast', [
@@ -226,7 +271,10 @@ class InvoiceController extends Controller
     {
         $this->authorizePermission($request, 'finance.delete');
 
+        $label = $invoice->invoice_number ?: __('Invoice');
         $invoice->delete();
+
+        $this->notifyMisDeleted('finance', $label, route('finance.invoices', [], false));
 
         Inertia::flash('toast', [
             'type' => 'success',
@@ -236,69 +284,93 @@ class InvoiceController extends Controller
         return back();
     }
 
-    /**
-     * @return array{
-     *     current_year: int,
-     *     rate_percent: int,
-     *     year: array<string, float|int>,
-     *     quarters: list<array<string, float|int|string>>,
-     *     years: list<array<string, float|int|string>>
-     * }
-     */
-    private function buildCompanyTaxReport(AfghanistanCompanyTaxService $companyTax): array
+    public function print(Request $request, Invoice $invoice): Response
     {
-        $currentYear = (int) now()->year;
+        $this->authorizePermission($request, 'finance.view');
 
-        $yearStart = now()->copy()->startOfYear();
-        $yearEnd = now()->copy()->endOfYear();
-        $yearSummary = $companyTax->summarize(
-            $this->sumIncomeInRange($yearStart, $yearEnd),
-            $this->sumExpenseInRange($yearStart, $yearEnd),
-        );
+        $invoice->load(['organization', 'project', 'lineItems']);
 
-        $quarters = [];
-        for ($quarter = 1; $quarter <= 4; $quarter++) {
-            $start = now()->copy()->setDate($currentYear, ($quarter - 1) * 3 + 1, 1)->startOfDay();
-            $end = $start->copy()->addMonths(2)->endOfMonth();
-            $summary = $companyTax->summarize(
-                $this->sumIncomeInRange($start, $end),
-                $this->sumExpenseInRange($start, $end),
-            );
+        return Inertia::render('mis/finance/InvoicePrint', [
+            'invoice' => [
+                'id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'issue_date' => $invoice->issue_date?->format('d-M-Y'),
+                'due_date' => $invoice->due_date?->format('d-M-Y'),
+                'period_start' => $invoice->period_start?->format('d-M-Y'),
+                'period_end' => $invoice->period_end?->format('d-M-Y'),
+                'services' => $invoice->services,
+                'notes' => $invoice->notes,
+                'subtotal' => (float) $invoice->subtotal,
+                'tax' => (float) $invoice->tax,
+                'total' => (float) $invoice->total,
+                'currency' => $invoice->currency ?: 'USD',
+                'status' => $invoice->status,
+                'organization' => $invoice->organization ? [
+                    'name' => $invoice->organization->name,
+                    'address' => $invoice->organization->address,
+                    'email' => $invoice->organization->email,
+                    'phone' => $invoice->organization->phone,
+                ] : null,
+                'project' => $invoice->project?->only(['id', 'code', 'name']),
+                'line_items' => $invoice->lineItems->map(fn ($item) => [
+                    'description' => $item->description,
+                    'quantity' => (float) $item->quantity,
+                    'unit_price' => (float) $item->unit_price,
+                    'days' => (int) ($item->days ?: 1),
+                    'total' => (float) $item->total,
+                ])->values()->all(),
+            ],
+            'company' => CompanyDocument::profile(),
+            'amount_in_words' => NumberToWords::money((float) $invoice->total, $invoice->currency ?: 'USD'),
+        ]);
+    }
 
-            $quarters[] = [
-                'quarter' => $quarter,
-                'label' => "Q{$quarter} {$currentYear}",
-                'period_start' => $start->toDateString(),
-                'period_end' => $end->toDateString(),
-                ...$summary,
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array{description: string, quantity: float, unit_price: float, days: int, total: float}>
+     */
+    private function normalizedInvoiceLines(array $lines): array
+    {
+        $items = [];
+
+        foreach ($lines as $line) {
+            $description = trim((string) ($line['description'] ?? ''));
+
+            if ($description === '') {
+                continue;
+            }
+
+            $quantity = (float) ($line['quantity'] ?? 1);
+            $unitPrice = (float) ($line['unit_price'] ?? 0);
+            $days = max(1, (int) ($line['days'] ?? 1));
+
+            $items[] = [
+                'description' => $description,
+                'quantity' => $quantity,
+                'unit_price' => $unitPrice,
+                'days' => $days,
+                'total' => round($quantity * $unitPrice * $days, 2),
             ];
         }
 
-        $years = [];
-        for ($offset = 2; $offset >= 0; $offset--) {
-            $year = $currentYear - $offset;
-            $start = now()->copy()->setDate($year, 1, 1)->startOfDay();
-            $end = now()->copy()->setDate($year, 12, 31)->endOfDay();
-            $summary = $companyTax->summarize(
-                $this->sumIncomeInRange($start, $end),
-                $this->sumExpenseInRange($start, $end),
-            );
+        return $items;
+    }
 
-            $years[] = [
-                'year' => $year,
-                'label' => (string) $year,
-                'period_start' => $start->toDateString(),
-                'period_end' => $end->toDateString(),
-                ...$summary,
-            ];
+    /**
+     * @param  list<array{total: float}>  $lineItems
+     * @return array{subtotal: float, tax: float, total: float}
+     */
+    private function totalsFromLines(array $lineItems, float $subtotal, float $tax, float $total): array
+    {
+        if ($lineItems !== []) {
+            $subtotal = round(array_sum(array_column($lineItems, 'total')), 2);
+            $total = round($subtotal + $tax, 2);
         }
 
         return [
-            'current_year' => $currentYear,
-            'rate_percent' => (int) round(AfghanistanCompanyTaxService::CORPORATE_RATE * 100),
-            'year' => $yearSummary,
-            'quarters' => $quarters,
-            'years' => $years,
+            'subtotal' => $subtotal,
+            'tax' => $tax,
+            'total' => $total > 0 ? $total : round($subtotal + $tax, 2),
         ];
     }
 

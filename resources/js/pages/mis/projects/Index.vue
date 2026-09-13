@@ -6,6 +6,7 @@ import StatusBadge from '@/components/StatusBadge.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
 import TableToolbar from '@/components/TableToolbar.vue';
+import SortableTh from '@/components/SortableTh.vue';
 import {
     V2FilterBar,
     V2Hero,
@@ -91,7 +92,15 @@ const { filters, pending, apply } = useMisFilters(
     { only: onlyKeys, liveKeys: ['search'] },
 );
 
-const { sortedRows } = provideTableSort(() => props.projects.data);
+const { sortedRows } = provideTableSort(() => props.projects.data, {
+    accessors: {
+        code: (row) => row.code,
+        name: (row) => row.name,
+        client: (row) => row.organization?.name,
+        bid: (row) => row.our_bid_amount,
+        status: (row) => row.status,
+    },
+});
 const { t, viewAction, editAction, deleteAction, gateActions, can } =
     useMisPage();
 
@@ -197,14 +206,6 @@ function onStatusChange(value: string) {
         <V2Hero image="/images/gs-hero-operations.png">
             <template #eyebrow>{{ t('Operations') }}</template>
             <template #title>{{ t('Projects') }}</template>
-            <template #description>
-                {{
-                    t(
-                        'Create a project to start bidding — win or lose, everything stays on one record.',
-                    )
-                }}
-            </template>
-
             <template #side>
                 <Link
                     v-if="can('projects.create')"
@@ -360,11 +361,11 @@ function onStatusChange(value: string) {
                     <thead>
                         <tr>
                             <TableIndexTh />
-                            <th>{{ t('Code') }}</th>
-                            <th>{{ t('Project') }}</th>
-                            <th>{{ t('Client') }}</th>
-                            <th>{{ t('Our bid') }}</th>
-                            <th>{{ t('Status') }}</th>
+                            <SortableTh column="code">{{ t('Code') }}</SortableTh>
+                            <SortableTh column="name">{{ t('Project') }}</SortableTh>
+                            <SortableTh column="client">{{ t('Client') }}</SortableTh>
+                            <SortableTh column="bid">{{ t('Our bid') }}</SortableTh>
+                            <SortableTh column="status">{{ t('Status') }}</SortableTh>
                             <th class="end">{{ t('Actions') }}</th>
                         </tr>
                     </thead>

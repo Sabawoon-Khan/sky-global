@@ -185,6 +185,12 @@ class EquipmentCatalogController extends Controller
             'quantity_on_hand' => $initialQuantity,
         ]);
 
+        $this->notifyMisCreated(
+            'inventory',
+            $catalog->name,
+            route('equipment.index', [], false),
+        );
+
         Inertia::flash('toast', [
             'type' => 'success',
             'message' => 'Stock item created.',
@@ -237,6 +243,12 @@ class EquipmentCatalogController extends Controller
         }
 
         $stock->update(['quantity_on_hand' => $nextQty]);
+
+        $this->notifyMisUpdated(
+            'inventory',
+            $equipmentCatalog->name,
+            route('equipment.index', [], false),
+        );
 
         Inertia::flash('toast', [
             'type' => 'success',

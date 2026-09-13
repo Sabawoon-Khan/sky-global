@@ -140,6 +140,12 @@ class OrganizationController extends Controller
         $organization = Organization::query()->create($request->validated());
         $this->storeOptionalAttachment($request, $organization);
 
+        $this->notifyMisCreated(
+            'bidding',
+            $organization->name,
+            route('organizations.show', $organization, false),
+        );
+
         return redirect()
             ->route('organizations.show', $organization)
             ->with('success', 'Organization created.');
@@ -210,11 +216,24 @@ class OrganizationController extends Controller
         if (array_keys($validated) === ['is_active']) {
             $organization->refresh();
 
+            $this->notifyMisStatus(
+                'bidding',
+                $organization->name,
+                $organization->is_active ? 'active' : 'inactive',
+                route('organizations.show', $organization, false),
+            );
+
             return back()->with(
                 'success',
                 $organization->is_active ? 'Organization activated.' : 'Organization deactivated.',
             );
         }
+
+        $this->notifyMisUpdated(
+            'bidding',
+            $organization->name,
+            route('organizations.show', $organization, false),
+        );
 
         return redirect()
             ->route('organizations.show', $organization)
@@ -229,7 +248,10 @@ class OrganizationController extends Controller
             return back()->withErrors(['organization' => 'Cannot delete an organization with related records.']);
         }
 
+        $name = $organization->name;
         $organization->delete();
+
+        $this->notifyMisDeleted('bidding', $name, route('organizations.index', [], false));
 
         return redirect()
             ->route('organizations.index')

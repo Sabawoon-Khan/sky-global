@@ -13,14 +13,12 @@ import {
     Card,
     CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -190,10 +188,7 @@ const formatModuleLabel = (module: string): string =>
                     <Shield class="size-5" />
                     {{ t('System Roles') }}
                 </CardTitle>
-                <CardDescription>
-                    {{ t('Define roles and assign permissions to control access') }}
-                </CardDescription>
-                <CardAction>
+<CardAction>
                     <Can permission="settings.manage_users">
                         <SettingsAddButton href="/settings/roles/create">
                             {{ t('Add Role') }}
@@ -254,13 +249,6 @@ const formatModuleLabel = (module: string): string =>
             >
                 <DialogHeader>
                     <DialogTitle>{{ t('Edit role') }}</DialogTitle>
-                    <DialogDescription>
-                        {{
-                            t('Update the name and permissions for :name.', {
-                                name: editingRole.name,
-                            })
-                        }}
-                    </DialogDescription>
                 </DialogHeader>
 
                 <div class="grid gap-4 py-4">

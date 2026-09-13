@@ -67,6 +67,7 @@ class EmployeeController extends Controller
                 'active' => (int) ($byStatus['active'] ?? 0),
                 'inactive' => (int) ($byStatus['inactive'] ?? 0),
                 'terminated' => (int) ($byStatus['terminated'] ?? 0),
+                'blocked' => (int) ($byStatus['blocked'] ?? 0),
                 'by_status' => $byStatus,
             ],
             'chart' => [
@@ -74,6 +75,7 @@ class EmployeeController extends Controller
                     ['key' => 'active', 'label' => 'Active', 'value' => (int) ($byStatus['active'] ?? 0)],
                     ['key' => 'inactive', 'label' => 'Inactive', 'value' => (int) ($byStatus['inactive'] ?? 0)],
                     ['key' => 'terminated', 'label' => 'Terminated', 'value' => (int) ($byStatus['terminated'] ?? 0)],
+                    ['key' => 'blocked', 'label' => 'Blocked', 'value' => (int) ($byStatus['blocked'] ?? 0)],
                 ],
                 'monthly' => $this->countCreatedByMonth(Employee::query()),
             ],
@@ -149,7 +151,7 @@ class EmployeeController extends Controller
             'tazkira_number' => ['nullable', 'string', 'max:50'],
             'date_of_birth' => ['nullable', 'date'],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
-            'status' => ['nullable', 'string', 'in:active,inactive,terminated'],
+            'status' => ['nullable', 'string', 'in:active,inactive,terminated,blocked'],
             'is_permanent' => ['nullable', 'boolean'],
             'job_detail' => ['nullable', 'array'],
             'job_detail.department_id' => ['nullable', 'exists:departments,id'],
@@ -177,6 +179,12 @@ class EmployeeController extends Controller
         $this->syncSalaries($request, $employee);
         $this->storePersonnelAttachments($request, $employee, 'employee');
 
+        $this->notifyMisCreated(
+            'hr',
+            trim($employee->first_name.' '.$employee->last_name),
+            route('hr.employees.show', $employee, false),
+        );
+
         return redirect()
             ->route('hr.employees.show', $employee)
             ->with('success', 'Employee created.');
@@ -193,7 +201,7 @@ class EmployeeController extends Controller
             'user',
             'attachments',
             'personnelAttachments.attachmentType',
-            'statusChangeLogs' => fn ($q) => $q->with('changedBy:id,name')->latest(),
+            'statusChangeLogs' => fn ($q) => $q->with(['changedBy:id,name', 'attachments'])->latest(),
         ]);
 
         $employee->setAttribute(
@@ -255,6 +263,9 @@ class EmployeeController extends Controller
     {
         $this->authorizePermission($request, 'hr.edit');
 
+        $goingToBlocked = $request->input('status') === 'blocked'
+            && $employee->status !== 'blocked';
+
         $validated = $request->validate([
             'first_name' => ['sometimes', 'required', 'string', 'max:100'],
             'last_name' => ['sometimes', 'required', 'string', 'max:100'],
@@ -266,7 +277,9 @@ class EmployeeController extends Controller
             'tazkira_number' => ['nullable', 'string', 'max:50'],
             'date_of_birth' => ['nullable', 'date'],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
-            'status' => ['nullable', 'string', 'in:active,inactive,terminated'],
+            'status' => ['nullable', 'string', 'in:active,inactive,terminated,blocked'],
+            'reason' => [$goingToBlocked ? 'required' : 'nullable', 'string', 'max:2000'],
+            'attachment' => [$goingToBlocked ? 'required' : 'nullable', 'file', 'max:10240'],
             'is_permanent' => ['nullable', 'boolean'],
             'job_detail' => ['nullable', 'array'],
             'job_detail.department_id' => ['nullable', 'exists:departments,id'],
@@ -278,14 +291,28 @@ class EmployeeController extends Controller
         ]);
 
         $jobDetail = $validated['job_detail'] ?? null;
-        unset($validated['job_detail'], $validated['salaries'], $validated['personnel_forms']);
+        $reason = $validated['reason'] ?? null;
+        unset($validated['job_detail'], $validated['salaries'], $validated['personnel_forms'], $validated['reason'], $validated['attachment']);
 
         $oldStatus = $employee->status;
 
         $employee->update($validated);
 
         if (array_key_exists('status', $validated) && $validated['status'] !== $oldStatus) {
-            $employee->logStatusChange($validated['status'], $oldStatus, $request->user());
+            $log = $employee->logStatusChange(
+                $validated['status'],
+                $oldStatus,
+                $request->user(),
+                $reason,
+            );
+
+            if ($log && $goingToBlocked) {
+                $request->merge([
+                    'attachment_title' => 'Blocking document',
+                    'attachment_notes' => $reason,
+                ]);
+                $this->storeOptionalAttachment($request, $log);
+            }
         }
 
         if (is_array($jobDetail)) {
@@ -294,16 +321,28 @@ class EmployeeController extends Controller
                 $jobDetail,
             );
         }
-        $this->storeOptionalAttachment($request, $employee);
+
+        if (! $goingToBlocked) {
+            $this->storeOptionalAttachment($request, $employee);
+        }
         $this->syncSalaries($request, $employee);
         $this->storePersonnelAttachments($request, $employee, 'employee');
 
-        if (array_keys($validated) === ['status']) {
-            return back()->with('success', 'Employee status updated.');
+        $employeeLabel = trim($employee->first_name.' '.$employee->last_name);
+        $employeeUrl = route('hr.employees.show', $employee, false);
+
+        if (array_key_exists('status', $validated) && $validated['status'] !== $oldStatus) {
+            $this->notifyMisStatus('hr', $employeeLabel, $validated['status'], $employeeUrl);
+        } elseif ($request->exists('first_name')) {
+            $this->notifyMisUpdated('hr', $employeeLabel, $employeeUrl);
         }
 
-        if (array_keys($validated) === ['is_permanent']) {
-            return back()->with('success', 'Employee employment type updated.');
+        if (! $request->exists('first_name')) {
+            if ($request->exists('is_permanent') && ! $request->exists('status')) {
+                return back()->with('success', 'Employee employment type updated.');
+            }
+
+            return back()->with('success', 'Employee status updated.');
         }
 
         return redirect()

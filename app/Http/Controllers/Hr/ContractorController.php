@@ -147,6 +147,12 @@ class ContractorController extends Controller
         $this->syncRates($request, $contractor);
         $this->storePersonnelAttachments($request, $contractor, 'contractor');
 
+        $this->notifyMisCreated(
+            'hr',
+            trim($contractor->first_name.' '.$contractor->last_name),
+            route('hr.contractors.show', $contractor, false),
+        );
+
         return redirect()
             ->route('hr.contractors.show', $contractor)
             ->with('success', 'Contractor created.');
@@ -231,6 +237,18 @@ class ContractorController extends Controller
 
         if (array_key_exists('status', $validated) && $validated['status'] !== $oldStatus) {
             $contractor->logStatusChange($validated['status'], $oldStatus, $request->user());
+            $this->notifyMisStatus(
+                'hr',
+                trim($contractor->first_name.' '.$contractor->last_name),
+                $validated['status'],
+                route('hr.contractors.show', $contractor, false),
+            );
+        } elseif (! (array_keys($validated) === ['status'])) {
+            $this->notifyMisUpdated(
+                'hr',
+                trim($contractor->first_name.' '.$contractor->last_name),
+                route('hr.contractors.show', $contractor, false),
+            );
         }
 
         if (array_keys($validated) === ['status']) {

@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -95,13 +94,6 @@ const ruleFields = [
                 <Settings2 class="size-5" />
                 {{ t('Payroll Rules') }}
             </h2>
-            <p class="text-sm text-muted-foreground">
-                {{
-                    t(
-                        'Configure how absences, leave types, and deductions are calculated when generating payroll from attendance.',
-                    )
-                }}
-            </p>
         </div>
 
         <Form
@@ -113,14 +105,7 @@ const ruleFields = [
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Attendance-based calculation') }}</CardTitle>
-                    <CardDescription>
-                        {{
-                            t(
-                                'Payroll is calculated as: daily rate × paid days, minus absence deductions. Daily rate = monthly salary ÷ working days.',
-                            )
-                        }}
-                    </CardDescription>
-                </CardHeader>
+            </CardHeader>
                 <CardContent class="grid gap-6 sm:grid-cols-2">
                     <div
                         v-for="field in ruleFields"

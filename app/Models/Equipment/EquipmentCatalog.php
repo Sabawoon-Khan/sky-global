@@ -3,13 +3,14 @@
 namespace App\Models\Equipment;
 
 use App\Concerns\HasAttachments;
+use App\Concerns\LogsCrudActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class EquipmentCatalog extends Model
 {
-    use HasAttachments;
+    use HasAttachments, LogsCrudActivity;
 
     protected $table = 'equipment_catalog';
 

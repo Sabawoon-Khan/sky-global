@@ -3,6 +3,7 @@
 namespace App\Models\Finance;
 
 use App\Concerns\HasAttachments;
+use App\Concerns\LogsCrudActivity;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class GeneralIncome extends Model
 {
-    use HasAttachments, SoftDeletes;
+    use HasAttachments, LogsCrudActivity, SoftDeletes;
 
     protected $fillable = [
         'account_id',

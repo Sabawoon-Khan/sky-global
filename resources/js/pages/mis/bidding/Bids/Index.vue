@@ -5,6 +5,7 @@ import StatusBadge from '@/components/StatusBadge.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
 import TableToolbar from '@/components/TableToolbar.vue';
+import SortableTh from '@/components/SortableTh.vue';
 import {
     V2FilterBar,
     V2Hero,
@@ -85,7 +86,15 @@ const { filters, pending, apply, clear } = useMisFilters(
     { only: onlyKeys, liveKeys: ['search'] },
 );
 
-const { sortedRows } = provideTableSort(() => props.bids.data);
+const { sortedRows } = provideTableSort(() => props.bids.data, {
+    accessors: {
+        bid_number: (row) => row.bid_number ?? row.id,
+        opportunity: (row) => row.procurement_opportunity?.title,
+        submitted: (row) => row.submitted_at,
+        amount: (row) => row.our_total_amount,
+        status: (row) => row.status,
+    },
+});
 const { t, can } = useMisPage();
 
 defineOptions({
@@ -168,9 +177,6 @@ const monthlyBars = computed(() => {
         <V2Hero image="/images/gs-hero-operations.png">
             <template #eyebrow>{{ t('Bidding') }}</template>
             <template #title>{{ t('Bids') }}</template>
-            <template #description>
-                {{ t('Submitted proposals linked to opportunities.') }}
-            </template>
             <template #side>
                 <Link
                     v-if="can('bidding.create')"
@@ -313,11 +319,11 @@ const monthlyBars = computed(() => {
                     <thead>
                         <tr>
                             <TableIndexTh />
-                            <th>{{ t('Bid #') }}</th>
-                            <th>{{ t('Opportunity') }}</th>
-                            <th>{{ t('Submitted') }}</th>
-                            <th>{{ t('Our Amount') }}</th>
-                            <th>{{ t('Status') }}</th>
+                            <SortableTh column="bid_number">{{ t('Bid #') }}</SortableTh>
+                            <SortableTh column="opportunity">{{ t('Opportunity') }}</SortableTh>
+                            <SortableTh column="submitted">{{ t('Submitted') }}</SortableTh>
+                            <SortableTh column="amount">{{ t('Our Amount') }}</SortableTh>
+                            <SortableTh column="status">{{ t('Status') }}</SortableTh>
                         </tr>
                     </thead>
                     <tbody>

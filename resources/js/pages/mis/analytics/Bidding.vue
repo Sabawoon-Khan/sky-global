@@ -21,6 +21,8 @@ import {
 } from '@/components/v2';
 import { indexTableColumn } from '@/composables/useTableColumns';
 import { useMisPage } from '@/composables/useMisPage';
+import { provideTableSort } from '@/composables/useTableSort';
+import SortableTh from '@/components/SortableTh.vue';
 import { formatCurrency } from '@/lib/format';
 import { translateBidStatus, translateProjectStatus } from '@/lib/status-labels';
 
@@ -78,6 +80,17 @@ interface Props {
 
 const props = defineProps<Props>();
 const { t, can } = useMisPage();
+
+const { sortedRows } = provideTableSort(() => props.bids, {
+    accessors: {
+        bid: (row) => row.bid_number ?? row.id,
+        organization: (row) => row.organization,
+        submitted: (row) => row.submitted_at,
+        amount: (row) => row.our_total_amount,
+        winning: (row) => row.winning_amount,
+        status: (row) => row.status,
+    },
+});
 
 defineOptions({
     layout: {
@@ -141,9 +154,6 @@ const outcomeLabel = (key: string): string => {
         <V2Hero image="/images/gs-hero-operations.png" priority>
             <template #eyebrow>{{ t('Analytics') }}</template>
             <template #title>{{ t('Bidding Analytics') }}</template>
-            <template #description>
-                {{ t('Win rate, bid activity, and opportunity pipeline.') }}
-            </template>
             <template #side>
                 <Link
                     v-if="can('projects.create')"
@@ -210,7 +220,6 @@ const outcomeLabel = (key: string): string => {
             <V2Panel
                 class="lg:col-span-3"
                 :title="t('Monthly Bid Activity')"
-                :description="t('Submitted, won, and lost over time')"
             >
                 <LineChart
                     :labels="charts.monthly_bids.map((m) => m.label)"
@@ -372,12 +381,12 @@ const outcomeLabel = (key: string): string => {
             <table>
                 <thead>
                     <tr>
-                        <th>{{ t('Bid') }}</th>
-                        <th>{{ t('Organization') }}</th>
-                        <th>{{ t('Submitted') }}</th>
-                        <th class="end">{{ t('Our Amount') }}</th>
-                        <th class="end">{{ t('Winning') }}</th>
-                        <th>{{ t('Status') }}</th>
+                        <SortableTh column="bid">{{ t('Bid') }}</SortableTh>
+                        <SortableTh column="organization">{{ t('Organization') }}</SortableTh>
+                        <SortableTh column="submitted">{{ t('Submitted') }}</SortableTh>
+                        <SortableTh column="amount" align="end" class="end">{{ t('Our Amount') }}</SortableTh>
+                        <SortableTh column="winning" align="end" class="end">{{ t('Winning') }}</SortableTh>
+                        <SortableTh column="status">{{ t('Status') }}</SortableTh>
                     </tr>
                 </thead>
                 <tbody>
@@ -386,7 +395,7 @@ const outcomeLabel = (key: string): string => {
                             {{ t('No bid data available.') }}
                         </td>
                     </tr>
-                    <tr v-for="bid in bids" :key="bid.id">
+                    <tr v-for="bid in sortedRows" :key="bid.id">
                         <td>
                             <Link
                                 v-if="can('projects.view')"

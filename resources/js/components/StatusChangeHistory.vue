@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { History } from '@lucide/vue';
+import { History, Paperclip } from '@lucide/vue';
 import { Badge } from '@/components/ui/badge';
 import {
     Card,
@@ -13,8 +13,14 @@ export interface StatusChangeLogRecord {
     id: number;
     from_status: string | null;
     to_status: string;
+    reason?: string | null;
     created_at: string;
     changed_by?: { id: number; name: string } | null;
+    attachments?: Array<{
+        id: number;
+        original_filename: string;
+        download_url: string;
+    }>;
 }
 
 defineProps<{
@@ -41,6 +47,7 @@ const statusLabel = (status: string | null): string => {
         inactive: t('Inactive'),
         disabled: t('Disabled'),
         terminated: t('Terminated'),
+        blocked: t('Blocked'),
     };
 
     return labels[status] ?? status;
@@ -55,7 +62,7 @@ const statusVariant = (status: string | null): 'default' | 'secondary' | 'destru
         return 'default';
     }
 
-    if (status === 'terminated' || status === 'disabled') {
+    if (status === 'terminated' || status === 'disabled' || status === 'blocked') {
         return 'destructive';
     }
 
@@ -82,20 +89,42 @@ const statusVariant = (status: string | null): 'default' | 'secondary' | 'destru
                 <div
                     v-for="log in logs"
                     :key="log.id"
-                    class="flex flex-col gap-2 rounded-md border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+                    class="flex flex-col gap-2 rounded-md border px-3 py-2 text-sm"
                 >
-                    <div class="flex flex-wrap items-center gap-2">
-                        <Badge :variant="statusVariant(log.from_status)">
-                            {{ statusLabel(log.from_status) }}
-                        </Badge>
-                        <span class="text-muted-foreground">→</span>
-                        <Badge :variant="statusVariant(log.to_status)">
-                            {{ statusLabel(log.to_status) }}
-                        </Badge>
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <Badge :variant="statusVariant(log.from_status)">
+                                {{ statusLabel(log.from_status) }}
+                            </Badge>
+                            <span class="text-muted-foreground">→</span>
+                            <Badge :variant="statusVariant(log.to_status)">
+                                {{ statusLabel(log.to_status) }}
+                            </Badge>
+                        </div>
+                        <div class="text-muted-foreground">
+                            <span>{{ formatDateTime(log.created_at) }}</span>
+                            <span v-if="log.changed_by"> · {{ log.changed_by.name }}</span>
+                        </div>
                     </div>
-                    <div class="text-muted-foreground">
-                        <span>{{ formatDateTime(log.created_at) }}</span>
-                        <span v-if="log.changed_by"> · {{ log.changed_by.name }}</span>
+                    <p
+                        v-if="log.reason"
+                        class="text-sm text-muted-foreground"
+                    >
+                        {{ log.reason }}
+                    </p>
+                    <div
+                        v-if="log.attachments?.length"
+                        class="flex flex-wrap gap-2"
+                    >
+                        <a
+                            v-for="file in log.attachments"
+                            :key="file.id"
+                            :href="file.download_url"
+                            class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                        >
+                            <Paperclip class="size-3.5" />
+                            {{ file.original_filename }}
+                        </a>
                     </div>
                 </div>
             </div>

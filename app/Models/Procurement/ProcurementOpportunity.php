@@ -2,6 +2,7 @@
 
 namespace App\Models\Procurement;
 
+use App\Concerns\LogsCrudActivity;
 use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ProcurementOpportunity extends Model
 {
-    use SoftDeletes;
+    use LogsCrudActivity, SoftDeletes;
 
     protected $fillable = [
         'organization_id',

@@ -214,7 +214,14 @@ defineOptions({
                                 value="terminated"
                                 :selected="employee.status === 'terminated'"
                             >
-                                Terminated
+                                {{ t('Terminated') }}
+                            </option>
+                            <option
+                                v-if="employee.status === 'blocked'"
+                                value="blocked"
+                                selected
+                            >
+                                {{ t('Blocked') }}
                             </option>
                         </select>
                     </div>
@@ -294,9 +301,6 @@ defineOptions({
                                 <Label for="is_permanent" class="cursor-pointer font-medium">
                                     Permanent staff
                                 </Label>
-                                <p class="text-sm text-muted-foreground">
-                                    Office-based employee included in general attendance, not assigned to projects.
-                                </p>
                             </div>
                         </div>
                     </div>
@@ -309,16 +313,6 @@ defineOptions({
                         :initial-salaries="employee.salaries"
                         :errors="errors"
                     />
-            </V2FormSection>
-
-            <V2FormSection v-else :title="t('Project pay')">
-                    <p class="text-sm text-muted-foreground">
-                        {{
-                            t(
-                                'Project-based employees are paid through their project assignment. Assign them to a project and set the monthly rate there.',
-                            )
-                        }}
-                    </p>
             </V2FormSection>
 
             <PersonnelFormsCard

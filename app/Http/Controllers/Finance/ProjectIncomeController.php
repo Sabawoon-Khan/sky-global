@@ -35,6 +35,7 @@ class ProjectIncomeController extends Controller
             ->through(fn (ProjectIncome $income) => [
                 'id' => $income->id,
                 'description' => $income->description,
+                'category' => $income->category,
                 'amount' => (float) $income->amount,
                 'amount_usd' => $income->amount_usd !== null ? (float) $income->amount_usd : null,
                 'currency' => $income->currency,
@@ -135,6 +136,7 @@ class ProjectIncomeController extends Controller
             'exchange_rate' => ['nullable', 'numeric', 'min:0'],
             'amount_usd' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
+            'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],
@@ -158,6 +160,12 @@ class ProjectIncomeController extends Controller
             );
         }
 
+        $this->notifyMisCreated(
+            'finance',
+            $income->description ?: __('Project income'),
+            route('finance.income', [], false),
+        );
+
         return back()->with('success', 'Income recorded.');
     }
 
@@ -172,6 +180,7 @@ class ProjectIncomeController extends Controller
             'exchange_rate' => ['nullable', 'numeric', 'min:0'],
             'amount_usd' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
+            'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['sometimes', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],
@@ -180,6 +189,12 @@ class ProjectIncomeController extends Controller
 
         $income->update($validated);
 
+        $this->notifyMisUpdated(
+            'finance',
+            $income->description ?: __('Project income'),
+            route('finance.income', [], false),
+        );
+
         return back()->with('success', 'Income updated.');
     }
 
@@ -187,7 +202,10 @@ class ProjectIncomeController extends Controller
     {
         $this->authorizePermission($request, 'finance.delete');
 
+        $label = $income->description ?: __('Project income');
         $income->delete();
+
+        $this->notifyMisDeleted('finance', $label, route('finance.income', [], false));
 
         return back()->with('success', 'Income deleted.');
     }

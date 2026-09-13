@@ -18,7 +18,6 @@ import {
     Card,
     CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -133,10 +132,7 @@ const userActions = (user: UserRecord): RowActionItem[] => {
                     <UserCog class="size-5" />
                     {{ t('System Users') }}
                 </CardTitle>
-                <CardDescription>
-                    {{ t('Manage user accounts, roles, and access') }}
-                </CardDescription>
-                <CardAction>
+<CardAction>
                     <Can permission="settings.manage_users">
                         <SettingsAddButton href="/settings/users/create">
                             {{ t('Add User') }}

@@ -2,7 +2,6 @@
 import { Form, Head, router } from '@inertiajs/vue3';
 import {
     AlertTriangle,
-    ChevronDown,
     Package,
     PackageCheck,
     PackageMinus,
@@ -15,6 +14,7 @@ import InputError from '@/components/InputError.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
+import SortableTh from '@/components/SortableTh.vue';
 import {
     V2FilterBar,
     V2Hero,
@@ -29,16 +29,19 @@ import { indexTableColumn } from '@/composables/useTableColumns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useMisPage } from '@/composables/useMisPage';
+import { provideTableSort } from '@/composables/useTableSort';
 import { formatNumber, type Paginated } from '@/lib/format';
-import { cn } from '@/lib/utils';
 
 interface StockItem {
     id: number;
@@ -96,6 +99,15 @@ const props = defineProps<{
 
 const { t, can } = useMisPage();
 
+const { sortedRows } = provideTableSort(() => props.equipment.data, {
+    accessors: {
+        item: (row) => row.name,
+        category: (row) => row.category,
+        sku: (row) => row.sku,
+        on_hand: (row) => row.quantity_on_hand,
+    },
+});
+
 const onlyKeys = [
     'equipment',
     'categories',
@@ -136,6 +148,13 @@ const issueProjectId = ref('');
 
 const EMPLOYEE_TYPE = 'App\\Models\\Hr\\Employee';
 const CONTRACTOR_TYPE = 'App\\Models\\Hr\\Contractor';
+
+const adjustingItem = computed(
+    () => props.equipment.data.find((item) => item.id === adjustingId.value) ?? null,
+);
+const issuingItem = computed(
+    () => props.equipment.data.find((item) => item.id === issuingId.value) ?? null,
+);
 
 const applyFilters = (): void => {
     router.get(
@@ -235,15 +254,12 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
         <V2Hero image="/images/gs-hero-operations.png">
             <template #eyebrow>{{ t('Operations') }}</template>
             <template #title>{{ t('Stock / Inventory') }}</template>
-            <template #description>
-                {{ t('Depot stock, issues, and adjustments.') }}
-            </template>
             <template #side>
                 <button
                     v-if="can('inventory.create')"
                     type="button"
                     class="create-btn"
-                    @click="showCreateForm = !showCreateForm"
+                    @click="showCreateForm = true"
                 >
                     <Plus />
                     {{ t('Add item') }}
@@ -379,59 +395,15 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                         <Button type="submit" variant="outline" class="h-9">{{ t('Filter') }}</Button>
                     </form>
                     <Can permission="inventory.create">
-                        <Collapsible v-model:open="showCreateForm">
-                            <CollapsibleTrigger as-child>
-                                <Button type="button" variant="secondary" class="h-9 gap-1">
-                                    <Plus class="size-4" />
-                                    {{ t('Add item') }}
-                                    <ChevronDown
-                                        class="size-4 transition-transform"
-                                        :class="cn(showCreateForm && 'rotate-180')"
-                                    />
-                                </Button>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent class="mt-3 rounded-md border bg-muted/20 p-4">
-                            <Form
-                                action="/equipment"
-                                method="post"
-                                class="grid gap-3 sm:grid-cols-2"
-                                :options="{ preserveScroll: true, resetOnSuccess: true }"
-                                v-slot="{ errors, processing }"
-                                @success="showCreateForm = false"
-                            >
-                                <div class="grid gap-2">
-                                    <Label for="eq-name">{{ t('Name') }} *</Label>
-                                    <Input id="eq-name" name="name" required :placeholder="t('e.g. AK-47 Rifle')" />
-                                    <InputError :message="errors.name" />
-                                </div>
-                                <div class="grid gap-2">
-                                    <Label for="eq-sku">{{ t('SKU') }}</Label>
-                                    <Input id="eq-sku" name="sku" :placeholder="t('e.g. GUN-AK47-001')" />
-                                </div>
-                                <div class="grid gap-2">
-                                    <Label for="eq-category">{{ t('Category') }}</Label>
-                                    <Input id="eq-category" name="category" :placeholder="t('e.g. Weapons, Radios')" />
-                                </div>
-                                <div class="grid gap-2">
-                                    <Label for="eq-unit">{{ t('Unit') }}</Label>
-                                    <Input id="eq-unit" name="unit" placeholder="pcs" />
-                                </div>
-                                <div class="grid gap-2">
-                                    <Label for="eq-qty">{{ t('Initial quantity') }}</Label>
-                                    <Input id="eq-qty" name="initial_quantity" type="number" min="0" placeholder="0" />
-                                </div>
-                                <div class="grid gap-2 sm:col-span-2">
-                                    <Label for="eq-desc">{{ t('Description') }}</Label>
-                                    <Textarea id="eq-desc" name="description" rows="2" />
-                                </div>
-                                <div class="sm:col-span-2">
-                                    <Button type="submit" size="sm" :disabled="processing">
-                                        {{ t('Save to stock') }}
-                                    </Button>
-                                </div>
-                            </Form>
-                            </CollapsibleContent>
-                        </Collapsible>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            class="h-9 gap-1"
+                            @click="showCreateForm = true"
+                        >
+                            <Plus class="size-4" />
+                            {{ t('Add item') }}
+                        </Button>
                     </Can>
                 </V2FilterBar>
             </template>
@@ -441,16 +413,16 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                     <thead>
                         <tr>
                             <TableIndexTh />
-                            <th>{{ t('Item') }}</th>
-                            <th>{{ t('Category') }}</th>
-                            <th>{{ t('SKU') }}</th>
-                            <th class="end">{{ t('On hand') }}</th>
+                            <SortableTh column="item">{{ t('Item') }}</SortableTh>
+                            <SortableTh column="category">{{ t('Category') }}</SortableTh>
+                            <SortableTh column="sku">{{ t('SKU') }}</SortableTh>
+                            <SortableTh column="on_hand" align="end" class="end">{{ t('On hand') }}</SortableTh>
                             <th class="end">{{ t('Actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr
-                            v-for="(item, index) in equipment.data"
+                            v-for="(item, index) in sortedRows"
                             :key="item.id"
                             :style="{ '--i': index }"
                         >
@@ -484,8 +456,7 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                                                         variant="ghost"
                                                         size="sm"
                                                         @click="
-                                                            adjustingId =
-                                                                adjustingId === item.id ? null : item.id;
+                                                            adjustingId = item.id;
                                                             issuingId = null;
                                                         "
                                                     >
@@ -497,8 +468,7 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                                                         variant="ghost"
                                                         size="sm"
                                                         @click="
-                                                            issuingId =
-                                                                issuingId === item.id ? null : item.id;
+                                                            issuingId = item.id;
                                                             adjustingId = null;
                                                         "
                                                     >
@@ -506,191 +476,6 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                                                     </Button>
                                                 </Can>
                                 </div>
-                            </td>
-                        </tr>
-                        <tr
-                            v-if="adjustingId"
-                            :key="`adjust-${adjustingId}`"
-                        >
-                            <td :colspan="visibleColCount" class="bg-muted/20 py-3">
-                                            <Form
-                                                v-for="item in equipment.data.filter((i) => i.id === adjustingId)"
-                                                :key="item.id"
-                                                :action="`/equipment/${item.id}/adjust-stock`"
-                                                method="post"
-                                                class="flex flex-wrap items-end gap-2"
-                                                :options="{ preserveScroll: true, resetOnSuccess: true }"
-                                                v-slot="{ errors, processing }"
-                                                @success="adjustingId = null"
-                                            >
-                                                <div class="grid gap-1">
-                                                    <Label>{{ t('Adjustment (+/-)') }}</Label>
-                                                    <Input
-                                                        name="adjustment"
-                                                        type="number"
-                                                        required
-                                                        :placeholder="t('e.g. 10 or -2')"
-                                                        class="w-36"
-                                                    />
-                                                    <InputError :message="errors.adjustment" />
-                                                </div>
-                                                <div class="grid gap-1">
-                                                    <Label>{{ t('Notes') }}</Label>
-                                                    <Input name="notes" class="w-56" />
-                                                </div>
-                                                <Button type="submit" size="sm" :disabled="processing">
-                                                    {{ t('Update stock') }}
-                                                </Button>
-                                            </Form>
-                            </td>
-                        </tr>
-                        <tr
-                            v-if="issuingId"
-                            :key="`issue-${issuingId}`"
-                        >
-                            <td :colspan="visibleColCount" class="bg-muted/20 py-3">
-                                            <div class="mb-3 flex gap-2">
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    :variant="issueMode === 'project' ? 'default' : 'outline'"
-                                                    @click="issueMode = 'project'"
-                                                >
-                                                    {{ t('To project') }}
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    :variant="issueMode === 'personnel' ? 'default' : 'outline'"
-                                                    @click="issueMode = 'personnel'"
-                                                >
-                                                    {{ t('To personnel') }}
-                                                </Button>
-                                            </div>
-
-                                            <template
-                                                v-for="item in equipment.data.filter((i) => i.id === issuingId)"
-                                                :key="item.id"
-                                            >
-                                                <form
-                                                    v-if="issueMode === 'project'"
-                                                    class="flex flex-wrap items-end gap-2"
-                                                    @submit.prevent="issueToProject(item.id, $event.target as HTMLFormElement)"
-                                                >
-                                                    <div class="grid gap-1">
-                                                        <Label>{{ t('Project') }} *</Label>
-                                                        <select
-                                                            v-model="issueProjectId"
-                                                            required
-                                                            class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                                                        >
-                                                            <option value="" disabled>
-                                                                {{ t('Select project') }}
-                                                            </option>
-                                                            <option
-                                                                v-for="project in projects"
-                                                                :key="project.id"
-                                                                :value="String(project.id)"
-                                                            >
-                                                                {{ project.code }} — {{ project.name }}
-                                                            </option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="grid gap-1">
-                                                        <Label>{{ t('Quantity') }} *</Label>
-                                                        <Input
-                                                            name="quantity"
-                                                            type="number"
-                                                            min="1"
-                                                            :max="item.quantity_on_hand"
-                                                            required
-                                                            class="w-28"
-                                                        />
-                                                    </div>
-                                                    <div class="grid gap-1">
-                                                        <Label>{{ t('Date') }}</Label>
-                                                        <Input name="issued_at" type="date" />
-                                                    </div>
-                                                    <Button type="submit" size="sm">
-                                                        {{ t('Issue to project') }}
-                                                    </Button>
-                                                </form>
-
-                                                <Form
-                                                    v-else
-                                                    action="/equipment/issues"
-                                                    method="post"
-                                                    class="flex flex-wrap items-end gap-2"
-                                                    :options="{ preserveScroll: true, resetOnSuccess: true }"
-                                                    v-slot="{ errors, processing }"
-                                                    @success="issuingId = null"
-                                                >
-                                                    <input type="hidden" name="equipment_catalog_id" :value="item.id" />
-                                                    <input type="hidden" name="personnel_type" :value="personnelType" />
-                                                    <div class="grid gap-1">
-                                                        <Label>{{ t('Type') }}</Label>
-                                                        <select
-                                                            v-model="personnelType"
-                                                            class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                                                        >
-                                                            <option :value="EMPLOYEE_TYPE">{{ t('Employee') }}</option>
-                                                            <option :value="CONTRACTOR_TYPE">{{ t('Contractor') }}</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="grid gap-1">
-                                                        <Label>{{ t('Person') }} *</Label>
-                                                        <select
-                                                            name="personnel_id"
-                                                            required
-                                                            class="h-9 min-w-[10rem] rounded-md border border-input bg-background px-3 text-sm"
-                                                        >
-                                                            <option value="" disabled selected>
-                                                                {{ t('Select person') }}
-                                                            </option>
-                                                            <option
-                                                                v-for="person in personnelType === EMPLOYEE_TYPE
-                                                                    ? employees
-                                                                    : contractors"
-                                                                :key="person.id"
-                                                                :value="person.id"
-                                                            >
-                                                                {{ person.first_name }} {{ person.last_name }}
-                                                            </option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="grid gap-1">
-                                                        <Label>{{ t('Project') }}</Label>
-                                                        <select
-                                                            name="project_id"
-                                                            class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                                                        >
-                                                            <option value="">{{ t('Optional') }}</option>
-                                                            <option
-                                                                v-for="project in projects"
-                                                                :key="project.id"
-                                                                :value="project.id"
-                                                            >
-                                                                {{ project.code }}
-                                                            </option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="grid gap-1">
-                                                        <Label>{{ t('Quantity') }} *</Label>
-                                                        <Input
-                                                            name="quantity"
-                                                            type="number"
-                                                            min="1"
-                                                            :max="item.quantity_on_hand"
-                                                            required
-                                                            class="w-28"
-                                                        />
-                                                        <InputError :message="errors.quantity" />
-                                                    </div>
-                                                    <Button type="submit" size="sm" :disabled="processing">
-                                                        {{ t('Issue') }}
-                                                    </Button>
-                                                </Form>
-                                            </template>
                             </td>
                         </tr>
                         <EmptyState
@@ -710,5 +495,328 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                 <V2Pager :items="equipment" :only="onlyKeys" />
             </template>
         </V2TablePanel>
+
+        <Dialog
+            :open="showCreateForm"
+            @update:open="showCreateForm = $event"
+        >
+            <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                <Form
+                    action="/equipment"
+                    method="post"
+                    :options="{ preserveScroll: true, resetOnSuccess: true }"
+                    v-slot="{ errors, processing }"
+                    @success="showCreateForm = false"
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Add item') }}</DialogTitle>
+                    </DialogHeader>
+
+                    <div class="grid gap-3 py-4 sm:grid-cols-2">
+                        <div class="grid gap-2">
+                            <Label for="eq-name">{{ t('Name') }} *</Label>
+                            <Input
+                                id="eq-name"
+                                name="name"
+                                required
+                                :placeholder="t('e.g. AK-47 Rifle')"
+                            />
+                            <InputError :message="errors.name" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="eq-sku">{{ t('SKU') }}</Label>
+                            <Input
+                                id="eq-sku"
+                                name="sku"
+                                :placeholder="t('e.g. GUN-AK47-001')"
+                            />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="eq-category">{{ t('Category') }}</Label>
+                            <Input
+                                id="eq-category"
+                                name="category"
+                                :placeholder="t('e.g. Weapons, Radios')"
+                            />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="eq-unit">{{ t('Unit') }}</Label>
+                            <Input id="eq-unit" name="unit" placeholder="pcs" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="eq-qty">{{ t('Initial quantity') }}</Label>
+                            <Input
+                                id="eq-qty"
+                                name="initial_quantity"
+                                type="number"
+                                min="0"
+                                placeholder="0"
+                            />
+                        </div>
+                        <div class="grid gap-2 sm:col-span-2">
+                            <Label for="eq-desc">{{ t('Description') }}</Label>
+                            <Textarea id="eq-desc" name="description" rows="2" />
+                        </div>
+                    </div>
+
+                    <DialogFooter class="gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="showCreateForm = false"
+                        >
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">
+                            {{ t('Save to stock') }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog
+            :open="adjustingItem !== null"
+            @update:open="(open) => !open && (adjustingId = null)"
+        >
+            <DialogContent v-if="adjustingItem">
+                <Form
+                    :action="`/equipment/${adjustingItem.id}/adjust-stock`"
+                    method="post"
+                    :options="{ preserveScroll: true, resetOnSuccess: true }"
+                    v-slot="{ errors, processing }"
+                    @success="adjustingId = null"
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Adjust') }}</DialogTitle>
+                        <DialogDescription>
+                            {{ adjustingItem.name }}
+                            · {{ adjustingItem.quantity_on_hand }}
+                            {{ adjustingItem.unit ?? 'pcs' }}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div class="grid gap-3 py-4">
+                        <div class="grid gap-2">
+                            <Label>{{ t('Adjustment (+/-)') }}</Label>
+                            <Input
+                                name="adjustment"
+                                type="number"
+                                required
+                                :placeholder="t('e.g. 10 or -2')"
+                            />
+                            <InputError :message="errors.adjustment" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label>{{ t('Notes') }}</Label>
+                            <Input name="notes" />
+                        </div>
+                    </div>
+
+                    <DialogFooter class="gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="adjustingId = null"
+                        >
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">
+                            {{ t('Update stock') }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog
+            :open="issuingItem !== null"
+            @update:open="(open) => !open && (issuingId = null)"
+        >
+            <DialogContent v-if="issuingItem" class="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>{{ t('Issue') }}</DialogTitle>
+                    <DialogDescription>
+                        {{ issuingItem.name }}
+                        · {{ issuingItem.quantity_on_hand }}
+                        {{ issuingItem.unit ?? 'pcs' }}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div class="flex gap-2">
+                    <Button
+                        type="button"
+                        size="sm"
+                        :variant="issueMode === 'project' ? 'default' : 'outline'"
+                        @click="issueMode = 'project'"
+                    >
+                        {{ t('To project') }}
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        :variant="issueMode === 'personnel' ? 'default' : 'outline'"
+                        @click="issueMode = 'personnel'"
+                    >
+                        {{ t('To personnel') }}
+                    </Button>
+                </div>
+
+                <form
+                    v-if="issueMode === 'project'"
+                    class="grid gap-3 py-2"
+                    @submit.prevent="
+                        issueToProject(
+                            issuingItem.id,
+                            $event.target as HTMLFormElement,
+                        )
+                    "
+                >
+                    <div class="grid gap-2">
+                        <Label>{{ t('Project') }} *</Label>
+                        <select
+                            v-model="issueProjectId"
+                            required
+                            class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                        >
+                            <option value="" disabled>
+                                {{ t('Select project') }}
+                            </option>
+                            <option
+                                v-for="project in projects"
+                                :key="project.id"
+                                :value="String(project.id)"
+                            >
+                                {{ project.code }} — {{ project.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="grid gap-2">
+                        <Label>{{ t('Quantity') }} *</Label>
+                        <Input
+                            name="quantity"
+                            type="number"
+                            min="1"
+                            :max="issuingItem.quantity_on_hand"
+                            required
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label>{{ t('Date') }}</Label>
+                        <Input name="issued_at" type="date" />
+                    </div>
+                    <DialogFooter class="gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="issuingId = null"
+                        >
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit">
+                            {{ t('Issue to project') }}
+                        </Button>
+                    </DialogFooter>
+                </form>
+
+                <Form
+                    v-else
+                    action="/equipment/issues"
+                    method="post"
+                    :options="{ preserveScroll: true, resetOnSuccess: true }"
+                    v-slot="{ errors, processing }"
+                    @success="issuingId = null"
+                >
+                    <input
+                        type="hidden"
+                        name="equipment_catalog_id"
+                        :value="issuingItem.id"
+                    />
+                    <input
+                        type="hidden"
+                        name="personnel_type"
+                        :value="personnelType"
+                    />
+                    <div class="grid gap-3 py-2">
+                        <div class="grid gap-2">
+                            <Label>{{ t('Type') }}</Label>
+                            <select
+                                v-model="personnelType"
+                                class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option :value="EMPLOYEE_TYPE">
+                                    {{ t('Employee') }}
+                                </option>
+                                <option :value="CONTRACTOR_TYPE">
+                                    {{ t('Contractor') }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="grid gap-2">
+                            <Label>{{ t('Person') }} *</Label>
+                            <select
+                                name="personnel_id"
+                                required
+                                class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value="" disabled selected>
+                                    {{ t('Select person') }}
+                                </option>
+                                <option
+                                    v-for="person in personnelType ===
+                                    EMPLOYEE_TYPE
+                                        ? employees
+                                        : contractors"
+                                    :key="person.id"
+                                    :value="person.id"
+                                >
+                                    {{ person.first_name }}
+                                    {{ person.last_name }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="grid gap-2">
+                            <Label>{{ t('Project') }}</Label>
+                            <select
+                                name="project_id"
+                                class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value="">{{ t('Optional') }}</option>
+                                <option
+                                    v-for="project in projects"
+                                    :key="project.id"
+                                    :value="project.id"
+                                >
+                                    {{ project.code }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="grid gap-2">
+                            <Label>{{ t('Quantity') }} *</Label>
+                            <Input
+                                name="quantity"
+                                type="number"
+                                min="1"
+                                :max="issuingItem.quantity_on_hand"
+                                required
+                            />
+                            <InputError :message="errors.quantity" />
+                        </div>
+                    </div>
+                    <DialogFooter class="gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="issuingId = null"
+                        >
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">
+                            {{ t('Issue') }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
     </V2ListPage>
 </template>

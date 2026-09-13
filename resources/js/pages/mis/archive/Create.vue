@@ -40,7 +40,6 @@ defineOptions({
 
     <V2FormPage
         :title="t('Register new document')"
-        :description="t('Upload a file and record its details')"
         :eyebrow="t('Archive')"
         back-href="/archive"
     >
@@ -54,7 +53,6 @@ defineOptions({
         >
             <V2FormSection
                 :title="t('Basic information')"
-                :description="t('Title, direction, and document category')"
             >
                 <ArchiveDocumentFields
                     fields-section="basic"
@@ -67,7 +65,6 @@ defineOptions({
 
             <V2FormSection
                 :title="t('Dates')"
-                :description="t('Document date, received, and sent dates')"
             >
                 <ArchiveDocumentFields
                     fields-section="dates"
@@ -80,9 +77,6 @@ defineOptions({
 
             <V2FormSection
                 :title="t('Linked To')"
-                :description="
-                    t('Connect this document to an organization or project')
-                "
             >
                 <ArchiveDocumentFields
                     fields-section="links"
@@ -95,7 +89,6 @@ defineOptions({
 
             <V2FormSection
                 :title="t('Attachment')"
-                :description="t('Upload the document file')"
             >
                 <OptionalAttachmentField
                     name="file"
@@ -107,9 +100,6 @@ defineOptions({
 
             <V2FormSection
                 :title="t('Description')"
-                :description="
-                    t('Optional notes or summary about this document')
-                "
             >
                 <ArchiveDocumentFields
                     fields-section="description"

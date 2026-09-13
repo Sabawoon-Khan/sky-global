@@ -3,7 +3,9 @@
 namespace App\Models\Project;
 
 use App\Concerns\HasAttachments;
+use App\Concerns\LogsCrudActivity;
 use App\Enums\ProjectStatus;
+use App\Models\Equipment\ProjectEquipmentIssue;
 use App\Models\Finance\ProjectBudget;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
@@ -17,12 +19,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\Activitylog\Models\Concerns\LogsActivity;
-use Spatie\Activitylog\Support\LogOptions;
 
 class Project extends Model
 {
-    use HasAttachments, LogsActivity, SoftDeletes;
+    use HasAttachments, LogsCrudActivity, SoftDeletes;
 
     protected $fillable = [
         'bid_id',
@@ -75,13 +75,6 @@ class Project extends Model
             'is_archived' => 'boolean',
             'archived_at' => 'datetime',
         ];
-    }
-
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->logOnly(['status', 'project_manager_id', 'total_contract_value', 'is_archived'])
-            ->logOnlyDirty();
     }
 
     public function organization(): BelongsTo
@@ -171,7 +164,7 @@ class Project extends Model
 
     public function equipmentIssues(): HasMany
     {
-        return $this->hasMany(\App\Models\Equipment\ProjectEquipmentIssue::class);
+        return $this->hasMany(ProjectEquipmentIssue::class);
     }
 
     public function isOperational(): bool

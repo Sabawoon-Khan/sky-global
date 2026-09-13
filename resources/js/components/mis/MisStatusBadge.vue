@@ -72,6 +72,8 @@ const toneDefaults: Record<string, string> = {
     rejected: dangerTone,
     login_failed: dangerTone,
     disabled: dangerTone,
+    blocked: dangerTone,
+    terminated: dangerTone,
     // neutral
     draft: neutralTone,
 };
@@ -96,6 +98,8 @@ const variantDefaults: Record<string, StatusTone> = {
     danger: 'destructive',
     rejected: 'destructive',
     login_failed: 'destructive',
+    blocked: 'destructive',
+    terminated: 'destructive',
 };
 
 const statusKey = computed(() =>

@@ -102,8 +102,11 @@ class StockInvoiceShareholderTest extends TestCase
             ->assertOk();
 
         $this->actingAs($this->owner)
+            ->get(route('finance.invoices'))
+            ->assertOk();
+
+        $this->actingAs($this->owner)
             ->post(route('finance.invoices.store'), [
-                'invoice_number' => 'INV-1001',
                 'issue_date' => '2026-03-01',
                 'due_date' => '2026-03-15',
                 'subtotal' => 1000,
@@ -116,11 +119,12 @@ class StockInvoiceShareholderTest extends TestCase
             ])
             ->assertRedirect();
 
-        $this->assertDatabaseHas('invoices', [
-            'invoice_number' => 'INV-1001',
-            'total' => 1050,
-            'status' => 'draft',
-        ]);
+        $invoice = Invoice::query()->first();
+
+        $this->assertNotNull($invoice);
+        $this->assertMatchesRegularExpression('/^SSGSC-\d{4}-\d{5}$/', $invoice->invoice_number);
+        $this->assertEquals(1050, $invoice->total);
+        $this->assertSame('draft', $invoice->status);
 
         $this->assertSame(1, Invoice::query()->count());
     }

@@ -93,6 +93,17 @@ class StorageBackupController extends Controller
 
         $label = $type === BackupType::Storage ? 'Storage' : 'Database';
 
+        $this->notifyMisCustom(
+            'settings',
+            __('Backup started'),
+            __(':name created :record.', [
+                'name' => $request->user()->name,
+                'record' => $label.' '.__('Backup'),
+            ]),
+            route('settings.backups.index', [], false),
+            'warning',
+        );
+
         return back()->with('success', "{$label} backup started.");
     }
 

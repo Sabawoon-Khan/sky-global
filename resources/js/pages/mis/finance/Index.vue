@@ -147,9 +147,6 @@ const monthNet = computed(
         <V2Hero image="/images/gs-hero-dashboard.png" priority>
             <template #eyebrow>{{ t('Finance') }}</template>
             <template #title>{{ t('Finance overview') }}</template>
-            <template #description>
-                {{ t('Income, expenses, and net position at a glance.') }}
-            </template>
             <template #side>
                 <Link
                     v-if="can('finance.view')"
@@ -324,7 +321,6 @@ const monthNet = computed(
                 <V2Panel
                     class="lg:col-span-3"
                     :title="t('Monthly Trends')"
-                    :description="t('Last 6 months income vs expenses')"
                 >
                     <BarChart
                         :labels="charts.monthly.map((m) => m.label)"

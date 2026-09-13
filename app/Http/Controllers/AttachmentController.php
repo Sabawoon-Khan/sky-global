@@ -10,6 +10,7 @@ use App\Models\Finance\GeneralIncome;
 use App\Models\Finance\Invoice;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
+use App\Models\Finance\TaxPayment;
 use App\Models\Hr\Contractor;
 use App\Models\Hr\Employee;
 use App\Models\Hr\PayrollRun;
@@ -18,6 +19,7 @@ use App\Models\Organization;
 use App\Models\Procurement\CompetitorBid;
 use App\Models\Project\Project;
 use App\Models\Project\ProjectIssue;
+use App\Models\StatusChangeLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -32,6 +34,7 @@ class AttachmentController extends Controller
         Organization::class => 'bidding.view',
         Project::class => 'projects.view',
         Employee::class => 'hr.view',
+        StatusChangeLog::class => 'hr.view',
         Contractor::class => 'hr.view',
         CompetitorBid::class => 'bidding.view_competitors',
         ProjectIncome::class => 'finance.view',
@@ -39,6 +42,7 @@ class AttachmentController extends Controller
         GeneralExpense::class => 'finance.view',
         GeneralIncome::class => 'finance.view',
         Invoice::class => 'finance.view',
+        TaxPayment::class => 'finance.view',
         PersonnelAttendance::class => 'hr.view',
         PayrollRun::class => 'hr.view',
         ProjectIssue::class => 'projects.view',

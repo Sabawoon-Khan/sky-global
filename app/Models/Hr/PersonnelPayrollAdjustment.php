@@ -2,6 +2,7 @@
 
 namespace App\Models\Hr;
 
+use App\Concerns\LogsCrudActivity;
 use App\Models\Project\Project;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class PersonnelPayrollAdjustment extends Model
 {
+    use LogsCrudActivity;
+
     public const TYPE_SALARY = 'salary';
 
     public const TYPE_BONUS = 'bonus';

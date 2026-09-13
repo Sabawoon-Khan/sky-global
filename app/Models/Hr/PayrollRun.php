@@ -3,6 +3,7 @@
 namespace App\Models\Hr;
 
 use App\Concerns\HasAttachments;
+use App\Concerns\LogsCrudActivity;
 use App\Models\Project\Project;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PayrollRun extends Model
 {
-    use HasAttachments;
+    use HasAttachments, LogsCrudActivity;
 
     protected $fillable = [
         'title',

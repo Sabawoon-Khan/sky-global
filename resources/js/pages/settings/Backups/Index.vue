@@ -15,11 +15,12 @@ import {
     Card,
     CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
 import { useTranslations } from '@/composables/useTranslations';
+import { provideTableSort } from '@/composables/useTableSort';
+import SortableTh from '@/components/SortableTh.vue';
 import { formatDate, formatFileSize } from '@/lib/format';
 
 const { t } = useTranslations();
@@ -48,6 +49,17 @@ const props = defineProps<{
     retentionCount: number;
     hasRemoteDisk: boolean;
 }>();
+
+const { sortedRows } = provideTableSort(() => props.backups, {
+    accessors: {
+        type: (row) => row.type,
+        file: (row) => row.filename,
+        status: (row) => row.status,
+        size: (row) => row.file_size,
+        trigger: (row) => row.trigger,
+        created: (row) => row.created_at,
+    },
+});
 
 defineOptions({
     layout: {
@@ -189,10 +201,7 @@ const deleteBackup = (backup: BackupRecord): void => {
         <Card class="w-full">
             <CardHeader>
                 <CardTitle>{{ t('Backup history') }}</CardTitle>
-                <CardDescription>
-                    {{ t('View, download, and manage storage and database backups') }}
-                </CardDescription>
-                <CardAction v-if="backupEnabled">
+<CardAction v-if="backupEnabled">
                     <div class="flex flex-wrap gap-2">
                         <Form
                             v-if="storageBackupEnabled"
@@ -248,12 +257,12 @@ const deleteBackup = (backup: BackupRecord): void => {
                     <table class="w-full min-w-[800px] text-sm">
                         <thead>
                             <tr class="border-b bg-muted/40 text-left text-muted-foreground">
-                                <th class="px-6 py-3 font-medium">{{ t('Type') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('File') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('Status') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('Size') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('Trigger') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('Created') }}</th>
+                                <SortableTh column="type" class="px-6 py-3 font-medium">{{ t('Type') }}</SortableTh>
+                                <SortableTh column="file" class="px-4 py-3 font-medium">{{ t('File') }}</SortableTh>
+                                <SortableTh column="status" class="px-4 py-3 font-medium">{{ t('Status') }}</SortableTh>
+                                <SortableTh column="size" class="px-4 py-3 font-medium">{{ t('Size') }}</SortableTh>
+                                <SortableTh column="trigger" class="px-4 py-3 font-medium">{{ t('Trigger') }}</SortableTh>
+                                <SortableTh column="created" class="px-4 py-3 font-medium">{{ t('Created') }}</SortableTh>
                                 <th class="px-6 py-3 text-right font-medium">
                                     {{ t('Actions') }}
                                 </th>
@@ -261,7 +270,7 @@ const deleteBackup = (backup: BackupRecord): void => {
                         </thead>
                         <tbody>
                             <tr
-                                v-for="backup in backups"
+                                v-for="backup in sortedRows"
                                 :key="backup.id"
                                 class="border-b last:border-b-0 hover:bg-muted/20"
                             >

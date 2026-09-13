@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -48,10 +47,7 @@ defineOptions({
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Add User') }}</CardTitle>
-                    <CardDescription>
-                        {{ t('Create a new user account and assign roles') }}
-                    </CardDescription>
-                </CardHeader>
+            </CardHeader>
                 <CardContent class="grid gap-4">
                     <div class="grid gap-2">
                         <Label for="name">{{ t('Name') }} *</Label>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import MisExportActions from '@/components/mis/MisExportActions.vue';
+
 withDefaults(
     defineProps<{
         image?: string;
@@ -40,7 +42,10 @@ withDefaults(
                     </p>
                 </slot>
             </div>
-            <div v-if="$slots.side || $slots.actions" class="hero-side detail-hero-side">
+            <div class="hero-side detail-hero-side">
+                <div class="hero-toolbar no-print">
+                    <MisExportActions />
+                </div>
                 <div v-if="$slots.actions" class="detail-actions">
                     <slot name="actions" />
                 </div>

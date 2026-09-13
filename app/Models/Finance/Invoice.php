@@ -3,6 +3,7 @@
 namespace App\Models\Finance;
 
 use App\Concerns\HasAttachments;
+use App\Concerns\LogsCrudActivity;
 use App\Models\Organization;
 use App\Models\Project\Project;
 use App\Models\User;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Invoice extends Model
 {
-    use HasAttachments, SoftDeletes;
+    use HasAttachments, LogsCrudActivity, SoftDeletes;
 
     protected $fillable = [
         'project_id',
@@ -27,6 +28,10 @@ class Invoice extends Model
         'total',
         'currency',
         'status',
+        'services',
+        'period_start',
+        'period_end',
+        'notes',
         'created_by',
     ];
 
@@ -35,6 +40,8 @@ class Invoice extends Model
         return [
             'issue_date' => 'date',
             'due_date' => 'date',
+            'period_start' => 'date',
+            'period_end' => 'date',
             'subtotal' => 'decimal:2',
             'tax' => 'decimal:2',
             'total' => 'decimal:2',

@@ -20,6 +20,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { RowActionItem } from '@/lib/row-actions';
+import BlockPersonnelDialog from '@/components/BlockPersonnelDialog.vue';
 
 const props = withDefaults(
     defineProps<{
@@ -49,7 +50,7 @@ const isDownloadAction = (action: RowActionItem): boolean =>
     Boolean(action.href && action.download);
 
 function handleClick(action: RowActionItem): void {
-    if (action.confirm) {
+    if (action.form === 'block' || action.confirm) {
         pendingAction.value = action;
 
         return;
@@ -156,8 +157,16 @@ function confirmPendingAction(): void {
         </DropdownMenuContent>
     </DropdownMenu>
 
+    <BlockPersonnelDialog
+        :open="pendingAction?.form === 'block'"
+        :url="pendingAction?.href ?? ''"
+        :title="pendingAction?.confirm?.title ?? 'Block employee'"
+        :hint="pendingAction?.confirm?.description ?? ''"
+        @close="pendingAction = null"
+    />
+
     <Dialog
-        :open="pendingAction !== null"
+        :open="pendingAction !== null && pendingAction.form !== 'block'"
         @update:open="(open) => !open && (pendingAction = null)"
     >
         <DialogContent v-if="pendingAction?.confirm">

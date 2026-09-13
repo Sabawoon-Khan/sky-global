@@ -799,7 +799,7 @@ const bulkPersonnelType = computed(() =>
             <Button variant="outline" size="sm" class="gap-1.5 shadow-sm" as-child>
                 <a :href="printHref" target="_blank" rel="noopener noreferrer">
                     <Printer class="size-3.5" />
-                    {{ t('Print') }}
+                    {{ t('Print sheet') }}
                 </a>
             </Button>
         </div>
@@ -1074,7 +1074,7 @@ const bulkPersonnelType = computed(() =>
                             v-else
                             class="overflow-x-auto rounded-xl border shadow-sm"
                         >
-                            <table class="w-full min-w-max text-sm">
+                            <table class="w-full min-w-max text-sm" data-export-ignore>
                                 <thead>
                                     <tr class="border-b bg-muted/30 text-muted-foreground">
                                         <th

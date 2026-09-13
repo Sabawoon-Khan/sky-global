@@ -207,9 +207,6 @@ const show = (name: NonNullable<typeof props.fieldsSection>): boolean =>
             <Label for="doc-file">
                 {{ fileLabel ?? t('File') }}
                 <span v-if="fileRequired" class="text-destructive"> *</span>
-                <span v-else class="font-normal text-muted-foreground">
-                    {{ t('(optional)') }}
-                </span>
             </Label>
             <input
                 id="doc-file"

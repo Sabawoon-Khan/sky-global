@@ -10,6 +10,13 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { AttachmentTypeOption } from '@/components/PersonnelFormsField.vue';
@@ -126,7 +133,6 @@ const selectedType = () =>
 
             <div v-if="canManage && attachmentTypes.length > 0">
                 <Button
-                    v-if="!showAddForm"
                     type="button"
                     variant="outline"
                     @click="showAddForm = true"
@@ -134,20 +140,28 @@ const selectedType = () =>
                     <Plus class="size-4" />
                     {{ t('Add form') }}
                 </Button>
+            </div>
+        </CardContent>
+    </Card>
 
-                <Form
-                    v-else
-                    action="/forms/personnel-attachments"
-                    method="post"
-                    class="space-y-4 ui-inset-panel"
-                    :options="{ forceFormData: true }"
-                    validate-files
-                    @success="showAddForm = false"
-                    v-slot="{ errors, processing }"
-                >
-                    <input type="hidden" name="personnel_type" :value="personnelType" />
-                    <input type="hidden" name="personnel_id" :value="personnelId" />
+    <Dialog :open="showAddForm" @update:open="showAddForm = $event">
+        <DialogContent class="sm:max-w-lg">
+            <Form
+                action="/forms/personnel-attachments"
+                method="post"
+                :options="{ forceFormData: true }"
+                validate-files
+                @success="showAddForm = false"
+                v-slot="{ errors, processing }"
+            >
+                <DialogHeader>
+                    <DialogTitle>{{ t('Add form') }}</DialogTitle>
+                </DialogHeader>
 
+                <input type="hidden" name="personnel_type" :value="personnelType" />
+                <input type="hidden" name="personnel_id" :value="personnelId" />
+
+                <div class="grid gap-3 py-4">
                     <div class="grid gap-2">
                         <Label for="add_form_type">{{ t('Form type') }} *</Label>
                         <select
@@ -204,21 +218,21 @@ const selectedType = () =>
                             class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                         />
                     </div>
+                </div>
 
-                    <div class="flex gap-2">
-                        <Button type="submit" :disabled="processing">
-                            {{ t('Upload form') }}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            @click="showAddForm = false"
-                        >
-                            {{ t('Cancel') }}
-                        </Button>
-                    </div>
-                </Form>
-            </div>
-        </CardContent>
-    </Card>
+                <DialogFooter class="gap-2">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        @click="showAddForm = false"
+                    >
+                        {{ t('Cancel') }}
+                    </Button>
+                    <Button type="submit" :disabled="processing">
+                        {{ t('Upload form') }}
+                    </Button>
+                </DialogFooter>
+            </Form>
+        </DialogContent>
+    </Dialog>
 </template>

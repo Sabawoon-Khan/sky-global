@@ -2,6 +2,7 @@
 
 namespace App\Models\Archive;
 
+use App\Concerns\LogsCrudActivity;
 use App\Models\Organization;
 use App\Models\Procurement\Bid;
 use App\Models\Project\Project;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ArchivedDocument extends Model
 {
-    use SoftDeletes;
+    use LogsCrudActivity, SoftDeletes;
 
     protected $fillable = [
         'reference_number',

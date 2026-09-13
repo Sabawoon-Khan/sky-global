@@ -57,28 +57,23 @@ class PayrollCalculationService
      * Afghanistan monthly wage withholding tax (Income Tax Law Art. 4).
      *
      * Brackets (AFN / month):
-     * - 0 – 5,000: 0%
-     * - 5,000 – 12,500: 2% of amount over 5,000
-     * - 12,500 – 100,000: 150 + 10% of amount over 12,500
-     * - Over 100,000: 8,900 + 20% of amount over 100,000
+     * - 0 – 10,000: 0%
+     * - 10,000 – 100,000: 10% of amount over 10,000
+     * - Over 100,000: 9,000 + 20% of amount over 100,000
      */
     public function calculateAfghanistanWageTax(float $taxableMonthlyIncome): float
     {
         $income = max(0, $taxableMonthlyIncome);
 
-        if ($income <= 5_000) {
+        if ($income <= 10_000) {
             return 0.0;
         }
 
-        if ($income <= 12_500) {
-            return round(($income - 5_000) * 0.02, 2);
-        }
-
         if ($income <= 100_000) {
-            return round(150 + ($income - 12_500) * 0.10, 2);
+            return round(($income - 10_000) * 0.10, 2);
         }
 
-        return round(8_900 + ($income - 100_000) * 0.20, 2);
+        return round(9_000 + ($income - 100_000) * 0.20, 2);
     }
 
     /**

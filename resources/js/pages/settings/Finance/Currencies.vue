@@ -11,14 +11,12 @@ import {
     Card,
     CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -158,10 +156,7 @@ const rateActions = (rate: ExchangeRateRecord): RowActionItem[] => [
                     <Coins class="size-5" />
                     {{ t('Currencies') }}
                 </CardTitle>
-                <CardDescription>
-                    {{ t('Manage currency codes, symbols, and default settings') }}
-                </CardDescription>
-                <CardAction>
+<CardAction>
                     <SettingsAddButton href="/settings/currencies/create">
                         {{ t('Add currency') }}
                     </SettingsAddButton>
@@ -209,10 +204,7 @@ const rateActions = (rate: ExchangeRateRecord): RowActionItem[] => [
                     <ArrowRightLeft class="size-5" />
                     {{ t('Exchange Rates') }}
                 </CardTitle>
-                <CardDescription>
-                    {{ t('Set conversion rates between currencies by effective date') }}
-                </CardDescription>
-                <CardAction>
+<CardAction>
                     <SettingsAddButton href="/settings/exchange-rates/create">
                         {{ t('Add exchange rate') }}
                     </SettingsAddButton>
@@ -261,9 +253,6 @@ const rateActions = (rate: ExchangeRateRecord): RowActionItem[] => [
             >
                 <DialogHeader>
                     <DialogTitle>{{ t('Edit currency') }}</DialogTitle>
-                    <DialogDescription>
-                        {{ t('Update currency details for :name.', { name: editingCurrency.code }) }}
-                    </DialogDescription>
                 </DialogHeader>
 
                 <div class="grid gap-4 py-4">
@@ -357,9 +346,6 @@ const rateActions = (rate: ExchangeRateRecord): RowActionItem[] => [
             >
                 <DialogHeader>
                     <DialogTitle>{{ t('Edit exchange rate') }}</DialogTitle>
-                    <DialogDescription>
-                        {{ t('Update the selected exchange rate record.') }}
-                    </DialogDescription>
                 </DialogHeader>
 
                 <div class="grid gap-4 py-4">

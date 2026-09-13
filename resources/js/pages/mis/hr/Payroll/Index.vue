@@ -14,6 +14,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
+import SortableTh from '@/components/SortableTh.vue';
 import {
     V2FilterBar,
     V2Hero,
@@ -30,6 +31,13 @@ import { provideTableSort } from '@/composables/useTableSort';
 import { formatCurrency, formatNumber, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -90,7 +98,16 @@ const props = defineProps<Props>();
 const { t, viewAction, deleteAction } = useMisPage();
 
 const onlyKeys = ['payrollRuns', 'projects', 'stats', 'chart', 'filters'];
-const { sortedRows } = provideTableSort(() => props.payrollRuns.data);
+const { sortedRows } = provideTableSort(() => props.payrollRuns.data, {
+    accessors: {
+        title: (row) => row.title,
+        type: (row) => row.payroll_type,
+        range: (row) => row.date_from,
+        project: (row) => row.project?.code ?? row.project?.name,
+        staff: (row) => row.items_count,
+        total: (row) => Number(row.total_net ?? 0),
+    },
+});
 
 const statusPalette = [
     'var(--school-navy)',
@@ -159,6 +176,7 @@ const tableColumns = computed(() => [
 
 const newPayrollType = ref<'general' | 'project'>('general');
 const newProjectId = ref<string>('');
+const showPayrollForm = ref(false);
 
 watch(newPayrollType, (type) => {
     if (type === 'general') {
@@ -211,7 +229,7 @@ const printUrl = (run: PayrollRun): string =>
 const payrollActions = (run: PayrollRun): RowActionItem[] => [
     viewAction(`/hr/payroll/${run.id}`),
     {
-        label: t('Print'),
+        label: t('Print sheet'),
         icon: Printer,
         href: `${printUrl(run)}?autoprint=1`,
         download: true,
@@ -236,97 +254,16 @@ const payrollActions = (run: PayrollRun): RowActionItem[] => [
         <V2Hero image="/images/gs-hero-people.png">
             <template #eyebrow>{{ t('HR') }}</template>
             <template #title>{{ t('Payroll') }}</template>
-            <template #description>
-                {{ t('Generate payroll from attendance in one click.') }}
-            </template>
             <template #side>
             <Can permission="hr.create">
-                <Form
-                    action="/hr/payroll"
-                    method="post"
-                    class="flex flex-wrap items-end gap-2 rounded-xl border bg-card p-3 shadow-sm"
-                    :options="{ preserveScroll: true }"
-                    v-slot="{ processing }"
+                <button
+                    type="button"
+                    class="create-btn"
+                    @click="showPayrollForm = true"
                 >
-                    <div class="grid gap-1.5">
-                        <Label for="payroll_type" class="text-xs font-medium">
-                            {{ t('Type') }}
-                        </Label>
-                        <select
-                            id="payroll_type"
-                            v-model="newPayrollType"
-                            name="payroll_type"
-                            class="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-xs"
-                        >
-                            <option value="general">{{ t('General') }}</option>
-                            <option value="project">{{ t('Project') }}</option>
-                        </select>
-                    </div>
-                    <div class="grid gap-1.5">
-                        <Label for="title" class="text-xs font-medium">
-                            {{ t('Title') }}
-                        </Label>
-                        <Input
-                            id="title"
-                            name="title"
-                            type="text"
-                            class="h-9 w-40"
-                            :placeholder="t('Optional')"
-                        />
-                    </div>
-                    <div class="grid gap-1.5">
-                        <Label for="date_from" class="text-xs font-medium">
-                            {{ t('From') }}
-                        </Label>
-                        <Input
-                            id="date_from"
-                            name="date_from"
-                            type="date"
-                            required
-                            class="h-9 w-36"
-                            :default-value="filters?.date_from"
-                        />
-                    </div>
-                    <div class="grid gap-1.5">
-                        <Label for="date_to" class="text-xs font-medium">
-                            {{ t('To') }}
-                        </Label>
-                        <Input
-                            id="date_to"
-                            name="date_to"
-                            type="date"
-                            required
-                            class="h-9 w-36"
-                            :default-value="filters?.date_to"
-                        />
-                    </div>
-                    <div class="grid gap-1.5">
-                        <Label for="project_id" class="text-xs font-medium">
-                            {{ t('Project') }}
-                        </Label>
-                        <select
-                            id="project_id"
-                            v-model="newProjectId"
-                            name="project_id"
-                            :disabled="newPayrollType !== 'project'"
-                            :required="newPayrollType === 'project'"
-                            class="h-9 min-w-[9rem] rounded-md border border-input bg-background px-3 text-sm shadow-xs disabled:opacity-50"
-                        >
-                            <option value="">{{ t('Select project') }}</option>
-                            <option
-                                v-for="project in projects"
-                                :key="project.id"
-                                :value="project.id"
-                            >
-                                {{ project.code }}
-                            </option>
-                        </select>
-                    </div>
-                    <Button type="submit" class="h-9 gap-1.5 shadow-sm" :disabled="processing">
-                        <Plus class="size-3.5" />
-                        {{ t('Generate payroll') }}
-                    </Button>
-                </Form>
+                    <Plus />
+                    {{ t('Generate payroll') }}
+                </button>
             </Can>
 
                 <div class="hero-cards">
@@ -487,12 +424,12 @@ const payrollActions = (run: PayrollRun): RowActionItem[] => [
                     <thead>
                         <tr>
                             <TableIndexTh />
-                            <th>{{ t('Payroll') }}</th>
-                            <th>{{ t('Type') }}</th>
-                            <th>{{ t('Date range') }}</th>
-                            <th>{{ t('Project') }}</th>
-                            <th>{{ t('Staff') }}</th>
-                            <th>{{ t('Total net') }}</th>
+                            <SortableTh column="title">{{ t('Payroll') }}</SortableTh>
+                            <SortableTh column="type">{{ t('Type') }}</SortableTh>
+                            <SortableTh column="range">{{ t('Date range') }}</SortableTh>
+                            <SortableTh column="project">{{ t('Project') }}</SortableTh>
+                            <SortableTh column="staff">{{ t('Staff') }}</SortableTh>
+                            <SortableTh column="total" align="end" class="end">{{ t('Total net') }}</SortableTh>
                             <th class="end">{{ t('Actions') }}</th>
                         </tr>
                     </thead>
@@ -552,5 +489,101 @@ const payrollActions = (run: PayrollRun): RowActionItem[] => [
                 <V2Pager :items="payrollRuns" :only="onlyKeys" />
             </template>
         </V2TablePanel>
+
+        <Dialog
+            :open="showPayrollForm"
+            @update:open="showPayrollForm = $event"
+        >
+            <DialogContent class="sm:max-w-lg">
+                <Form
+                    action="/hr/payroll"
+                    method="post"
+                    :options="{ preserveScroll: true }"
+                    v-slot="{ processing }"
+                    @success="showPayrollForm = false"
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Generate payroll') }}</DialogTitle>
+                    </DialogHeader>
+
+                    <div class="grid gap-3 py-4 sm:grid-cols-2">
+                        <div class="grid gap-2">
+                            <Label for="payroll_type">{{ t('Type') }}</Label>
+                            <select
+                                id="payroll_type"
+                                v-model="newPayrollType"
+                                name="payroll_type"
+                                class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value="general">{{ t('General') }}</option>
+                                <option value="project">{{ t('Project') }}</option>
+                            </select>
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="title">{{ t('Title') }}</Label>
+                            <Input
+                                id="title"
+                                name="title"
+                                type="text"
+                                :placeholder="t('Optional')"
+                            />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="date_from">{{ t('From') }}</Label>
+                            <Input
+                                id="date_from"
+                                name="date_from"
+                                type="date"
+                                required
+                                :default-value="filters?.date_from"
+                            />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="date_to">{{ t('To') }}</Label>
+                            <Input
+                                id="date_to"
+                                name="date_to"
+                                type="date"
+                                required
+                                :default-value="filters?.date_to"
+                            />
+                        </div>
+                        <div class="grid gap-2 sm:col-span-2">
+                            <Label for="project_id">{{ t('Project') }}</Label>
+                            <select
+                                id="project_id"
+                                v-model="newProjectId"
+                                name="project_id"
+                                :disabled="newPayrollType !== 'project'"
+                                :required="newPayrollType === 'project'"
+                                class="h-9 rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
+                            >
+                                <option value="">{{ t('Select project') }}</option>
+                                <option
+                                    v-for="project in projects"
+                                    :key="project.id"
+                                    :value="project.id"
+                                >
+                                    {{ project.code }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <DialogFooter class="gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="showPayrollForm = false"
+                        >
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">
+                            {{ t('Generate payroll') }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
     </V2ListPage>
 </template>

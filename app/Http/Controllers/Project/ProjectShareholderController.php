@@ -75,6 +75,12 @@ class ProjectShareholderController extends Controller
             'message' => 'Shareholder added.',
         ]);
 
+        $this->notifyMisCreated(
+            'projects',
+            $shareholder->name,
+            route('projects.show', $project, false),
+        );
+
         return back();
     }
 

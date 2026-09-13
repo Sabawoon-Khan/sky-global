@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasAttachments;
+use App\Concerns\LogsCrudActivity;
 use App\Models\Procurement\ProcurementOpportunity;
 use App\Models\Project\Project;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Organization extends Model
 {
-    use HasAttachments, SoftDeletes;
+    use HasAttachments, LogsCrudActivity, SoftDeletes;
 
     protected $fillable = [
         'organization_type_id',

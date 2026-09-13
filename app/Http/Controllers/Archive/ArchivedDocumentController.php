@@ -145,7 +145,7 @@ class ArchivedDocumentController extends Controller
         $file = $request->file('file');
         $path = $file->store('archive', 'local');
 
-        ArchivedDocument::query()->create([
+        $document = ArchivedDocument::query()->create([
             ...collect($validated)->except('file')->all(),
             'reference_number' => $this->generateArchiveReferenceNumber(),
             'file_path' => $path,
@@ -153,6 +153,12 @@ class ArchivedDocumentController extends Controller
             'file_size' => $file->getSize(),
             'uploaded_by' => $request->user()->id,
         ]);
+
+        $this->notifyMisCreated(
+            'archive',
+            $document->title,
+            route('archive.show', $document, false),
+        );
 
         return redirect()
             ->route('archive.index')
@@ -229,6 +235,12 @@ class ArchivedDocumentController extends Controller
         unset($validated['file']);
         $archivedDocument->update($validated);
 
+        $this->notifyMisUpdated(
+            'archive',
+            $archivedDocument->title,
+            route('archive.show', $archivedDocument, false),
+        );
+
         return back()->with('success', 'Document updated.');
     }
 
@@ -237,6 +249,13 @@ class ArchivedDocumentController extends Controller
         $this->authorizePermission($request, 'archive.archive');
 
         $archivedDocument->update(['is_archived' => true]);
+
+        $this->notifyMisStatus(
+            'archive',
+            $archivedDocument->title,
+            'archived',
+            route('archive.index', [], false),
+        );
 
         return redirect()
             ->route('archive.index')
@@ -247,7 +266,10 @@ class ArchivedDocumentController extends Controller
     {
         $this->authorizePermission($request, 'archive.delete');
 
+        $title = $archivedDocument->title;
         $archivedDocument->delete();
+
+        $this->notifyMisDeleted('archive', $title, route('archive.index', [], false));
 
         return redirect()
             ->route('archive.index')

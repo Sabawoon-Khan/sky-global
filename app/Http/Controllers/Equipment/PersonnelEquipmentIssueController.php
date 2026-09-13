@@ -49,6 +49,12 @@ class PersonnelEquipmentIssueController extends Controller
             'message' => 'Equipment issued to personnel.',
         ]);
 
+        $this->notifyMisCreated(
+            'inventory',
+            __('Equipment issue'),
+            route('equipment.index', [], false),
+        );
+
         return back();
     }
 }

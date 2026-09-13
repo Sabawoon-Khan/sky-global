@@ -2,6 +2,7 @@
 
 namespace App\Models\Hr;
 
+use App\Concerns\LogsCrudActivity;
 use App\Models\Project\Project;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AttendanceSheet extends Model
 {
+    use LogsCrudActivity;
+
     protected $fillable = [
         'title',
         'attendance_type',

@@ -9,11 +9,14 @@ use App\Http\Controllers\Equipment\PersonnelEquipmentIssueController;
 use App\Http\Controllers\Equipment\PersonnelTrainingController;
 use App\Http\Controllers\Equipment\ProjectEquipmentIssueController;
 use App\Http\Controllers\Equipment\TrainingSessionController;
+use App\Http\Controllers\Finance\FinanceCategoryController;
 use App\Http\Controllers\Finance\GeneralExpenseController;
 use App\Http\Controllers\Finance\GeneralIncomeController;
 use App\Http\Controllers\Finance\InvoiceController;
 use App\Http\Controllers\Finance\ProjectExpenseController;
 use App\Http\Controllers\Finance\ProjectIncomeController;
+use App\Http\Controllers\Finance\QuotationController;
+use App\Http\Controllers\Finance\TaxController;
 use App\Http\Controllers\Forms\AttachmentTypeController;
 use App\Http\Controllers\Forms\FormTemplateController;
 use App\Http\Controllers\Forms\PersonnelAttachmentController;
@@ -30,6 +33,7 @@ use App\Http\Controllers\Project\ProjectDeploymentController;
 use App\Http\Controllers\Project\ProjectIssueController;
 use App\Http\Controllers\Project\ProjectShareholderController;
 use App\Http\Controllers\Project\ProjectSiteController;
+use App\Http\Controllers\Settings\ActivityLogController;
 use App\Http\Controllers\Settings\AuthenticationLogController;
 use App\Http\Controllers\Settings\CurrencySettingsController;
 use App\Http\Controllers\Settings\OrganizationTypeController;
@@ -113,12 +117,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('finance')->name('finance.')->group(function () {
         Route::get('/', [InvoiceController::class, 'index'])->name('index');
-        Route::get('tax', [InvoiceController::class, 'tax'])->name('tax');
+        Route::get('tax', [TaxController::class, 'index'])->name('tax');
+        Route::get('tax/print', [TaxController::class, 'print'])->name('tax.print');
+        Route::post('tax/payments', [TaxController::class, 'storePayment'])->name('tax.payments.store');
         Route::get('income', [ProjectIncomeController::class, 'index'])->name('income');
         Route::get('expenses', [ProjectExpenseController::class, 'index'])->name('expenses');
         Route::get('general-income', [GeneralIncomeController::class, 'index'])->name('general-income');
         Route::get('general-expenses', [GeneralExpenseController::class, 'index'])->name('general-expenses');
-        Route::get('invoices', [InvoiceController::class, 'invoices'])->name('invoices');
+        Route::post('categories', [FinanceCategoryController::class, 'store'])->name('categories.store');
+        Route::delete('categories/{financeCategory}', [FinanceCategoryController::class, 'destroy'])->name('categories.destroy');
 
         Route::post('incomes', [ProjectIncomeController::class, 'store'])->name('incomes.store');
         Route::put('incomes/{income}', [ProjectIncomeController::class, 'update'])->name('incomes.update');
@@ -136,9 +143,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('general-incomes/{generalIncome}', [GeneralIncomeController::class, 'update'])->name('general-incomes.update');
         Route::delete('general-incomes/{generalIncome}', [GeneralIncomeController::class, 'destroy'])->name('general-incomes.destroy');
 
+        Route::get('invoices', [InvoiceController::class, 'invoices'])->name('invoices');
+        Route::get('invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print');
         Route::post('invoices', [InvoiceController::class, 'store'])->name('invoices.store');
         Route::put('invoices/{invoice}', [InvoiceController::class, 'update'])->name('invoices.update');
         Route::delete('invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
+
+        Route::get('quotations', [QuotationController::class, 'index'])->name('quotations');
+        Route::get('quotations/{quotation}/print', [QuotationController::class, 'print'])->name('quotations.print');
+        Route::post('quotations', [QuotationController::class, 'store'])->name('quotations.store');
+        Route::delete('quotations/{quotation}', [QuotationController::class, 'destroy'])->name('quotations.destroy');
     });
 
     Route::prefix('hr')->name('hr.')->group(function () {
@@ -210,6 +224,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('analytics')->name('analytics.')->group(function () {
         Route::get('bidding', [AnalyticsController::class, 'bidding'])->name('bidding');
         Route::get('finance', [AnalyticsController::class, 'finance'])->name('finance');
+        Route::get('finance/print', [AnalyticsController::class, 'financePrint'])->name('finance.print');
     });
 
     Route::prefix('settings')->name('settings.')->group(function () {
@@ -220,6 +235,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
 
         Route::get('login-logs', [AuthenticationLogController::class, 'index'])->name('login-logs.index');
+        Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
 
         Route::get('roles', [RoleManagementController::class, 'index'])->name('roles.index');
         Route::get('roles/create', [RoleManagementController::class, 'create'])->name('roles.create');

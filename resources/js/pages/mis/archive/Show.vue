@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -251,9 +250,6 @@ const moveToLongTermArchive = (): void => {
                             <Archive class="size-5 text-primary" />
                             {{ t('Edit document') }}
                         </CardTitle>
-                        <CardDescription>
-                            {{ t('Update metadata or replace the file') }}
-                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Form

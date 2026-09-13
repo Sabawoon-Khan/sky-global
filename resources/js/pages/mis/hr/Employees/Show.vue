@@ -31,12 +31,13 @@ import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
 import { V2DetailHero, V2ListPage, V2Panel } from '@/components/v2';
 import { useMisPage } from '@/composables/useMisPage';
+import { useTableSort } from '@/composables/useTableSort';
+import SortableTh from '@/components/SortableTh.vue';
 import { formatCurrency } from '@/lib/format';
 
 interface Department {
@@ -123,6 +124,24 @@ const props = defineProps<{
 
 const { t, can } = useMisPage();
 
+const attendanceSort = useTableSort(() => props.attendances ?? [], {
+    accessors: {
+        period: (row) => `${row.year}-${String(row.month).padStart(2, '0')}`,
+        project: (row) => row.project?.code,
+        present: (row) => row.days_present,
+        status: (row) => row.status,
+    },
+});
+
+const adjustmentSort = useTableSort(() => props.payrollAdjustments ?? [], {
+    accessors: {
+        period: (row) => `${row.period_year}-${String(row.period_month).padStart(2, '0')}`,
+        type: (row) => row.type,
+        project: (row) => row.project?.code,
+        amount: (row) => row.amount,
+    },
+});
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -175,7 +194,7 @@ const statusVariant = (
         return 'default';
     }
 
-    if (status === 'terminated') {
+    if (status === 'terminated' || status === 'blocked') {
         return 'destructive';
     }
 
@@ -187,6 +206,7 @@ const statusLabel = (status: string): string => {
         active: t('Active'),
         inactive: t('Inactive'),
         terminated: t('Terminated'),
+        blocked: t('Blocked'),
     };
 
     return labels[status] ?? status;
@@ -228,6 +248,7 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
                     :url="`/hr/employees/${employee.id}`"
                     :name="fullName"
                     :status="employee.status"
+                    blockable
                 />
                 <Button variant="outline" as-child>
                     <Link href="/hr/employees">{{ t('Back to list') }}</Link>
@@ -311,10 +332,7 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
             <Card>
                 <CardHeader>
                     <CardTitle>{{ t('Staff Type') }}</CardTitle>
-                    <CardDescription>
-                        {{ t('Choose whether this employee works at the office or on projects.') }}
-                    </CardDescription>
-                </CardHeader>
+            </CardHeader>
                 <CardContent>
                     <PermanentStaffToggle
                         :employee-id="employee.id"
@@ -373,14 +391,7 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p class="text-sm text-muted-foreground">
-                        {{
-                            t(
-                                'This employee is project-based. Pay is set per project when they are assigned.',
-                            )
-                        }}
-                    </p>
-                    <div v-if="deployments?.length" class="mt-4 space-y-2">
+                    <div v-if="deployments?.length" class="space-y-2">
                         <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                             {{ t('Project assignments') }}
                         </p>
@@ -462,9 +473,14 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
         <V2Panel v-else-if="activeTab === 'attendance'" :title="t('Attendance History')">
                 <div v-if="!attendances?.length" class="text-sm text-muted-foreground">{{ t('No attendance records.') }}</div>
                 <table v-else class="w-full text-sm">
-                    <thead><tr class="border-b text-muted-foreground"><th class="pb-2 text-start">{{ t('Period') }}</th><th class="pb-2 text-start">{{ t('Project') }}</th><th class="pb-2 text-start">{{ t('Present') }}</th><th class="pb-2 text-start">{{ t('Status') }}</th></tr></thead>
+                    <thead><tr class="border-b text-muted-foreground">
+                        <SortableTh column="period" class="pb-2 text-start" :sort-key="attendanceSort.sortKey" :sort-dir="attendanceSort.sortDir" @sort="attendanceSort.sortBy">{{ t('Period') }}</SortableTh>
+                        <SortableTh column="project" class="pb-2 text-start" :sort-key="attendanceSort.sortKey" :sort-dir="attendanceSort.sortDir" @sort="attendanceSort.sortBy">{{ t('Project') }}</SortableTh>
+                        <SortableTh column="present" class="pb-2 text-start" :sort-key="attendanceSort.sortKey" :sort-dir="attendanceSort.sortDir" @sort="attendanceSort.sortBy">{{ t('Present') }}</SortableTh>
+                        <SortableTh column="status" class="pb-2 text-start" :sort-key="attendanceSort.sortKey" :sort-dir="attendanceSort.sortDir" @sort="attendanceSort.sortBy">{{ t('Status') }}</SortableTh>
+                    </tr></thead>
                     <tbody>
-                        <tr v-for="a in attendances" :key="a.id" class="border-b last:border-0">
+                        <tr v-for="a in attendanceSort.sortedRows" :key="a.id" class="border-b last:border-0">
                             <td class="py-2">{{ monthName(a.month) }} {{ a.year }}</td>
                             <td class="py-2 text-muted-foreground">{{ a.project?.code ?? (employee.is_permanent ? t('General') : '—') }}</td>
                             <td class="py-2">{{ a.days_present }}</td>
@@ -477,9 +493,14 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
         <V2Panel v-else-if="activeTab === 'payroll'" :title="t('Payroll Adjustments')">
                 <div v-if="!payrollAdjustments?.length" class="text-sm text-muted-foreground">{{ t('No payroll adjustments.') }}</div>
                 <table v-else class="w-full text-sm">
-                    <thead><tr class="border-b text-muted-foreground"><th class="pb-2 text-start">{{ t('Period') }}</th><th class="pb-2 text-start">{{ t('Type') }}</th><th class="pb-2 text-start">{{ t('Project') }}</th><th class="pb-2 text-end">{{ t('Amount') }}</th></tr></thead>
+                    <thead><tr class="border-b text-muted-foreground">
+                        <SortableTh column="period" class="pb-2 text-start" :sort-key="adjustmentSort.sortKey" :sort-dir="adjustmentSort.sortDir" @sort="adjustmentSort.sortBy">{{ t('Period') }}</SortableTh>
+                        <SortableTh column="type" class="pb-2 text-start" :sort-key="adjustmentSort.sortKey" :sort-dir="adjustmentSort.sortDir" @sort="adjustmentSort.sortBy">{{ t('Type') }}</SortableTh>
+                        <SortableTh column="project" class="pb-2 text-start" :sort-key="adjustmentSort.sortKey" :sort-dir="adjustmentSort.sortDir" @sort="adjustmentSort.sortBy">{{ t('Project') }}</SortableTh>
+                        <SortableTh column="amount" align="end" class="pb-2 text-end" :sort-key="adjustmentSort.sortKey" :sort-dir="adjustmentSort.sortDir" @sort="adjustmentSort.sortBy">{{ t('Amount') }}</SortableTh>
+                    </tr></thead>
                     <tbody>
-                        <tr v-for="adj in payrollAdjustments" :key="adj.id" class="border-b last:border-0">
+                        <tr v-for="adj in adjustmentSort.sortedRows" :key="adj.id" class="border-b last:border-0">
                             <td class="py-2">{{ monthName(adj.period_month) }} {{ adj.period_year }}</td>
                             <td class="py-2"><Badge variant="outline">{{ adj.type }}</Badge></td>
                             <td class="py-2 text-muted-foreground">{{ adj.project?.code ?? (employee.is_permanent ? t('General') : '—') }}</td>

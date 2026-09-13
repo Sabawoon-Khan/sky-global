@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import { computed, onMounted } from 'vue';
-import { Printer } from '@lucide/vue';
 import AppLogoImage from '@/components/AppLogoImage.vue';
-import { Button } from '@/components/ui/button';
+import MisExportActions from '@/components/mis/MisExportActions.vue';
 import { useMisPage } from '@/composables/useMisPage';
 import { formatAfn } from '@/lib/format';
 
@@ -69,10 +68,6 @@ const hasItems = computed(
 
 const amount = (value: number): string => formatAfn(value);
 
-const printPage = (): void => {
-    window.print();
-};
-
 onMounted(() => {
     const params = new URLSearchParams(window.location.search);
 
@@ -92,14 +87,11 @@ onMounted(() => {
             </a>
             <div class="flex items-center gap-2">
                 <span class="period-hint">{{ period_label }}</span>
-                <Button type="button" variant="outline" @click="printPage">
-                    <Printer class="size-4" />
-                    {{ t('Print') }}
-                </Button>
+                <MisExportActions variant="outline" />
             </div>
         </div>
 
-        <article class="sheet-document">
+        <article class="sheet-document" data-export-root>
             <header class="sheet-header">
                 <AppLogoImage class="sheet-logo sheet-logo--left" />
                 <div class="sheet-header-center">

@@ -5,7 +5,6 @@ import ThemeColorSettings from '@/components/ThemeColorSettings.vue';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -35,13 +34,6 @@ const { t } = useTranslations();
         <Card>
             <CardHeader>
                 <CardTitle>{{ t('Color mode') }}</CardTitle>
-                <CardDescription>
-                    {{
-                        t(
-                            'Select light, dark, or system appearance for the interface.',
-                        )
-                    }}
-                </CardDescription>
             </CardHeader>
             <CardContent>
                 <AppearanceTabs />

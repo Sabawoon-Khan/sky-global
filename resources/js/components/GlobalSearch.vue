@@ -5,7 +5,6 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
@@ -467,9 +466,6 @@ onUnmounted(() => {
         >
             <DialogHeader class="sr-only">
                 <DialogTitle>{{ t('Search') }}</DialogTitle>
-                <DialogDescription>
-                    {{ t('Search by name, code, phone, or related records.') }}
-                </DialogDescription>
             </DialogHeader>
 
             <div class="gs-panel">

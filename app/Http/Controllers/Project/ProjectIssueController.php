@@ -62,6 +62,12 @@ class ProjectIssueController extends Controller
             ['issue_id' => $issue->id],
         );
 
+        $this->notifyMisCreated(
+            'projects',
+            $issue->title,
+            route('projects.show', $project, false),
+        );
+
         return back()->with('success', 'Issue reported.');
     }
 
@@ -97,6 +103,18 @@ class ProjectIssueController extends Controller
                 $issue->title,
                 ['issue_id' => $issue->id],
             );
+            $this->notifyMisStatus(
+                'projects',
+                $issue->title,
+                'resolved',
+                route('projects.show', $project, false),
+            );
+        } else {
+            $this->notifyMisUpdated(
+                'projects',
+                $issue->title,
+                route('projects.show', $project, false),
+            );
         }
 
         return back()->with('success', 'Issue updated.');
@@ -108,15 +126,18 @@ class ProjectIssueController extends Controller
 
         abort_unless($issue->project_id === $project->id, 404);
 
+        $title = $issue->title;
         $issue->delete();
 
         ProjectActivityLogger::log(
             $project,
             ProjectActivityType::NoteAdded,
             'Issue removed',
-            $issue->title,
+            $title,
             ['issue_id' => $issue->id],
         );
+
+        $this->notifyMisDeleted('projects', $title, route('projects.show', $project, false));
 
         return back()->with('success', 'Issue deleted.');
     }
