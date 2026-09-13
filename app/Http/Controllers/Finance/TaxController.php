@@ -11,6 +11,7 @@ use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
 use App\Models\Finance\TaxPayment;
 use App\Services\AfghanistanCompanyTaxService;
+use App\Support\AfghanSolarDate;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
@@ -65,8 +66,9 @@ class TaxController extends Controller
             'show_split' => $isQuarterly,
             'rows' => $rows,
             'totals' => $this->sumRows($rows),
-            'generated_on' => now()->toDayDateTimeString(),
+            'generated_on' => AfghanSolarDate::format(now()).' '.now()->timezone(AfghanSolarDate::TIMEZONE)->format('H:i'),
             'current_year' => $report['current_year'],
+            'calendar' => 'hijri_shamsi',
         ]);
     }
 
@@ -76,7 +78,7 @@ class TaxController extends Controller
 
         $validated = $request->validate([
             'period_type' => ['required', 'in:quarterly,yearly'],
-            'year' => ['required', 'integer', 'min:2000', 'max:2100'],
+            'year' => ['required', 'integer', 'min:1300', 'max:1600'],
             'quarter' => ['nullable', 'integer', 'min:1', 'max:4', 'required_if:period_type,quarterly'],
             'amount' => ['required_if:period_type,yearly', 'nullable', 'numeric', 'min:0'],
             'their_amount' => ['required_if:period_type,quarterly', 'nullable', 'numeric', 'min:0'],
@@ -164,6 +166,7 @@ class TaxController extends Controller
 
     /**
      * @return array{
+     *     calendar: string,
      *     current_year: int,
      *     current_quarter: int,
      *     quarterly_rate_percent: int,
@@ -180,11 +183,11 @@ class TaxController extends Controller
      */
     private function buildCompanyTaxReport(AfghanistanCompanyTaxService $companyTax): array
     {
-        $currentYear = (int) now()->year;
-        $currentQuarter = (int) ceil(now()->month / 3);
+        [$currentYear, $currentMonth] = AfghanSolarDate::parts();
+        $currentQuarter = AfghanSolarDate::currentQuarter();
 
-        $yearStart = now()->copy()->startOfYear();
-        $yearEnd = now()->copy()->endOfYear();
+        $yearStart = AfghanSolarDate::yearStart($currentYear);
+        $yearEnd = AfghanSolarDate::yearEnd($currentYear);
         $yearSummary = $this->withPaymentProgress(
             $companyTax->summarize(
                 $this->sumIncomeInRange($yearStart, $yearEnd),
@@ -207,7 +210,7 @@ class TaxController extends Controller
 
             $quarters[] = [
                 'quarter' => $quarter,
-                'label' => "Q{$quarter} {$currentYear}",
+                'label' => AfghanSolarDate::formatQuarter($currentYear, $quarter),
                 'period_start' => $start->toDateString(),
                 'period_end' => $end->toDateString(),
                 ...$this->withPaymentProgress($summary, 'quarterly', $currentYear, $quarter),
@@ -233,8 +236,9 @@ class TaxController extends Controller
             ];
         }
 
-        $daily = collect(range(13, 0))->map(function (int $i) use ($companyTax) {
-            $day = now()->subDays($i);
+        $today = AfghanSolarDate::now();
+        $daily = collect(range(13, 0))->map(function (int $i) use ($companyTax, $today) {
+            $day = $today->copy()->subDays($i);
             $start = $day->copy()->startOfDay();
             $end = $day->copy()->endOfDay();
             $summary = $companyTax->summarize(
@@ -244,17 +248,17 @@ class TaxController extends Controller
             );
 
             return [
-                'label' => $start->format('D, M j'),
+                'label' => AfghanSolarDate::format($start),
                 'period_start' => $start->toDateString(),
                 'period_end' => $end->toDateString(),
                 ...$summary,
             ];
         })->values()->all();
 
-        $weekly = collect(range(7, 0))->map(function (int $i) use ($companyTax) {
-            $week = now()->copy()->startOfWeek(Carbon::MONDAY)->subWeeks($i);
+        $weekly = collect(range(7, 0))->map(function (int $i) use ($companyTax, $today) {
+            $week = $today->copy()->startOfWeek(Carbon::SATURDAY)->subWeeks($i);
             $start = $week->copy()->startOfDay();
-            $end = $week->copy()->endOfWeek(Carbon::SUNDAY)->endOfDay();
+            $end = $week->copy()->endOfWeek(Carbon::FRIDAY)->endOfDay();
             $summary = $companyTax->summarize(
                 $this->sumIncomeInRange($start, $end),
                 $this->sumExpenseInRange($start, $end),
@@ -262,17 +266,17 @@ class TaxController extends Controller
             );
 
             return [
-                'label' => $start->format('M j').' – '.$end->format('M j, Y'),
+                'label' => AfghanSolarDate::format($start, false).' – '.AfghanSolarDate::format($end),
                 'period_start' => $start->toDateString(),
                 'period_end' => $end->toDateString(),
                 ...$summary,
             ];
         })->values()->all();
 
-        $monthly = collect(range(11, 0))->map(function (int $i) use ($companyTax) {
-            $month = now()->copy()->startOfMonth()->subMonths($i);
-            $start = $month->copy()->startOfMonth();
-            $end = $month->copy()->endOfMonth();
+        $monthly = collect(range(11, 0))->map(function (int $i) use ($companyTax, $currentYear, $currentMonth) {
+            [$year, $month] = AfghanSolarDate::addMonths($currentYear, $currentMonth, -$i);
+            $start = AfghanSolarDate::monthStart($year, $month);
+            $end = AfghanSolarDate::monthEnd($year, $month);
             $summary = $companyTax->summarize(
                 $this->sumIncomeInRange($start, $end),
                 $this->sumExpenseInRange($start, $end),
@@ -280,7 +284,7 @@ class TaxController extends Controller
             );
 
             return [
-                'label' => $start->format('F Y'),
+                'label' => AfghanSolarDate::formatMonth($year, $month),
                 'period_start' => $start->toDateString(),
                 'period_end' => $end->toDateString(),
                 ...$summary,
@@ -288,6 +292,7 @@ class TaxController extends Controller
         })->values()->all();
 
         return [
+            'calendar' => 'hijri_shamsi',
             'current_year' => $currentYear,
             'current_quarter' => $currentQuarter,
             'quarterly_rate_percent' => (int) round(AfghanistanCompanyTaxService::QUARTERLY_RATE * 100),
@@ -322,7 +327,7 @@ class TaxController extends Controller
                 'year' => $payment->year,
                 'quarter' => $payment->quarter,
                 'label' => $payment->period_type === 'quarterly'
-                    ? "Q{$payment->quarter} {$payment->year}"
+                    ? AfghanSolarDate::formatQuarter((int) $payment->year, (int) $payment->quarter)
                     : (string) $payment->year,
                 'rate_percent' => $payment->rate_percent,
                 'tax_due' => (float) $payment->tax_due,
@@ -330,6 +335,9 @@ class TaxController extends Controller
                 'their_amount' => (float) $payment->their_amount,
                 'company_amount' => (float) $payment->company_amount,
                 'payment_date' => $payment->payment_date?->toDateString(),
+                'payment_date_label' => $payment->payment_date
+                    ? AfghanSolarDate::format($payment->payment_date)
+                    : null,
                 'payment_method' => $payment->payment_method,
                 'reference_number' => $payment->reference_number,
                 'notes' => $payment->notes,
@@ -379,14 +387,10 @@ class TaxController extends Controller
     private function periodBounds(string $periodType, int $year, ?int $quarter): array
     {
         if ($periodType === 'quarterly') {
-            $start = Carbon::create($year, (($quarter ?? 1) - 1) * 3 + 1, 1)->startOfDay();
-
-            return [$start, $start->copy()->addMonths(2)->endOfMonth()];
+            return AfghanSolarDate::quarterBounds($year, $quarter ?? 1);
         }
 
-        $start = Carbon::create($year, 1, 1)->startOfDay();
-
-        return [$start, Carbon::create($year, 12, 31)->endOfDay()];
+        return [AfghanSolarDate::yearStart($year), AfghanSolarDate::yearEnd($year)];
     }
 
     /**
@@ -443,7 +447,7 @@ class TaxController extends Controller
     private function sumInRange(string $modelClass, CarbonInterface $start, CarbonInterface $end): float
     {
         return (float) $modelClass::query()
-            ->whereBetween('transaction_date', [$start, $end])
+            ->whereBetween('transaction_date', [$start->toDateString(), $end->toDateString()])
             ->sum('amount');
     }
 }

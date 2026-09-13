@@ -39,6 +39,7 @@ const props = defineProps<{
     totals: Totals;
     generated_on: string;
     current_year: number;
+    calendar?: string;
 }>();
 
 const { t } = useMisPage();
@@ -87,6 +88,7 @@ onMounted(() => {
                 <p>
                     <strong>{{ t('Year') }}:</strong>
                     {{ current_year }}
+                    {{ t('Hijri Shamsi') }}
                 </p>
                 <p>
                     <strong>{{ t('Tax rate') }}:</strong>

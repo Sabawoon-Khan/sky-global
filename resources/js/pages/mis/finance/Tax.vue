@@ -73,6 +73,7 @@ interface TaxPaymentRow {
     their_amount: number;
     company_amount: number;
     payment_date: string | null;
+    payment_date_label?: string | null;
     payment_method: string | null;
     reference_number: string | null;
     notes: string | null;
@@ -84,6 +85,7 @@ interface TaxPaymentRow {
 }
 
 interface CompanyTaxReport {
+    calendar?: string;
     current_year: number;
     current_quarter: number;
     quarterly_rate_percent: number;
@@ -111,7 +113,7 @@ const props = defineProps<{
 const { t } = useMisPage();
 const showPayForm = ref(false);
 const periodType = ref<'quarterly' | 'yearly'>('quarterly');
-const selectedYear = ref(props.tax?.current_year ?? new Date().getFullYear());
+const selectedYear = ref(props.tax?.current_year ?? 1405);
 const selectedQuarter = ref(props.tax?.current_quarter ?? 1);
 const amount = ref('');
 const theirAmount = ref('');
@@ -119,7 +121,7 @@ const companyAmount = ref('');
 const activeReport = ref<ReportPeriod>('quarterly');
 
 const years = computed(() => {
-    const current = props.tax?.current_year ?? new Date().getFullYear();
+    const current = props.tax?.current_year ?? 1405;
 
     return [current, current - 1, current - 2];
 });
@@ -270,7 +272,7 @@ defineOptions({
                     <V2StatCard
                         :delay="0"
                         icon-tone="warm"
-                        :title="`${t('Yearly tax')} · ${tax.current_year}`"
+                        :title="`${t('Yearly tax')} · ${tax.current_year} ${t('Hijri Shamsi')}`"
                         :value="formatAfn(tax.year.tax_due)"
                     >
                         <template #icon><Percent /></template>
@@ -427,7 +429,7 @@ defineOptions({
                                     </select>
                                 </div>
                                 <div class="grid gap-2">
-                                    <Label for="tax-year">{{ t('Year') }}</Label>
+                                    <Label for="tax-year">{{ t('Hijri Shamsi year') }}</Label>
                                     <select
                                         id="tax-year"
                                         name="year"
@@ -456,10 +458,18 @@ defineOptions({
                                         v-model.number="selectedQuarter"
                                         :class="selectClass"
                                     >
-                                        <option :value="1">Q1 (Jan–Mar)</option>
-                                        <option :value="2">Q2 (Apr–Jun)</option>
-                                        <option :value="3">Q3 (Jul–Sep)</option>
-                                        <option :value="4">Q4 (Oct–Dec)</option>
+                                        <option :value="1">
+                                            {{ t('Q1 (Hamal–Jawza)') }}
+                                        </option>
+                                        <option :value="2">
+                                            {{ t('Q2 (Saratan–Sunbula)') }}
+                                        </option>
+                                        <option :value="3">
+                                            {{ t('Q3 (Mizan–Qaws)') }}
+                                        </option>
+                                        <option :value="4">
+                                            {{ t('Q4 (Jadi–Hoot)') }}
+                                        </option>
                                     </select>
                                 </div>
                                 <template v-if="periodType === 'quarterly'">
@@ -879,7 +889,10 @@ defineOptions({
                                 class="hover:bg-muted/30"
                             >
                                 <td class="px-3 py-2 whitespace-nowrap">
-                                    {{ formatDate(payment.payment_date) }}
+                                    {{
+                                        payment.payment_date_label ||
+                                        formatDate(payment.payment_date)
+                                    }}
                                 </td>
                                 <td class="px-3 py-2">
                                     <div class="flex flex-wrap items-center gap-2">

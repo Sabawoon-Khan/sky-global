@@ -94,6 +94,7 @@ const props = defineProps<{
     filters?: {
         search?: string | null;
         category?: string | null;
+        is_active?: string | null;
     };
 }>();
 
@@ -140,6 +141,7 @@ defineOptions({
 const showCreateForm = ref(false);
 const search = ref(props.filters?.search ?? '');
 const category = ref(props.filters?.category ?? '');
+const isActive = ref(props.filters?.is_active ?? '');
 const adjustingId = ref<number | null>(null);
 const issuingId = ref<number | null>(null);
 const issueMode = ref<'project' | 'personnel'>('project');
@@ -162,6 +164,7 @@ const applyFilters = (): void => {
         {
             search: search.value || undefined,
             category: category.value || undefined,
+            is_active: isActive.value || undefined,
         },
         { preserveState: true, replace: true },
     );
@@ -391,6 +394,14 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                             <option v-for="cat in categories" :key="cat" :value="cat">
                                 {{ cat }}
                             </option>
+                        </select>
+                        <select
+                            v-model="isActive"
+                            class="mis-form-select h-9 min-w-[8rem]"
+                        >
+                            <option value="">{{ t('All statuses') }}</option>
+                            <option value="1">{{ t('Active') }}</option>
+                            <option value="0">{{ t('Inactive') }}</option>
                         </select>
                         <Button type="submit" variant="outline" class="h-9">{{ t('Filter') }}</Button>
                     </form>

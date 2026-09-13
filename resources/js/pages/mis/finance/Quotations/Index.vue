@@ -3,6 +3,7 @@ import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
+import MisListFilterBar from '@/components/mis/MisListFilterBar.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
@@ -18,8 +19,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { V2Hero, V2ListPage, V2StatCard, V2StatGrid } from '@/components/v2';
+import { V2Hero, V2ListPage, V2SelectFilter, V2StatCard, V2StatGrid } from '@/components/v2';
 import SortableTh from '@/components/SortableTh.vue';
+import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
 import { provideTableSort } from '@/composables/useTableSort';
 import { formatCurrency, formatDate, type Paginated } from '@/lib/format';
@@ -45,9 +47,49 @@ interface SelectOption {
 const props = defineProps<{
     quotations: Paginated<Quotation>;
     organizations?: SelectOption[];
+    filters?: {
+        search?: string | null;
+        organization_id?: number | null;
+        status?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
+    };
 }>();
 
 const { t, deleteAction } = useMisPage();
+
+const { filters, apply, clear } = useMisFilters(
+    '/finance/quotations',
+    {
+        search: props.filters?.search ?? '',
+        organization_id: props.filters?.organization_id
+            ? String(props.filters.organization_id)
+            : '',
+        status: props.filters?.status ?? '',
+        date_from: props.filters?.date_from ?? '',
+        date_to: props.filters?.date_to ?? '',
+    },
+    {
+        search: '',
+        organization_id: '',
+        status: '',
+        date_from: '',
+        date_to: '',
+    },
+    {
+        only: ['quotations', 'organizations', 'filters'],
+        liveKeys: ['search'],
+    },
+);
+
+const hasActiveFilters = computed(
+    () =>
+        Boolean(filters.search) ||
+        Boolean(filters.organization_id) ||
+        Boolean(filters.status) ||
+        Boolean(filters.date_from) ||
+        Boolean(filters.date_to),
+);
 
 const { sortedRows } = provideTableSort(() => props.quotations.data, {
     accessors: {
@@ -156,6 +198,43 @@ const quotationActions = (quotation: Quotation): RowActionItem[] => [
                     </Button>
                 </Can>
             </div>
+
+            <MisListFilterBar
+                v-model:search="filters.search"
+                v-model:date-from="filters.date_from"
+                v-model:date-to="filters.date_to"
+                :search-placeholder="t('Search')"
+                :has-active="hasActiveFilters"
+                @apply="apply()"
+                @clear="clear"
+            >
+                <V2SelectFilter
+                    v-model="filters.organization_id"
+                    :label="t('Client')"
+                    @change="(value) => apply({ organization_id: value })"
+                >
+                    <option value="">{{ t('All') }}</option>
+                    <option
+                        v-for="org in organizations ?? []"
+                        :key="org.id"
+                        :value="String(org.id)"
+                    >
+                        {{ org.name }}
+                    </option>
+                </V2SelectFilter>
+                <V2SelectFilter
+                    v-model="filters.status"
+                    :label="t('Status')"
+                    @change="(value) => apply({ status: value })"
+                >
+                    <option value="">{{ t('All statuses') }}</option>
+                    <option value="draft">{{ t('Draft') }}</option>
+                    <option value="sent">{{ t('Sent') }}</option>
+                    <option value="accepted">{{ t('Accepted') }}</option>
+                    <option value="declined">{{ t('Declined') }}</option>
+                    <option value="expired">{{ t('Expired') }}</option>
+                </V2SelectFilter>
+            </MisListFilterBar>
 
             <Dialog :open="showForm" @update:open="showForm = $event">
                 <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-3xl">

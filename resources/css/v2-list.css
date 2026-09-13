@@ -844,6 +844,7 @@
 
 .toolbar {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 12px;
     padding: 14px 16px;
@@ -869,15 +870,20 @@
     white-space: nowrap;
 }
 
-.filter-select select {
+.filter-select select,
+.filter-select input[type='date'] {
     height: 100%;
-    min-width: 168px;
+    min-width: 138px;
     border: 0;
     background: transparent;
     color: var(--foreground, #161616);
     font-size: 13px;
     font-weight: 550;
     outline: none;
+}
+
+.filter-select select {
+    min-width: 168px;
     cursor: pointer;
 }
 

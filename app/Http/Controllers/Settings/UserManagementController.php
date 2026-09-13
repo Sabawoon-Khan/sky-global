@@ -23,6 +23,8 @@ class UserManagementController extends Controller
 
         $search = $request->string('search')->trim()->toString();
         $currentUserId = $request->user()->id;
+        $roleId = $request->integer('role_id') ?: null;
+        $isActive = $request->string('is_active')->trim()->toString();
 
         $users = User::query()
             ->with([
@@ -33,6 +35,8 @@ class UserManagementController extends Controller
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             }))
+            ->when($roleId, fn ($q) => $q->whereHas('roles', fn ($roles) => $roles->where('roles.id', $roleId)))
+            ->when($isActive !== '', fn ($q) => $q->where('is_active', $isActive === '1'))
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
@@ -51,7 +55,11 @@ class UserManagementController extends Controller
         return Inertia::render('settings/Users/Index', [
             'users' => $users,
             'roles' => Role::query()->orderBy('name')->get(['id', 'name']),
-            'filters' => ['search' => $search ?: null],
+            'filters' => [
+                'search' => $search ?: null,
+                'role_id' => $roleId,
+                'is_active' => $isActive !== '' ? $isActive : null,
+            ],
         ]);
     }
 

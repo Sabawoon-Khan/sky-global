@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
+import MisListFilterBar from '@/components/mis/MisListFilterBar.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
 import FinanceCategoryField, {
@@ -25,8 +26,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { V2Hero, V2ListPage, V2StatCard, V2StatGrid } from '@/components/v2';
+import { V2Hero, V2ListPage, V2SelectFilter, V2StatCard, V2StatGrid } from '@/components/v2';
 import SortableTh from '@/components/SortableTh.vue';
+import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
 import { provideTableSort } from '@/composables/useTableSort';
 import { formatAfn, formatDate, type Paginated } from '@/lib/format';
@@ -53,12 +55,44 @@ interface GeneralRecord {
 const props = defineProps<{
     generalExpenses: Paginated<GeneralRecord>;
     categories?: FinanceCategoryOption[];
+    filters?: {
+        search?: string | null;
+        status?: string | null;
+        category?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
+    };
     stats?: { total?: number; count?: number };
 }>();
 
 const { t } = useMisPage();
 const showGeneralExpenseForm = ref(false);
 const viewingRecord = ref<GeneralRecord | null>(null);
+
+const { filters, apply, clear } = useMisFilters(
+    '/finance/general-expenses',
+    {
+        search: props.filters?.search ?? '',
+        status: props.filters?.status ?? '',
+        category: props.filters?.category ?? '',
+        date_from: props.filters?.date_from ?? '',
+        date_to: props.filters?.date_to ?? '',
+    },
+    { search: '', status: '', category: '', date_from: '', date_to: '' },
+    {
+        only: ['generalExpenses', 'categories', 'filters', 'stats'],
+        liveKeys: ['search'],
+    },
+);
+
+const hasActiveFilters = computed(
+    () =>
+        Boolean(filters.search) ||
+        Boolean(filters.status) ||
+        Boolean(filters.category) ||
+        Boolean(filters.date_from) ||
+        Boolean(filters.date_to),
+);
 
 const { sortedRows } = provideTableSort(() => props.generalExpenses.data, {
     accessors: {
@@ -136,6 +170,40 @@ const money = (value?: number | null): string => formatAfn(value);
                     </Can>
                 </div>
             </CardHeader>
+            <MisListFilterBar
+                v-model:search="filters.search"
+                v-model:date-from="filters.date_from"
+                v-model:date-to="filters.date_to"
+                :search-placeholder="t('Search description, project, or reference...')"
+                :has-active="hasActiveFilters"
+                @apply="apply()"
+                @clear="clear"
+            >
+                <V2SelectFilter
+                    v-model="filters.status"
+                    :label="t('Status')"
+                    @change="(value) => apply({ status: value })"
+                >
+                    <option value="">{{ t('All statuses') }}</option>
+                    <option value="pending">{{ t('Pending') }}</option>
+                    <option value="approved">{{ t('Approved') }}</option>
+                    <option value="rejected">{{ t('Rejected') }}</option>
+                </V2SelectFilter>
+                <V2SelectFilter
+                    v-model="filters.category"
+                    :label="t('Category')"
+                    @change="(value) => apply({ category: value })"
+                >
+                    <option value="">{{ t('All categories') }}</option>
+                    <option
+                        v-for="category in categories ?? []"
+                        :key="category.id"
+                        :value="category.name"
+                    >
+                        {{ category.name }}
+                    </option>
+                </V2SelectFilter>
+            </MisListFilterBar>
             <CardContent class="space-y-4">
                 <div
                     v-if="!props.generalExpenses.data.length"

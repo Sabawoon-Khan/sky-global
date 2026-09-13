@@ -80,6 +80,7 @@ const props = defineProps<{
     filters?: {
         search?: string | null;
         organization_type_id?: number | null;
+        is_active?: string | null;
     };
 }>();
 
@@ -96,8 +97,9 @@ const { filters, pending, apply } = useMisFilters(
     {
         search: props.filters?.search ?? '',
         organization_type_id: props.filters?.organization_type_id ?? '',
+        is_active: props.filters?.is_active ?? '',
     },
-    { search: '', organization_type_id: '' },
+    { search: '', organization_type_id: '', is_active: '' },
     { only: onlyKeys, liveKeys: ['search'] },
 );
 
@@ -413,6 +415,15 @@ function onTypeChange(value: string) {
                         >
                             {{ type.name }}
                         </option>
+                    </V2SelectFilter>
+                    <V2SelectFilter
+                        v-model="filters.is_active"
+                        :label="t('Status')"
+                        @change="(value) => apply({ is_active: value })"
+                    >
+                        <option value="">{{ t('All statuses') }}</option>
+                        <option value="1">{{ t('Active') }}</option>
+                        <option value="0">{{ t('Inactive') }}</option>
                     </V2SelectFilter>
                     <template #columns>
                         <TableToolbar />

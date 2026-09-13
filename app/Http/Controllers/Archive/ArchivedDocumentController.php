@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Archive;
 
+use App\Http\Controllers\Concerns\AppliesListFilters;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\GeneratesMisReferenceNumbers;
 use App\Http\Controllers\Controller;
@@ -20,23 +21,26 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ArchivedDocumentController extends Controller
 {
-    use AuthorizesMisPermissions, GeneratesMisReferenceNumbers;
+    use AppliesListFilters, AuthorizesMisPermissions, GeneratesMisReferenceNumbers;
 
     public function index(Request $request): Response
     {
         $this->authorizePermission($request, 'archive.view');
 
-        $search = $request->string('search')->trim()->toString();
-        $direction = $request->string('direction')->trim()->toString();
+        $filters = $this->listFilters($request, [], ['direction', 'document_category_id']);
 
-        $documents = ArchivedDocument::query()
+        $query = ArchivedDocument::query()
             ->with(['documentCategory', 'organization', 'project'])
-            ->where('is_archived', false)
-            ->when($search, fn ($query) => $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                    ->orWhere('reference_number', 'like', "%{$search}%");
-            }))
-            ->when($direction, fn ($query) => $query->where('direction', $direction))
+            ->where('is_archived', false);
+        $this->applyListFilters($query, $filters, [
+            'date_column' => 'document_date',
+            'search_columns' => ['title', 'reference_number'],
+        ]);
+        $query
+            ->when($filters['direction'] ?? null, fn ($q, string $direction) => $q->where('direction', $direction))
+            ->when($filters['document_category_id'] ?? null, fn ($q, int $categoryId) => $q->where('document_category_id', $categoryId));
+
+        $documents = (clone $query)
             ->latest('document_date')
             ->paginate(15)
             ->withQueryString();
@@ -66,10 +70,8 @@ class ArchivedDocumentController extends Controller
                     ArchivedDocument::query()->where('is_archived', false)
                 ),
             ],
-            'filters' => [
-                'search' => $search ?: null,
-                'direction' => $direction ?: null,
-            ],
+            'documentCategories' => DocumentCategory::query()->orderBy('name')->get(['id', 'name']),
+            'filters' => $filters,
         ]);
     }
 

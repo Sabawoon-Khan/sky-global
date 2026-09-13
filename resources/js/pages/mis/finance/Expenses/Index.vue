@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import MisListFilterBar from '@/components/mis/MisListFilterBar.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import { Badge } from '@/components/ui/badge';
@@ -18,8 +19,9 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { V2Hero, V2ListPage, V2StatCard, V2StatGrid } from '@/components/v2';
+import { V2Hero, V2ListPage, V2SelectFilter, V2StatCard, V2StatGrid } from '@/components/v2';
 import SortableTh from '@/components/SortableTh.vue';
+import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
 import { provideTableSort } from '@/composables/useTableSort';
 import { formatAfn, formatDate, type Paginated } from '@/lib/format';
@@ -45,14 +47,63 @@ interface Expense {
     attachments?: FinanceAttachment[];
 }
 
+interface ProjectOption {
+    id: number;
+    code: string;
+    name: string;
+}
+
 const props = defineProps<{
     expenses: Paginated<Expense>;
-    filters?: { project_id?: number | null };
+    projects?: ProjectOption[];
+    categories?: string[];
+    filters?: {
+        search?: string | null;
+        project_id?: number | null;
+        status?: string | null;
+        category?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
+    };
     stats?: { total?: number; count?: number };
 }>();
 
 const { t, editAction, deleteAction, gateActions } = useMisPage();
 const viewingRecord = ref<Expense | null>(null);
+
+const { filters, apply, clear } = useMisFilters(
+    '/finance/expenses',
+    {
+        search: props.filters?.search ?? '',
+        project_id: props.filters?.project_id ? String(props.filters.project_id) : '',
+        status: props.filters?.status ?? '',
+        category: props.filters?.category ?? '',
+        date_from: props.filters?.date_from ?? '',
+        date_to: props.filters?.date_to ?? '',
+    },
+    {
+        search: '',
+        project_id: '',
+        status: '',
+        category: '',
+        date_from: '',
+        date_to: '',
+    },
+    {
+        only: ['expenses', 'projects', 'categories', 'filters', 'stats'],
+        liveKeys: ['search'],
+    },
+);
+
+const hasActiveFilters = computed(
+    () =>
+        Boolean(filters.search) ||
+        Boolean(filters.project_id) ||
+        Boolean(filters.status) ||
+        Boolean(filters.category) ||
+        Boolean(filters.date_from) ||
+        Boolean(filters.date_to),
+);
 
 const { sortedRows } = provideTableSort(() => props.expenses.data, {
     accessors: {
@@ -138,6 +189,54 @@ const expenseActions = (item: Expense): RowActionItem[] => [
                     t('Project Expenses')
                 }}</CardTitle>
             </CardHeader>
+            <MisListFilterBar
+                v-model:search="filters.search"
+                v-model:date-from="filters.date_from"
+                v-model:date-to="filters.date_to"
+                :search-placeholder="t('Search description, project, or reference...')"
+                :has-active="hasActiveFilters"
+                @apply="apply()"
+                @clear="clear"
+            >
+                <V2SelectFilter
+                    v-model="filters.project_id"
+                    :label="t('Project')"
+                    @change="(value) => apply({ project_id: value })"
+                >
+                    <option value="">{{ t('All projects') }}</option>
+                    <option
+                        v-for="project in projects ?? []"
+                        :key="project.id"
+                        :value="String(project.id)"
+                    >
+                        {{ project.code }}
+                    </option>
+                </V2SelectFilter>
+                <V2SelectFilter
+                    v-model="filters.status"
+                    :label="t('Status')"
+                    @change="(value) => apply({ status: value })"
+                >
+                    <option value="">{{ t('All statuses') }}</option>
+                    <option value="pending">{{ t('Pending') }}</option>
+                    <option value="approved">{{ t('Approved') }}</option>
+                    <option value="rejected">{{ t('Rejected') }}</option>
+                </V2SelectFilter>
+                <V2SelectFilter
+                    v-model="filters.category"
+                    :label="t('Category')"
+                    @change="(value) => apply({ category: value })"
+                >
+                    <option value="">{{ t('All categories') }}</option>
+                    <option
+                        v-for="category in categories ?? []"
+                        :key="category"
+                        :value="category"
+                    >
+                        {{ category }}
+                    </option>
+                </V2SelectFilter>
+            </MisListFilterBar>
             <CardContent>
                 <div
                     v-if="!props.expenses.data.length"

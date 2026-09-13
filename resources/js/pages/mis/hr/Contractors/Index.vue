@@ -13,6 +13,7 @@ import {
     V2IndicatorCard,
     V2ListPage,
     V2Pager,
+    V2SelectFilter,
     V2StatCard,
     V2StatGrid,
     V2TablePanel,
@@ -69,8 +70,11 @@ const onlyKeys = ['contractors', 'stats', 'chart', 'filters'];
 
 const { filters, pending, apply, clear } = useMisFilters(
     '/hr/contractors',
-    { search: props.filters?.search ?? '' },
-    { search: '' },
+    {
+        search: props.filters?.search ?? '',
+        status: props.filters?.status ?? '',
+    },
+    { search: '', status: '' },
     { only: onlyKeys, liveKeys: ['search'] },
 );
 
@@ -310,6 +314,16 @@ const contractorActions = (contractor: Contractor): RowActionItem[] => [
                             @clear="clear"
                         />
                     </div>
+                    <V2SelectFilter
+                        v-model="filters.status"
+                        :label="t('Status')"
+                        @change="(value) => apply({ status: value })"
+                    >
+                        <option value="">{{ t('All statuses') }}</option>
+                        <option value="active">{{ t('Active') }}</option>
+                        <option value="inactive">{{ t('Inactive') }}</option>
+                        <option value="terminated">{{ t('Terminated') }}</option>
+                    </V2SelectFilter>
                     <template #columns>
                         <TableToolbar />
                     </template>

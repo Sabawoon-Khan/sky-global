@@ -77,6 +77,8 @@ const props = defineProps<{
     filters?: {
         search?: string | null;
         status?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
     };
 }>();
 
@@ -87,8 +89,10 @@ const { filters, pending, apply } = useMisFilters(
     {
         search: props.filters?.search ?? '',
         status: props.filters?.status ?? '',
+        date_from: props.filters?.date_from ?? '',
+        date_to: props.filters?.date_to ?? '',
     },
-    { search: '', status: '' },
+    { search: '', status: '', date_from: '', date_to: '' },
     { only: onlyKeys, liveKeys: ['search'] },
 );
 
@@ -321,6 +325,22 @@ function onStatusChange(value: string) {
                             @submit="apply()"
                         />
                     </div>
+                    <label class="filter-select">
+                        <span>{{ t('From') }}</span>
+                        <input
+                            v-model="filters.date_from"
+                            type="date"
+                            @change="apply()"
+                        />
+                    </label>
+                    <label class="filter-select">
+                        <span>{{ t('To') }}</span>
+                        <input
+                            v-model="filters.date_to"
+                            type="date"
+                            @change="apply()"
+                        />
+                    </label>
                     <V2SelectFilter
                         v-model="filters.status"
                         :label="t('Status')"

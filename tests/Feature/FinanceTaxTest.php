@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Finance\TaxPayment;
 use App\Models\User;
+use App\Support\AfghanSolarDate;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -41,6 +43,8 @@ class FinanceTaxTest extends TestCase
                 ->has('tax.monthly')
                 ->has('tax.yearly')
                 ->has('tax.quarters')
+                ->where('tax.calendar', 'hijri_shamsi')
+                ->where('tax.current_year', AfghanSolarDate::currentYear())
                 ->has('payments')
             );
     }
@@ -63,7 +67,7 @@ class FinanceTaxTest extends TestCase
         $this->actingAs($this->owner)
             ->post(route('finance.tax.payments.store'), [
                 'period_type' => 'yearly',
-                'year' => now()->year,
+                'year' => AfghanSolarDate::currentYear(),
                 'amount' => 1000,
                 'payment_date' => now()->toDateString(),
             ])
@@ -77,7 +81,7 @@ class FinanceTaxTest extends TestCase
         $this->actingAs($this->owner)
             ->post(route('finance.tax.payments.store'), [
                 'period_type' => 'quarterly',
-                'year' => now()->year,
+                'year' => AfghanSolarDate::currentYear(),
                 'quarter' => 1,
                 'their_amount' => 1250.25,
                 'company_amount' => 1250.25,
@@ -92,7 +96,7 @@ class FinanceTaxTest extends TestCase
 
         $this->assertDatabaseHas('tax_payments', [
             'period_type' => 'quarterly',
-            'year' => now()->year,
+            'year' => AfghanSolarDate::currentYear(),
             'quarter' => 1,
             'amount' => 2500.50,
             'their_amount' => 1250.25,
@@ -100,6 +104,12 @@ class FinanceTaxTest extends TestCase
             'reference_number' => 'TAX-001',
         ]);
 
+        $payment = TaxPayment::query()->first();
+
+        $this->assertSame(
+            AfghanSolarDate::yearStart(AfghanSolarDate::currentYear())->toDateString(),
+            $payment?->period_start?->toDateString(),
+        );
         $this->assertDatabaseCount('attachments', 1);
     }
 }

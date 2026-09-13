@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Enums\ProjectActivityType;
+use App\Http\Controllers\Concerns\AppliesListFilters;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
+use App\Models\Finance\FinanceCategory;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Project\Project;
 use App\Services\ProjectActivityLogger;
@@ -16,17 +18,21 @@ use Inertia\Response;
 
 class ProjectExpenseController extends Controller
 {
-    use AuthorizesMisPermissions, StoresOptionalAttachments;
+    use AppliesListFilters, AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
         $this->authorizePermission($request, 'finance.view');
 
-        $projectId = $request->integer('project_id') ?: null;
+        $filters = $this->listFilters($request, ['pending', 'approved', 'rejected']);
 
         $query = ProjectExpense::query()
-            ->with(['project', 'account', 'attachments'])
-            ->when($projectId, fn ($q) => $q->where('project_id', $projectId));
+            ->with(['project', 'account', 'attachments']);
+        $this->applyListFilters($query, $filters, [
+            'search_columns' => ['description', 'reference_number'],
+            'search_relations' => ['project' => ['code', 'name']],
+            'pending_null' => true,
+        ]);
 
         $expenses = (clone $query)
             ->latest('transaction_date')
@@ -47,7 +53,25 @@ class ProjectExpenseController extends Controller
 
         return Inertia::render('mis/finance/Expenses/Index', [
             'expenses' => $expenses,
-            'filters' => ['project_id' => $projectId],
+            'projects' => Project::query()
+                ->where('is_archived', false)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name']),
+            'categories' => collect(FinanceCategory::options('expense'))
+                ->pluck('name')
+                ->concat(
+                    ProjectExpense::query()
+                        ->whereNotNull('category')
+                        ->where('category', '!=', '')
+                        ->distinct()
+                        ->orderBy('category')
+                        ->pluck('category')
+                )
+                ->unique()
+                ->sort()
+                ->values()
+                ->all(),
+            'filters' => $filters,
             'stats' => [
                 'total' => (float) (clone $query)->sum('amount'),
                 'count' => (clone $query)->count(),

@@ -3,6 +3,7 @@ import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
+import MisListFilterBar from '@/components/mis/MisListFilterBar.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
@@ -21,8 +22,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { V2Hero, V2ListPage, V2StatCard, V2StatGrid } from '@/components/v2';
+import { V2Hero, V2ListPage, V2SelectFilter, V2StatCard, V2StatGrid } from '@/components/v2';
 import SortableTh from '@/components/SortableTh.vue';
+import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
 import { provideTableSort } from '@/composables/useTableSort';
 import { formatCurrency, formatDate, type Paginated } from '@/lib/format';
@@ -61,9 +63,53 @@ const props = defineProps<{
     invoices: Paginated<Invoice>;
     projects?: SelectOption[];
     organizations?: SelectOption[];
+    filters?: {
+        search?: string | null;
+        project_id?: number | null;
+        organization_id?: number | null;
+        status?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
+    };
 }>();
 
 const { t, deleteAction, gateActions } = useMisPage();
+
+const { filters, apply, clear } = useMisFilters(
+    '/finance/invoices',
+    {
+        search: props.filters?.search ?? '',
+        project_id: props.filters?.project_id ? String(props.filters.project_id) : '',
+        organization_id: props.filters?.organization_id
+            ? String(props.filters.organization_id)
+            : '',
+        status: props.filters?.status ?? '',
+        date_from: props.filters?.date_from ?? '',
+        date_to: props.filters?.date_to ?? '',
+    },
+    {
+        search: '',
+        project_id: '',
+        organization_id: '',
+        status: '',
+        date_from: '',
+        date_to: '',
+    },
+    {
+        only: ['invoices', 'projects', 'organizations', 'filters'],
+        liveKeys: ['search'],
+    },
+);
+
+const hasActiveFilters = computed(
+    () =>
+        Boolean(filters.search) ||
+        Boolean(filters.project_id) ||
+        Boolean(filters.organization_id) ||
+        Boolean(filters.status) ||
+        Boolean(filters.date_from) ||
+        Boolean(filters.date_to),
+);
 
 const { sortedRows } = provideTableSort(() => props.invoices.data, {
     accessors: {
@@ -231,6 +277,57 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                     </Button>
                 </Can>
             </div>
+
+            <MisListFilterBar
+                v-model:search="filters.search"
+                v-model:date-from="filters.date_from"
+                v-model:date-to="filters.date_to"
+                :search-placeholder="t('Search')"
+                :has-active="hasActiveFilters"
+                @apply="apply()"
+                @clear="clear"
+            >
+                <V2SelectFilter
+                    v-model="filters.project_id"
+                    :label="t('Project')"
+                    @change="(value) => apply({ project_id: value })"
+                >
+                    <option value="">{{ t('All projects') }}</option>
+                    <option
+                        v-for="project in projects ?? []"
+                        :key="project.id"
+                        :value="String(project.id)"
+                    >
+                        {{ project.code ?? project.name }}
+                    </option>
+                </V2SelectFilter>
+                <V2SelectFilter
+                    v-model="filters.organization_id"
+                    :label="t('Client')"
+                    @change="(value) => apply({ organization_id: value })"
+                >
+                    <option value="">{{ t('All') }}</option>
+                    <option
+                        v-for="org in organizations ?? []"
+                        :key="org.id"
+                        :value="String(org.id)"
+                    >
+                        {{ org.name }}
+                    </option>
+                </V2SelectFilter>
+                <V2SelectFilter
+                    v-model="filters.status"
+                    :label="t('Status')"
+                    @change="(value) => apply({ status: value })"
+                >
+                    <option value="">{{ t('All statuses') }}</option>
+                    <option value="draft">{{ t('Draft') }}</option>
+                    <option value="sent">{{ t('Sent') }}</option>
+                    <option value="paid">{{ t('Paid') }}</option>
+                    <option value="overdue">{{ t('Overdue') }}</option>
+                    <option value="cancelled">{{ t('Cancelled') }}</option>
+                </V2SelectFilter>
+            </MisListFilterBar>
 
             <Dialog
                 :open="showInvoiceForm"

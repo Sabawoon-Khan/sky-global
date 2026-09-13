@@ -534,7 +534,8 @@ class AnalyticsService
         $query = TaxPayment::query();
 
         if ($year !== null) {
-            $query->where('year', $year);
+            [$start, $end] = $this->yearBounds($year);
+            $query->whereBetween('payment_date', [$start?->toDateString(), $end?->toDateString()]);
         }
 
         return (float) $query->sum('amount');

@@ -24,6 +24,8 @@ class ActivityLogController extends Controller
         $search = $request->string('search')->trim()->toString();
         $event = $request->string('event')->trim()->toString();
         $subjectType = $request->string('subject_type')->trim()->toString();
+        $dateFrom = $request->filled('date_from') ? $request->date('date_from')?->toDateString() : null;
+        $dateTo = $request->filled('date_to') ? $request->date('date_to')?->toDateString() : null;
 
         $logs = Activity::query()
             ->with(['causer:id,name,email', 'subject'])
@@ -42,6 +44,8 @@ class ActivityLogController extends Controller
             })
             ->when($event !== '', fn ($query) => $query->where('event', $event))
             ->when($subjectType !== '', fn ($query) => $query->where('subject_type', $subjectType))
+            ->when($dateFrom, fn ($query) => $query->whereDate('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($query) => $query->whereDate('created_at', '<=', $dateTo))
             ->latest('id')
             ->paginate(25)
             ->withQueryString()
@@ -66,6 +70,8 @@ class ActivityLogController extends Controller
                 'search' => $search ?: null,
                 'event' => $event ?: null,
                 'subject_type' => $subjectType ?: null,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
             ],
         ]);
     }

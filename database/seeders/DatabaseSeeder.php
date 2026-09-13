@@ -26,8 +26,8 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
-        $this->call(MisSeeder::class);
-        $this->call(DemoDataSeeder::class);
-        $this->call(NotificationSeeder::class);
+        // $this->call(MisSeeder::class);
+        // $this->call(DemoDataSeeder::class);
+        // $this->call(NotificationSeeder::class);
     }
 }

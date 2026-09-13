@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Finance;
 
+use App\Http\Controllers\Concerns\AppliesListFilters;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
@@ -14,14 +15,21 @@ use Inertia\Response;
 
 class GeneralIncomeController extends Controller
 {
-    use AuthorizesMisPermissions, StoresOptionalAttachments;
+    use AppliesListFilters, AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
         $this->authorizePermission($request, 'finance.view');
 
-        $generalIncomes = GeneralIncome::query()
-            ->with('attachments')
+        $filters = $this->listFilters($request, ['pending', 'approved', 'rejected', 'recorded']);
+
+        $query = GeneralIncome::query()->with('attachments');
+        $this->applyListFilters($query, $filters, [
+            'search_columns' => ['description', 'reference_number'],
+            'pending_null' => true,
+        ]);
+
+        $generalIncomes = (clone $query)
             ->latest('transaction_date')
             ->paginate(20)
             ->withQueryString()
@@ -40,9 +48,10 @@ class GeneralIncomeController extends Controller
         return Inertia::render('mis/finance/GeneralIncome/Index', [
             'generalIncomes' => $generalIncomes,
             'categories' => FinanceCategory::options(),
+            'filters' => $filters,
             'stats' => [
-                'total' => (float) GeneralIncome::query()->sum('amount'),
-                'count' => GeneralIncome::query()->count(),
+                'total' => (float) (clone $query)->sum('amount'),
+                'count' => (clone $query)->count(),
             ],
         ]);
     }

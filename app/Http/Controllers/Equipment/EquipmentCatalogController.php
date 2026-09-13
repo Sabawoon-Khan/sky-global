@@ -27,6 +27,7 @@ class EquipmentCatalogController extends Controller
 
         $search = $request->string('search')->trim()->toString();
         $category = $request->string('category')->trim()->toString();
+        $isActive = $request->string('is_active')->trim()->toString();
 
         $equipment = EquipmentCatalog::query()
             ->with('stock')
@@ -35,6 +36,7 @@ class EquipmentCatalogController extends Controller
                     ->orWhere('sku', 'like', "%{$search}%");
             }))
             ->when($category, fn ($q) => $q->where('category', $category))
+            ->when($isActive !== '', fn ($q) => $q->where('is_active', $isActive === '1'))
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString()
@@ -113,6 +115,7 @@ class EquipmentCatalogController extends Controller
             'filters' => [
                 'search' => $search ?: null,
                 'category' => $category ?: null,
+                'is_active' => $isActive !== '' ? $isActive : null,
             ],
         ]);
     }

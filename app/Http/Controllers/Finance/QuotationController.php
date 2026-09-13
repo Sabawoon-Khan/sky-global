@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Finance;
 
+use App\Http\Controllers\Concerns\AppliesListFilters;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\Finance\Quotation;
@@ -16,14 +17,23 @@ use Inertia\Response;
 
 class QuotationController extends Controller
 {
-    use AuthorizesMisPermissions;
+    use AppliesListFilters, AuthorizesMisPermissions;
 
     public function index(Request $request): Response
     {
         $this->authorizePermission($request, 'finance.view');
 
-        $quotations = Quotation::query()
-            ->with(['organization:id,name,address,email,phone'])
+        $filters = $this->listFilters($request, ['draft', 'sent', 'accepted', 'declined', 'expired']);
+
+        $query = Quotation::query()
+            ->with(['organization:id,name,address,email,phone']);
+        $this->applyListFilters($query, $filters, [
+            'date_column' => 'quote_date',
+            'search_columns' => ['quote_number', 'description_of_work', 'notes'],
+            'search_relations' => ['organization' => ['name']],
+        ]);
+
+        $quotations = (clone $query)
             ->latest('quote_date')
             ->paginate(20)
             ->withQueryString()
@@ -44,6 +54,7 @@ class QuotationController extends Controller
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'filters' => $filters,
         ]);
     }
 

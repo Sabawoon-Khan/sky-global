@@ -53,6 +53,8 @@ const props = defineProps<{
         search?: string | null;
         event?: string | null;
         subject_type?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
     };
 }>();
 
@@ -190,6 +192,26 @@ const toggleExpanded = (id: number): void => {
                                 {{ type.label }}
                             </option>
                         </select>
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label for="date_from">{{ t('From') }}</Label>
+                        <Input
+                            id="date_from"
+                            name="date_from"
+                            type="date"
+                            :default-value="filters?.date_from ?? ''"
+                        />
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label for="date_to">{{ t('To') }}</Label>
+                        <Input
+                            id="date_to"
+                            name="date_to"
+                            type="date"
+                            :default-value="filters?.date_to ?? ''"
+                        />
                     </div>
 
                     <div class="md:col-span-4">

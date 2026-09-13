@@ -12,6 +12,7 @@ import {
     V2IndicatorCard,
     V2ListPage,
     V2Pager,
+    V2SelectFilter,
     V2StatCard,
     V2StatGrid,
     V2TablePanel,
@@ -65,15 +66,36 @@ const props = defineProps<{
         status: ChartPoint[];
         monthly: ChartPoint[];
     };
-    filters?: { search?: string; direction?: string };
+    filters?: {
+        search?: string | null;
+        direction?: string | null;
+        document_category_id?: number | null;
+        date_from?: string | null;
+        date_to?: string | null;
+    };
+    documentCategories?: { id: number; name: string }[];
 }>();
 
-const onlyKeys = ['documents', 'stats', 'chart', 'filters'];
+const onlyKeys = ['documents', 'stats', 'chart', 'filters', 'documentCategories'];
 
 const { filters, pending, apply, clear } = useMisFilters(
     '/archive',
-    { search: props.filters?.search ?? '' },
-    { search: '' },
+    {
+        search: props.filters?.search ?? '',
+        direction: props.filters?.direction ?? '',
+        document_category_id: props.filters?.document_category_id
+            ? String(props.filters.document_category_id)
+            : '',
+        date_from: props.filters?.date_from ?? '',
+        date_to: props.filters?.date_to ?? '',
+    },
+    {
+        search: '',
+        direction: '',
+        document_category_id: '',
+        date_from: '',
+        date_to: '',
+    },
     { only: onlyKeys, liveKeys: ['search'] },
 );
 
@@ -321,6 +343,46 @@ const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
                             @clear="clear"
                         />
                     </div>
+                    <label class="filter-select">
+                        <span>{{ t('From') }}</span>
+                        <input
+                            v-model="filters.date_from"
+                            type="date"
+                            @change="apply()"
+                        />
+                    </label>
+                    <label class="filter-select">
+                        <span>{{ t('To') }}</span>
+                        <input
+                            v-model="filters.date_to"
+                            type="date"
+                            @change="apply()"
+                        />
+                    </label>
+                    <V2SelectFilter
+                        v-model="filters.direction"
+                        :label="t('Direction')"
+                        @change="(value) => apply({ direction: value })"
+                    >
+                        <option value="">{{ t('All') }}</option>
+                        <option value="incoming">{{ t('Incoming') }}</option>
+                        <option value="outgoing">{{ t('Outgoing') }}</option>
+                        <option value="internal">{{ t('Internal') }}</option>
+                    </V2SelectFilter>
+                    <V2SelectFilter
+                        v-model="filters.document_category_id"
+                        :label="t('Category')"
+                        @change="(value) => apply({ document_category_id: value })"
+                    >
+                        <option value="">{{ t('All categories') }}</option>
+                        <option
+                            v-for="category in documentCategories ?? []"
+                            :key="category.id"
+                            :value="String(category.id)"
+                        >
+                            {{ category.name }}
+                        </option>
+                    </V2SelectFilter>
                     <template #columns>
                         <TableToolbar />
                     </template>

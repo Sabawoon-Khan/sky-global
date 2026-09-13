@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Enums\ProjectActivityType;
+use App\Http\Controllers\Concerns\AppliesListFilters;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
+use App\Models\Finance\FinanceCategory;
 use App\Models\Finance\ProjectIncome;
 use App\Models\Project\Project;
 use App\Services\ProjectActivityLogger;
@@ -16,17 +18,21 @@ use Inertia\Response;
 
 class ProjectIncomeController extends Controller
 {
-    use AuthorizesMisPermissions, StoresOptionalAttachments;
+    use AppliesListFilters, AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
         $this->authorizePermission($request, 'finance.view');
 
-        $projectId = $request->integer('project_id') ?: null;
+        $filters = $this->listFilters($request, ['pending', 'approved', 'rejected']);
 
         $query = ProjectIncome::query()
-            ->with(['project', 'account', 'attachments'])
-            ->when($projectId, fn ($q) => $q->where('project_id', $projectId));
+            ->with(['project', 'account', 'attachments']);
+        $this->applyListFilters($query, $filters, [
+            'search_columns' => ['description', 'reference_number'],
+            'search_relations' => ['project' => ['code', 'name']],
+            'pending_null' => true,
+        ]);
 
         $incomes = (clone $query)
             ->latest('transaction_date')
@@ -47,12 +53,11 @@ class ProjectIncomeController extends Controller
 
         $chartBase = (clone $query);
 
-        $monthly = collect(range(5, 0))->map(function (int $offset) use ($projectId) {
+        $monthly = collect(range(5, 0))->map(function (int $offset) use ($query) {
             $start = now()->subMonths($offset)->startOfMonth();
             $end = (clone $start)->endOfMonth();
 
-            $amount = (float) ProjectIncome::query()
-                ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+            $amount = (float) (clone $query)
                 ->whereBetween('transaction_date', [$start, $end])
                 ->sum('amount');
 
@@ -109,7 +114,12 @@ class ProjectIncomeController extends Controller
 
         return Inertia::render('mis/finance/Income/Index', [
             'incomes' => $incomes,
-            'filters' => ['project_id' => $projectId],
+            'projects' => Project::query()
+                ->where('is_archived', false)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name']),
+            'categories' => $this->incomeCategoryOptions(),
+            'filters' => $filters,
             'stats' => [
                 'total' => (float) (clone $query)->sum('amount'),
                 'count' => (clone $query)->count(),
@@ -122,6 +132,27 @@ class ProjectIncomeController extends Controller
                 'by_project' => $byProject,
             ],
         ]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function incomeCategoryOptions(): array
+    {
+        return collect(FinanceCategory::options('income'))
+            ->pluck('name')
+            ->concat(
+                ProjectIncome::query()
+                    ->whereNotNull('category')
+                    ->where('category', '!=', '')
+                    ->distinct()
+                    ->orderBy('category')
+                    ->pluck('category')
+            )
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
     }
 
     public function store(Request $request): RedirectResponse

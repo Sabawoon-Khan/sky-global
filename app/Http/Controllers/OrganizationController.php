@@ -26,6 +26,7 @@ class OrganizationController extends Controller
 
         $search = $request->string('search')->trim()->toString();
         $typeId = $request->integer('organization_type_id');
+        $isActive = $request->string('is_active')->trim()->toString();
 
         $organizations = Organization::query()
             ->with('organizationType')
@@ -37,6 +38,7 @@ class OrganizationController extends Controller
                     ->orWhere('province', 'like', "%{$search}%");
             }))
             ->when($typeId, fn ($query) => $query->where('organization_type_id', $typeId))
+            ->when($isActive !== '', fn ($query) => $query->where('is_active', $isActive === '1'))
             ->orderBy('name')
             ->paginate(15)
             ->withQueryString();
@@ -80,6 +82,7 @@ class OrganizationController extends Controller
             'filters' => [
                 'search' => $search ?: null,
                 'organization_type_id' => $typeId ?: null,
+                'is_active' => $isActive !== '' ? $isActive : null,
             ],
         ]);
     }

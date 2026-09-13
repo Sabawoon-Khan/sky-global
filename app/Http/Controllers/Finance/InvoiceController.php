@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Finance;
 
+use App\Http\Controllers\Concerns\AppliesListFilters;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
@@ -26,7 +27,7 @@ use Inertia\Response;
 
 class InvoiceController extends Controller
 {
-    use AuthorizesMisPermissions, StoresOptionalAttachments;
+    use AppliesListFilters, AuthorizesMisPermissions, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
@@ -80,8 +81,20 @@ class InvoiceController extends Controller
     {
         $this->authorizePermission($request, 'finance.view');
 
-        $invoices = Invoice::query()
-            ->with(['project:id,code,name', 'organization:id,name', 'attachments'])
+        $filters = $this->listFilters($request, ['draft', 'sent', 'paid', 'overdue', 'cancelled']);
+
+        $query = Invoice::query()
+            ->with(['project:id,code,name', 'organization:id,name', 'attachments']);
+        $this->applyListFilters($query, $filters, [
+            'date_column' => 'issue_date',
+            'search_columns' => ['invoice_number', 'notes', 'services'],
+            'search_relations' => [
+                'project' => ['code', 'name'],
+                'organization' => ['name'],
+            ],
+        ]);
+
+        $invoices = (clone $query)
             ->latest('issue_date')
             ->paginate(20)
             ->withQueryString()
@@ -110,6 +123,7 @@ class InvoiceController extends Controller
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'filters' => $filters,
         ]);
     }
 
