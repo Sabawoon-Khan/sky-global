@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import BarChart from '@/components/charts/BarChart.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
+import FileLink from '@/components/FileLink.vue';
 import MisSearchInput from '@/components/mis/MisSearchInput.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
@@ -34,7 +35,7 @@ import SortableTh from '@/components/SortableTh.vue';
 import { formatAfn, formatDate, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { approvalStatusActions } from '@/lib/status-actions';
-import { ArrowUpRight, CheckCircle2, Clock3, Paperclip } from '@lucide/vue';
+import { ArrowUpRight, CheckCircle2, Clock3 } from '@lucide/vue';
 
 interface FinanceAttachment {
     id: number;
@@ -464,18 +465,13 @@ function onCategoryChange(value: string): void {
                             </Badge>
                         </td>
                         <td>
-                            <a
+                            <FileLink
                                 v-if="item.attachments?.length"
                                 :href="item.attachments[0].download_url"
-                                class="inline-flex items-center gap-1 text-primary hover:underline"
-                                :title="item.attachments[0].original_filename"
-                                @click.stop
-                            >
-                                <Paperclip class="size-3.5 shrink-0" />
-                                <span class="max-w-[8rem] truncate text-xs">
-                                    {{ item.attachments[0].original_filename }}
-                                </span>
-                            </a>
+                                :label="item.attachments[0].original_filename"
+                                show-icon
+                                compact
+                            />
                             <span v-else class="text-muted-foreground">—</span>
                         </td>
                         <td class="end font-medium tabular-nums">
@@ -545,13 +541,16 @@ function onCategoryChange(value: string): void {
                         <p class="mb-1 text-sm text-muted-foreground">
                             {{ t('Attachment') }}
                         </p>
-                        <a
-                            :href="viewingRecord.attachments[0].download_url"
-                            class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                        >
-                            <Paperclip class="size-3.5 shrink-0" />
-                            {{ viewingRecord.attachments[0].original_filename }}
-                        </a>
+                        <div class="flex flex-col gap-1">
+                            <FileLink
+                                v-for="file in viewingRecord.attachments"
+                                :key="file.id"
+                                :href="file.download_url"
+                                :label="file.original_filename"
+                                show-icon
+                                class="text-sm"
+                            />
+                        </div>
                     </div>
                 </div>
                 <DialogFooter>

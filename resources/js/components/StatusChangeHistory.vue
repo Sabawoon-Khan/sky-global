@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { History, Paperclip } from '@lucide/vue';
+import { History } from '@lucide/vue';
+import FileLink from '@/components/FileLink.vue';
 import { Badge } from '@/components/ui/badge';
 import {
     Card,
@@ -116,15 +117,14 @@ const statusVariant = (status: string | null): 'default' | 'secondary' | 'destru
                         v-if="log.attachments?.length"
                         class="flex flex-wrap gap-2"
                     >
-                        <a
+                        <FileLink
                             v-for="file in log.attachments"
                             :key="file.id"
                             :href="file.download_url"
-                            class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                        >
-                            <Paperclip class="size-3.5" />
-                            {{ file.original_filename }}
-                        </a>
+                            :label="file.original_filename"
+                            show-icon
+                            class="text-sm"
+                        />
                     </div>
                 </div>
             </div>

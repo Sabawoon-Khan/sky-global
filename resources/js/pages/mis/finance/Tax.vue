@@ -2,6 +2,7 @@
 import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import Can from '@/components/Can.vue';
+import FileLink from '@/components/FileLink.vue';
 import InputError from '@/components/InputError.vue';
 import MisTabs from '@/components/MisTabs.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
@@ -30,7 +31,6 @@ import SortableTh from '@/components/SortableTh.vue';
 import { formatAfn, formatDate } from '@/lib/format';
 import {
     Building2,
-    Paperclip,
     Percent,
     Plus,
     Printer,
@@ -913,20 +913,22 @@ defineOptions({
                                     }}
                                 </td>
                                 <td class="px-3 py-2">
-                                    <a
+                                    <span
                                         v-if="payment.attachments?.length"
-                                        :href="
-                                            payment.attachments[0].download_url
-                                        "
-                                        class="inline-flex items-center gap-1 text-primary hover:underline"
+                                        class="inline-flex items-center gap-1"
                                     >
-                                        <Paperclip class="size-3.5 shrink-0" />
-                                        <span class="max-w-[10rem] truncate text-xs">
-                                            {{
+                                        <FileLink
+                                            :href="
+                                                payment.attachments[0]
+                                                    .download_url
+                                            "
+                                            :label="
                                                 payment.attachments[0]
                                                     .original_filename
-                                            }}
-                                        </span>
+                                            "
+                                            show-icon
+                                            compact
+                                        />
                                         <span
                                             v-if="
                                                 payment.attachments.length > 1
@@ -937,7 +939,7 @@ defineOptions({
                                                 payment.attachments.length - 1
                                             }}
                                         </span>
-                                    </a>
+                                    </span>
                                     <span v-else class="text-muted-foreground"
                                         >—</span
                                     >

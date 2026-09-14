@@ -2,6 +2,7 @@
 import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import Can from '@/components/Can.vue';
+import FileLink from '@/components/FileLink.vue';
 import InputError from '@/components/InputError.vue';
 import MisListFilterBar from '@/components/mis/MisListFilterBar.vue';
 import MisPagination from '@/components/MisPagination.vue';
@@ -32,7 +33,7 @@ import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
 import { provideTableSort } from '@/composables/useTableSort';
 import { formatAfn, formatDate, type Paginated } from '@/lib/format';
-import { Paperclip, Plus, Receipt } from '@lucide/vue';
+import { Plus, Receipt } from '@lucide/vue';
 
 interface FinanceAttachment {
     id: number;
@@ -274,31 +275,19 @@ const money = (value?: number | null): string => formatAfn(value);
                                         }}
                                     </td>
                                     <td class="px-3 py-2">
-                                        <a
+                                        <FileLink
                                             v-if="item.attachments?.length"
                                             :href="
                                                 item.attachments[0]
                                                     .download_url
                                             "
-                                            class="inline-flex items-center gap-1 text-primary hover:underline"
-                                            :title="
+                                            :label="
                                                 item.attachments[0]
                                                     .original_filename
                                             "
-                                            @click.stop
-                                        >
-                                            <Paperclip
-                                                class="size-3.5 shrink-0"
-                                            />
-                                            <span
-                                                class="max-w-[8rem] truncate text-xs"
-                                            >
-                                                {{
-                                                    item.attachments[0]
-                                                        .original_filename
-                                                }}
-                                            </span>
-                                        </a>
+                                            show-icon
+                                            compact
+                                        />
                                         <span
                                             v-else
                                             class="text-muted-foreground"
@@ -442,13 +431,16 @@ const money = (value?: number | null): string => formatAfn(value);
                         <p class="mb-1 text-sm text-muted-foreground">
                             {{ t('Attachment') }}
                         </p>
-                        <a
-                            :href="viewingRecord.attachments[0].download_url"
-                            class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                        >
-                            <Paperclip class="size-3.5 shrink-0" />
-                            {{ viewingRecord.attachments[0].original_filename }}
-                        </a>
+                        <div class="flex flex-col gap-1">
+                            <FileLink
+                                v-for="file in viewingRecord.attachments"
+                                :key="file.id"
+                                :href="file.download_url"
+                                :label="file.original_filename"
+                                show-icon
+                                class="text-sm"
+                            />
+                        </div>
                     </div>
                 </div>
                 <DialogFooter>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { Paperclip, Trash2 } from '@lucide/vue';
+import FileLink from '@/components/FileLink.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -73,12 +74,11 @@ const removeAttachment = (attachmentId: number) => {
                     class="flex items-center justify-between gap-3 py-2"
                 >
                     <div class="min-w-0">
-                        <a
+                        <FileLink
                             :href="file.download_url"
-                            class="truncate text-sm font-medium hover:underline"
-                        >
-                            {{ file.title || file.original_filename }}
-                        </a>
+                            :label="file.title || file.original_filename"
+                            class="text-sm font-medium"
+                        />
                         <p class="text-xs text-muted-foreground">
                             {{ formatDate(file.created_at) }}
                             <template v-if="file.file_size">

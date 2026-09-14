@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import EmptyState from '@/components/EmptyState.vue';
+import FileLink from '@/components/FileLink.vue';
 import MisSearchInput from '@/components/mis/MisSearchInput.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
@@ -26,7 +27,6 @@ import type { RowActionItem } from '@/lib/row-actions';
 import {
     Archive,
     Inbox,
-    Paperclip,
     Plus,
     Send,
     Share2,
@@ -438,17 +438,15 @@ const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
                                 {{ formatDate(doc.document_date) }}
                             </td>
                             <td>
-                                <a
+                                <FileLink
                                     v-if="doc.download_url"
                                     :href="doc.download_url"
-                                    class="code-chip"
-                                    :title="doc.original_filename ?? undefined"
-                                >
-                                    <Paperclip class="inline size-3.5" />
-                                    {{
-                                        doc.original_filename ?? t('Download')
-                                    }}
-                                </a>
+                                    :label="
+                                        doc.original_filename ?? t('View file')
+                                    "
+                                    show-icon
+                                    compact
+                                />
                                 <span v-else class="muted">—</span>
                             </td>
                             <td>{{ doc.direction ?? '—' }}</td>

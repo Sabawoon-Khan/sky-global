@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Forms;
 
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\ServesStoredFiles;
 use App\Http\Controllers\Controller;
 use App\Models\Forms\PersonnelAttachment;
 use Illuminate\Http\RedirectResponse;
@@ -12,15 +13,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PersonnelAttachmentController extends Controller
 {
-    use AuthorizesMisPermissions;
+    use AuthorizesMisPermissions, ServesStoredFiles;
 
     public function download(Request $request, PersonnelAttachment $personnelAttachment): StreamedResponse
     {
         $this->authorizePermission($request, 'hr.view');
 
-        abort_unless(Storage::disk('local')->exists($personnelAttachment->file_path), 404);
-
-        return Storage::disk('local')->download(
+        return $this->serveLocalFile(
+            $request,
             $personnelAttachment->file_path,
             basename($personnelAttachment->file_path),
         );

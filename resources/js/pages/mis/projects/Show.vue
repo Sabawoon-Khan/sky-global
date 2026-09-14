@@ -6,7 +6,6 @@ import {
     ChevronDown,
     MapPin,
     Package,
-    Paperclip,
     Pencil,
     Plus,
     Shield,
@@ -19,6 +18,7 @@ import Can from '@/components/Can.vue';
 import EntityAttachments, {
     type EntityAttachment,
 } from '@/components/EntityAttachments.vue';
+import FileLink from '@/components/FileLink.vue';
 import InputError from '@/components/InputError.vue';
 import {
     V2DetailHero,
@@ -118,10 +118,20 @@ interface ProjectDeployment {
     personnel_type: string;
     personnel_id: number;
     role: string | null;
+    shift_pattern: string | null;
     start_date: string | null;
     end_date: string | null;
     monthly_rate: number | null;
     currency: string | null;
+    personnel?: {
+        id: number;
+        first_name?: string | null;
+        last_name?: string | null;
+        father_name?: string | null;
+        phone?: string | null;
+        email?: string | null;
+    } | null;
+    project_site?: { id: number; name: string } | null;
 }
 
 interface ShareholderTransaction {
@@ -655,6 +665,45 @@ const overviewCounts = computed(() => ({
     competitors: props.project.competitor_bids?.length ?? 0,
 }));
 
+const isEmployeeDeployment = (deployment: ProjectDeployment): boolean =>
+    deployment.personnel_type.includes('Employee');
+
+const deploymentPersonName = (deployment: ProjectDeployment): string => {
+    const fromRelation = [deployment.personnel?.first_name, deployment.personnel?.last_name]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+
+    if (fromRelation) {
+        return fromRelation;
+    }
+
+    const pool = isEmployeeDeployment(deployment)
+        ? (props.employees ?? [])
+        : (props.contractors ?? []);
+    const match = pool.find((person) => person.id === deployment.personnel_id);
+
+    if (match) {
+        return `${match.first_name} ${match.last_name}`.trim();
+    }
+
+    return isEmployeeDeployment(deployment)
+        ? `${t('Employee')} #${deployment.personnel_id}`
+        : `${t('Contractor')} #${deployment.personnel_id}`;
+};
+
+const deploymentPersonHref = (deployment: ProjectDeployment): string =>
+    isEmployeeDeployment(deployment)
+        ? `/hr/employees/${deployment.personnel_id}`
+        : `/hr/contractors/${deployment.personnel_id}`;
+
+const deploymentDateRange = (deployment: ProjectDeployment): string => {
+    const start = formatDate(deployment.start_date);
+    const end = deployment.end_date ? formatDate(deployment.end_date) : t('Ongoing');
+
+    return `${start} — ${end}`;
+};
+
 const recentActivity = computed(() => (props.project.activities ?? []).slice(0, 5));
 
 const closeFinanceEdit = (): void => {
@@ -1132,23 +1181,41 @@ const closeIssueEdit = (): void => {
                         <div
                             v-for="deployment in project.deployments"
                             :key="deployment.id"
-                            class="flex items-center justify-between py-3"
+                            class="flex items-center justify-between gap-3 py-3"
                         >
-                            <div>
-                                <p class="font-medium">
-                                    {{ deployment.personnel_type.includes('Employee') ? t('Employee') : t('Contractor') }}
-                                    #{{ deployment.personnel_id }}
+                            <div class="min-w-0">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <Link
+                                        :href="deploymentPersonHref(deployment)"
+                                        class="font-medium hover:underline"
+                                    >
+                                        {{ deploymentPersonName(deployment) }}
+                                    </Link>
+                                    <Badge variant="secondary">
+                                        {{ isEmployeeDeployment(deployment) ? t('Employee') : t('Contractor') }}
+                                    </Badge>
+                                </div>
+                                <p class="mt-0.5 text-sm text-muted-foreground">
+                                    <span v-if="deployment.role">{{ deployment.role }}</span>
+                                    <span v-if="deployment.role && deployment.project_site?.name"> · </span>
+                                    <span v-if="deployment.project_site?.name">{{ deployment.project_site.name }}</span>
                                 </p>
-                                <p v-if="deployment.role" class="text-sm text-muted-foreground">
-                                    {{ deployment.role }}
+                                <p
+                                    v-if="deployment.personnel?.father_name"
+                                    class="text-xs text-muted-foreground"
+                                >
+                                    {{ t('Father') }}: {{ deployment.personnel.father_name }}
                                 </p>
                                 <p class="text-xs text-muted-foreground">
-                                    {{ deployment.start_date ?? '—' }} — {{ deployment.end_date ?? t('Ongoing') }}
+                                    {{ deploymentDateRange(deployment) }}
+                                    <span v-if="deployment.personnel?.phone">
+                                        · {{ deployment.personnel.phone }}
+                                    </span>
                                 </p>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex shrink-0 items-center gap-2">
                                 <span v-if="deployment.monthly_rate" class="text-sm font-medium">
-                                    {{ formatAfn(deployment.monthly_rate) }}/mo
+                                    {{ formatAfn(deployment.monthly_rate) }}/{{ t('mo') }}
                                 </span>
                                 <Can permission="projects.delete">
                                 <Button
@@ -1604,15 +1671,15 @@ const closeIssueEdit = (): void => {
                             <p class="text-xs text-muted-foreground">
                                 {{ formatDate(row.transaction_date) }}
                                 <span v-if="row.category"> · {{ row.category }}</span>
-                                <a
+                                <FileLink
                                     v-for="file in row.attachments ?? []"
                                     :key="file.id"
                                     :href="file.download_url"
-                                    class="ms-2 inline-flex items-center gap-0.5 text-primary hover:underline"
-                                >
-                                    <Paperclip class="size-3" />
-                                    {{ file.original_filename }}
-                                </a>
+                                    :label="file.original_filename"
+                                    show-icon
+                                    compact
+                                    class="ms-2"
+                                />
                             </p>
                         </div>
                         <div class="flex shrink-0 items-center gap-2">
@@ -1632,15 +1699,15 @@ const closeIssueEdit = (): void => {
                             <p class="text-xs text-muted-foreground">
                                 {{ formatDate(row.transaction_date) }}
                                 <span v-if="row.category"> · {{ row.category }}</span>
-                                <a
+                                <FileLink
                                     v-for="file in row.attachments ?? []"
                                     :key="file.id"
                                     :href="file.download_url"
-                                    class="ms-2 inline-flex items-center gap-0.5 text-primary hover:underline"
-                                >
-                                    <Paperclip class="size-3" />
-                                    {{ file.original_filename }}
-                                </a>
+                                    :label="file.original_filename"
+                                    show-icon
+                                    compact
+                                    class="ms-2"
+                                />
                             </p>
                         </div>
                         <div class="flex shrink-0 items-center gap-2">

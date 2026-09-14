@@ -2,6 +2,7 @@
 import { Form, Head } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import Can from '@/components/Can.vue';
+import FileLink from '@/components/FileLink.vue';
 import InputError from '@/components/InputError.vue';
 import MisListFilterBar from '@/components/mis/MisListFilterBar.vue';
 import MisPagination from '@/components/MisPagination.vue';
@@ -30,7 +31,7 @@ import { provideTableSort } from '@/composables/useTableSort';
 import { formatCurrency, formatDate, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { invoiceStatusActions } from '@/lib/status-actions';
-import { FileText, Paperclip, Plus, Printer, Trash2 } from '@lucide/vue';
+import { FileText, Plus, Printer, Trash2 } from '@lucide/vue';
 
 interface FinanceAttachment {
     id: number;
@@ -701,7 +702,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                             </Badge>
                                         </td>
                                         <td class="px-4 py-3">
-                                            <a
+                                            <FileLink
                                                 v-if="
                                                     invoice.attachments?.length
                                                 "
@@ -709,24 +710,13 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                                     invoice.attachments[0]
                                                         .download_url
                                                 "
-                                                class="inline-flex items-center gap-1 text-primary hover:underline"
-                                                :title="
+                                                :label="
                                                     invoice.attachments[0]
                                                         .original_filename
                                                 "
-                                            >
-                                                <Paperclip
-                                                    class="size-3.5 shrink-0"
-                                                />
-                                                <span
-                                                    class="max-w-[8rem] truncate text-xs"
-                                                >
-                                                    {{
-                                                        invoice.attachments[0]
-                                                            .original_filename
-                                                    }}
-                                                </span>
-                                            </a>
+                                                show-icon
+                                                compact
+                                            />
                                             <span
                                                 v-else
                                                 class="text-muted-foreground"

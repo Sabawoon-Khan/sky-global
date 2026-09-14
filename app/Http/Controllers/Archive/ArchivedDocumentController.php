@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Archive;
 use App\Http\Controllers\Concerns\AppliesListFilters;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\GeneratesMisReferenceNumbers;
+use App\Http\Controllers\Concerns\ServesStoredFiles;
 use App\Http\Controllers\Controller;
 use App\Models\Archive\ArchivedDocument;
 use App\Models\Archive\DocumentCategory;
@@ -21,7 +22,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ArchivedDocumentController extends Controller
 {
-    use AppliesListFilters, AuthorizesMisPermissions, GeneratesMisReferenceNumbers;
+    use AppliesListFilters, AuthorizesMisPermissions, GeneratesMisReferenceNumbers, ServesStoredFiles;
 
     public function index(Request $request): Response
     {
@@ -192,12 +193,10 @@ class ArchivedDocumentController extends Controller
     {
         $this->authorizePermission($request, 'archive.view');
 
-        abort_unless(
-            $archivedDocument->file_path && Storage::disk('local')->exists($archivedDocument->file_path),
-            404,
-        );
+        abort_unless((bool) $archivedDocument->file_path, 404);
 
-        return Storage::disk('local')->download(
+        return $this->serveLocalFile(
+            $request,
             $archivedDocument->file_path,
             $archivedDocument->original_filename ?? basename($archivedDocument->file_path),
         );

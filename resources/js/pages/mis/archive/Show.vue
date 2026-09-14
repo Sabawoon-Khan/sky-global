@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Form, Head, Link, router } from '@inertiajs/vue3';
-import { Archive, Download, FileText } from '@lucide/vue';
+import { Archive, Download, Eye, FileText } from '@lucide/vue';
 import ArchiveDocumentFields from '@/components/archive/ArchiveDocumentFields.vue';
 import Can from '@/components/Can.vue';
+import FileLink from '@/components/FileLink.vue';
 import { V2DetailHero, V2ListPage } from '@/components/v2';
 import RichTextContent from '@/components/RichTextContent.vue';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +15,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { useMisPage } from '@/composables/useMisPage';
+import { fileDownloadUrl } from '@/lib/file-url';
 
 interface DocumentCategory {
     id: number;
@@ -126,9 +128,23 @@ const moveToLongTermArchive = (): void => {
                     variant="default"
                     as-child
                 >
-                    <a :href="document.download_url">
+                    <a
+                        :href="document.download_url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <Eye class="me-2 size-4" />
+                        {{ t('View file') }}
+                    </a>
+                </Button>
+                <Button
+                    v-if="document.download_url"
+                    variant="outline"
+                    as-child
+                >
+                    <a :href="fileDownloadUrl(document.download_url)">
                         <Download class="me-2 size-4" />
-                        {{ t('Download file') }}
+                        {{ t('Download') }}
                     </a>
                 </Button>
                 <Button variant="outline" as-child>
@@ -214,13 +230,14 @@ const moveToLongTermArchive = (): void => {
                             {{ t('File') }}
                         </p>
                         <p>
-                            <a
+                            <FileLink
                                 v-if="document.download_url"
                                 :href="document.download_url"
-                                class="inline-flex items-center gap-1 font-medium hover:underline"
-                            >
-                                {{ document.original_filename ?? t('Download file') }}
-                            </a>
+                                :label="
+                                    document.original_filename ?? t('View file')
+                                "
+                                class="font-medium"
+                            />
                             <span v-else>{{ document.original_filename ?? '—' }}</span>
                             <span
                                 v-if="document.file_size"

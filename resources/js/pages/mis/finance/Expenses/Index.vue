@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import FileLink from '@/components/FileLink.vue';
 import MisListFilterBar from '@/components/mis/MisListFilterBar.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import RowActionsMenu from '@/components/RowActionsMenu.vue';
@@ -27,7 +28,7 @@ import { provideTableSort } from '@/composables/useTableSort';
 import { formatAfn, formatDate, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { approvalStatusActions } from '@/lib/status-actions';
-import { ArrowDownRight, Paperclip } from '@lucide/vue';
+import { ArrowDownRight } from '@lucide/vue';
 
 interface FinanceAttachment {
     id: number;
@@ -296,31 +297,19 @@ const expenseActions = (item: Expense): RowActionItem[] => [
                                         </Badge>
                                     </td>
                                     <td class="px-3 py-2">
-                                        <a
+                                        <FileLink
                                             v-if="item.attachments?.length"
                                             :href="
                                                 item.attachments[0]
                                                     .download_url
                                             "
-                                            class="inline-flex items-center gap-1 text-primary hover:underline"
-                                            :title="
+                                            :label="
                                                 item.attachments[0]
                                                     .original_filename
                                             "
-                                            @click.stop
-                                        >
-                                            <Paperclip
-                                                class="size-3.5 shrink-0"
-                                            />
-                                            <span
-                                                class="max-w-[8rem] truncate text-xs"
-                                            >
-                                                {{
-                                                    item.attachments[0]
-                                                        .original_filename
-                                                }}
-                                            </span>
-                                        </a>
+                                            show-icon
+                                            compact
+                                        />
                                         <span
                                             v-else
                                             class="text-muted-foreground"
@@ -390,13 +379,16 @@ const expenseActions = (item: Expense): RowActionItem[] => [
                         <p class="mb-1 text-sm text-muted-foreground">
                             {{ t('Attachment') }}
                         </p>
-                        <a
-                            :href="viewingRecord.attachments[0].download_url"
-                            class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                        >
-                            <Paperclip class="size-3.5 shrink-0" />
-                            {{ viewingRecord.attachments[0].original_filename }}
-                        </a>
+                        <div class="flex flex-col gap-1">
+                            <FileLink
+                                v-for="file in viewingRecord.attachments"
+                                :key="file.id"
+                                :href="file.download_url"
+                                :label="file.original_filename"
+                                show-icon
+                                class="text-sm"
+                            />
+                        </div>
                     </div>
                 </div>
                 <DialogFooter>

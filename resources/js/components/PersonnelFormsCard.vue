@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Form, router } from '@inertiajs/vue3';
 import { FileText, Plus, Trash2 } from '@lucide/vue';
+import FileLink from '@/components/FileLink.vue';
 import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -97,12 +98,11 @@ const selectedType = () =>
                         <p class="text-sm font-medium">
                             {{ form.attachment_type?.name ?? t('Form') }}
                         </p>
-                        <a
+                        <FileLink
                             :href="form.download_url"
-                            class="text-sm text-primary hover:underline"
-                        >
-                            {{ t('Download file') }}
-                        </a>
+                            :label="t('View file')"
+                            class="text-sm"
+                        />
                         <p class="mt-1 text-xs text-muted-foreground">
                             {{ t('Uploaded') }}: {{ formatDate(form.created_at) }}
                             <template v-if="form.issued_at">

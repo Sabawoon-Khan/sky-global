@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\ServesStoredFiles;
 use App\Models\Attachment;
 use App\Models\Equipment\EquipmentCatalog;
 use App\Models\Finance\GeneralExpense;
@@ -29,7 +30,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttachmentController extends Controller
 {
-    use AuthorizesMisPermissions;
+    use AuthorizesMisPermissions, ServesStoredFiles;
 
     /** @var array<class-string, string> */
     private const PERMISSION_MAP = [
@@ -57,9 +58,8 @@ class AttachmentController extends Controller
     {
         $this->authorizeAttachment($request, $attachment);
 
-        abort_unless(Storage::disk('local')->exists($attachment->file_path), 404);
-
-        return Storage::disk('local')->download(
+        return $this->serveLocalFile(
+            $request,
             $attachment->file_path,
             $attachment->original_filename,
         );

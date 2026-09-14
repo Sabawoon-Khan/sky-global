@@ -198,7 +198,7 @@ class ProjectController extends Controller
             'issues' => fn ($q) => $q->where('is_archived', false)->latest(),
             'documents' => fn ($q) => $q->latest(),
             'sites',
-            'deployments' => fn ($q) => $q->with('projectSite')->latest(),
+            'deployments' => fn ($q) => $q->with(['projectSite', 'personnel'])->latest(),
             'incomes' => fn ($q) => $q->with('attachments')->latest('transaction_date')->limit(20),
             'expenses' => fn ($q) => $q->with('attachments')->latest('transaction_date')->limit(20),
             'shareholders' => fn ($q) => $q->with(['transactions' => fn ($tq) => $tq->latest('transaction_date')->limit(10)]),
