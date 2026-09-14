@@ -1,0 +1,1 @@
+import{A as e,C as t,E as n,G as r,at as i,h as a,kt as o}from"./dist-ChOSDFAK.js";var s={class:`text-sm text-red-600 dark:text-red-500`},c=e({__name:`InputError`,props:{message:{}},setup(e){return(c,l)=>i((r(),n(`div`,null,[t(`p`,s,o(e.message),1)],512)),[[a,e.message]])}});export{c as t};
