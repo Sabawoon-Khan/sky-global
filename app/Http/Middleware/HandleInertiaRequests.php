@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Http\Middleware\Concerns\ResolvesRequestLocale;
+use App\Models\AssignmentRecipient;
 use App\Services\NotificationService;
 use App\Support\WebsiteContent;
 use Illuminate\Http\Request;
@@ -58,6 +59,11 @@ class HandleInertiaRequests extends Middleware
                     ...$request->user()->toArray(),
                     'roles' => $request->user()->getRoleNames()->values()->all(),
                     'permissions' => $request->user()->getAllPermissions()->pluck('name')->values()->all(),
+                    'assignments' => [
+                        'is_assignee' => AssignmentRecipient::query()
+                            ->where('user_id', $request->user()->id)
+                            ->exists(),
+                    ],
                 ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',

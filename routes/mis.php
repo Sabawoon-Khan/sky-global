@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\AssignmentController;
 use App\Http\Controllers\Archive\ArchivedDocumentController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\DashboardController;
@@ -47,6 +48,15 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('search', GlobalSearchController::class)->name('search');
+
+    Route::prefix('assignments')->name('assignments.')->whereNumber('assignment')->group(function () {
+        Route::get('/', [AssignmentController::class, 'index'])->name('index');
+        Route::post('/', [AssignmentController::class, 'store'])->name('store');
+        Route::get('{assignment}', [AssignmentController::class, 'show'])->name('show');
+        Route::put('{assignment}', [AssignmentController::class, 'update'])->name('update');
+        Route::delete('{assignment}', [AssignmentController::class, 'destroy'])->name('destroy');
+        Route::post('{assignment}/replies', [AssignmentController::class, 'storeReply'])->name('replies.store');
+    });
 
     Route::get('attachments/{attachment}/download', [AttachmentController::class, 'download'])->name('attachments.download');
     Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');

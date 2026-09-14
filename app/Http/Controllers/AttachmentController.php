@@ -15,6 +15,8 @@ use App\Models\Hr\Contractor;
 use App\Models\Hr\Employee;
 use App\Models\Hr\PayrollRun;
 use App\Models\Hr\PersonnelAttendance;
+use App\Models\Assignment;
+use App\Models\AssignmentReply;
 use App\Models\Organization;
 use App\Models\Procurement\CompetitorBid;
 use App\Models\Project\Project;
@@ -46,6 +48,8 @@ class AttachmentController extends Controller
         PersonnelAttendance::class => 'hr.view',
         PayrollRun::class => 'hr.view',
         ProjectIssue::class => 'projects.view',
+        Assignment::class => 'assignments.view',
+        AssignmentReply::class => 'assignments.view',
         EquipmentCatalog::class => 'hr.view',
     ];
 
@@ -76,10 +80,49 @@ class AttachmentController extends Controller
 
     private function authorizeAttachment(Request $request, Attachment $attachment): void
     {
+        if ($attachment->attachable_type === Assignment::class) {
+            $this->authorizeAssignmentAttachment($request, $attachment->attachable);
+
+            return;
+        }
+
+        if ($attachment->attachable_type === AssignmentReply::class) {
+            $reply = $attachment->attachable;
+
+            if ($reply instanceof AssignmentReply) {
+                $this->authorizeAssignmentAttachment($request, $reply->assignment);
+            }
+
+            return;
+        }
+
         $permission = self::PERMISSION_MAP[$attachment->attachable_type] ?? null;
 
         if ($permission) {
             $this->authorizePermission($request, $permission);
         }
+    }
+
+    private function authorizeAssignmentAttachment(Request $request, mixed $assignment): void
+    {
+        if (! $assignment instanceof Assignment) {
+            abort(404);
+        }
+
+        $user = $request->user();
+
+        if (
+            $user->can('assignments.view')
+            || $user->can('assignments.view_all')
+            || $user->can('assignments.create')
+        ) {
+            return;
+        }
+
+        $isRecipient = $assignment->recipients()
+            ->where('user_id', $user->id)
+            ->exists();
+
+        abort_unless($isRecipient, 403);
     }
 }

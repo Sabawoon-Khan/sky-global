@@ -29,6 +29,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'inventory.view', 'inventory.create', 'inventory.edit',
             'hr.view', 'hr.create', 'hr.edit',
             'archive.view', 'archive.create', 'archive.edit',
+            'assignments.view', 'assignments.view_all', 'assignments.create', 'assignments.edit', 'assignments.delete',
         ]);
 
         $staff = Role::findOrCreate('Staff');
@@ -39,6 +40,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'inventory.view', 'inventory.create',
             'hr.view', 'hr.create', 'hr.edit',
             'archive.view', 'archive.create',
+            'assignments.view',
         ]);
 
         $viewer = Role::findOrCreate('Viewer');
@@ -49,6 +51,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'inventory.view',
             'hr.view',
             'archive.view',
+            'assignments.view',
         ]);
     }
 }

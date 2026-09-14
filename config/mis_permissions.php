@@ -51,6 +51,11 @@ return [
         'archive' => [
             'extra' => [],
         ],
+        'assignments' => [
+            'extra' => [
+                'view_all',
+            ],
+        ],
         'settings' => [
             'extra' => [
                 'manage_users',

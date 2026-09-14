@@ -18,6 +18,7 @@ import {
     Users,
     Wallet,
 } from '@lucide/vue';
+import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useTranslations } from '@/composables/useTranslations';
@@ -27,6 +28,7 @@ import type { NavGroup, NavItem } from '@/types';
 
 type NavItemWithPermission = NavItem & {
     permission?: string | string[];
+    showWhenAssignee?: boolean;
 };
 
 type QuickLinkWithPermission = {
@@ -73,8 +75,20 @@ export function isNavItemActive(item: NavItem, currentPath: string): boolean {
 }
 
 export function useMisNavigation() {
+    const page = usePage();
     const { t } = useTranslations();
     const { can, canAny } = usePermissions();
+
+    const isAssignmentAssignee = computed(
+        () =>
+            Boolean(
+                (
+                    page.props.auth as {
+                        user?: { assignments?: { is_assignee?: boolean } };
+                    }
+                )?.user?.assignments?.is_assignee,
+            ),
+    );
 
     const hasNavPermission = (permission?: string | string[]): boolean => {
         if (!permission) {
@@ -90,7 +104,11 @@ export function useMisNavigation() {
 
     const filterByPermission = (items: NavItemWithPermission[]): NavItem[] =>
         items
-            .filter((item) => hasNavPermission(item.permission))
+            .filter(
+                (item) =>
+                    (item.showWhenAssignee && isAssignmentAssignee.value) ||
+                    hasNavPermission(item.permission),
+            )
             .map((item) => ({
                 title: item.title,
                 href: item.href,
@@ -119,6 +137,18 @@ export function useMisNavigation() {
                         title: t('Dashboard'),
                         href: dashboard(),
                         icon: LayoutGrid,
+                    },
+                ]),
+            },
+            {
+                label: t('Assignments'),
+                items: filterByPermission([
+                    {
+                        title: t('Assignments'),
+                        href: '/assignments',
+                        icon: ClipboardList,
+                        permission: 'assignments.view',
+                        showWhenAssignee: true,
                     },
                 ]),
             },
@@ -295,6 +325,7 @@ export function useMisNavigation() {
     const misNavGroups = computed<NavGroup[]>(() => {
         const platformLabels = new Set([
             t('Dashboard'),
+            t('Assignments'),
             t('Projects'),
             t('Organizations'),
             t('Archive'),
