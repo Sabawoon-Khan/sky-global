@@ -6,6 +6,8 @@ use App\Concerns\HasStatusChangeLogs;
 use App\Concerns\LogsCrudActivity;
 use App\Enums\TrainingPath;
 use App\Enums\TrainingStatus;
+use App\Models\Hr\Contractor;
+use App\Models\Hr\Employee;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -39,6 +41,8 @@ class TrainingGuard extends Model
         'certificate_original_filename',
         'notes',
         'created_by',
+        'employee_id',
+        'contractor_id',
     ];
 
     protected $appends = ['certificate_url'];
@@ -63,6 +67,16 @@ class TrainingGuard extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    public function contractor(): BelongsTo
+    {
+        return $this->belongsTo(Contractor::class);
     }
 
     public function isRegistered(): bool

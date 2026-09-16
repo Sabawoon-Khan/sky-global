@@ -48,6 +48,7 @@ use App\Http\Controllers\Training\TrainingFieldController;
 use App\Http\Controllers\Training\TrainingFieldGuardController;
 use App\Http\Controllers\Training\TrainingFieldReportController;
 use App\Http\Controllers\Training\TrainingGuardController;
+use App\Http\Controllers\Training\TrainingGuardConversionController;
 use App\Http\Controllers\Training\TrainingMinistryPaymentController;
 use Illuminate\Support\Facades\Route;
 
@@ -249,6 +250,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('field.reports.attachment');
         Route::get('field/roster', [TrainingFieldController::class, 'roster'])->name('field.roster.index');
         Route::post('field/roster', [TrainingFieldGuardController::class, 'store'])->name('field.roster.store');
+        Route::post('guards/{trainingGuard}/employee', [TrainingGuardConversionController::class, 'toEmployee'])
+            ->whereNumber('trainingGuard')
+            ->name('guards.to-employee');
+        Route::post('guards/{trainingGuard}/contractor', [TrainingGuardConversionController::class, 'toContractor'])
+            ->whereNumber('trainingGuard')
+            ->name('guards.to-contractor');
         Route::delete('field/roster/{trainingFieldGuard}', [TrainingFieldGuardController::class, 'destroy'])
             ->whereNumber('trainingFieldGuard')
             ->name('field.roster.destroy');

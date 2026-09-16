@@ -8,6 +8,7 @@ import {
     GraduationCap,
     Printer,
     Shield,
+    UserPlus,
 } from '@lucide/vue';
 import Can from '@/components/Can.vue';
 import FileLink from '@/components/FileLink.vue';
@@ -57,6 +58,10 @@ interface TrainingGuard {
     certificate_url?: string | null;
     certificate_original_filename?: string | null;
     notes?: string | null;
+    employee_id?: number | null;
+    contractor_id?: number | null;
+    employee?: { id: number; name: string } | null;
+    contractor?: { id: number; name: string } | null;
     ministry_payment?: {
         id: number;
         reference_number: string;
@@ -178,6 +183,46 @@ defineOptions({
                     >
                         <Printer class="me-2 size-4" />
                         {{ t('Print certificate') }}
+                    </Link>
+                </Button>
+                <Form
+                    v-if="(isCompleted || isCertified) && !guard.employee_id && !guard.contractor_id && can('hr.create')"
+                    :action="`/training/guards/${guard.id}/employee`"
+                    method="post"
+                    v-slot="{ processing }"
+                >
+                    <Button type="submit" :disabled="processing">
+                        <UserPlus class="me-2 size-4" />
+                        {{ t('Hire as employee') }}
+                    </Button>
+                </Form>
+                <Form
+                    v-if="(isCompleted || isCertified) && !guard.employee_id && !guard.contractor_id && can('hr.create')"
+                    :action="`/training/guards/${guard.id}/contractor`"
+                    method="post"
+                    v-slot="{ processing }"
+                >
+                    <Button type="submit" :disabled="processing" variant="outline">
+                        <UserPlus class="me-2 size-4" />
+                        {{ t('Hire as contractor') }}
+                    </Button>
+                </Form>
+                <Button
+                    v-else-if="guard.employee_id"
+                    variant="outline"
+                    as-child
+                >
+                    <Link :href="`/hr/employees/${guard.employee_id}`">
+                        {{ t('View employee') }}
+                    </Link>
+                </Button>
+                <Button
+                    v-else-if="guard.contractor_id"
+                    variant="outline"
+                    as-child
+                >
+                    <Link :href="`/hr/contractors/${guard.contractor_id}`">
+                        {{ t('View contractor') }}
                     </Link>
                 </Button>
             </template>
@@ -469,6 +514,31 @@ defineOptions({
                             {{ t('Print certificate') }}
                         </Link>
                     </Button>
+                </div>
+
+                <div
+                    v-else-if="(isCompleted || isCertified) && (guard.employee || guard.contractor)"
+                    class="grid gap-3 sm:grid-cols-2"
+                >
+                    <div class="detail-field">
+                        <span>{{ t('HR status') }}</span>
+                        <strong>
+                            <Link
+                                v-if="guard.employee"
+                                :href="`/hr/employees/${guard.employee_id}`"
+                                class="text-primary"
+                            >
+                                {{ t('Employee') }}
+                            </Link>
+                            <Link
+                                v-else-if="guard.contractor"
+                                :href="`/hr/contractors/${guard.contractor_id}`"
+                                class="text-primary"
+                            >
+                                {{ t('Contractor') }}
+                            </Link>
+                        </strong>
+                    </div>
                 </div>
 
                 <Form

@@ -126,7 +126,13 @@ class TrainingGuardController extends Controller
     {
         $this->authorizePermission($request, 'training.view');
 
-        $trainingGuard->load(['ministryPayment', 'createdBy', 'statusChangeLogs.changedBy']);
+        $trainingGuard->load([
+            'ministryPayment',
+            'createdBy',
+            'statusChangeLogs.changedBy',
+            'employee:id,name',
+            'contractor:id,name',
+        ]);
 
         return Inertia::render('mis/training/Guards/Show', [
             'guard' => $trainingGuard,

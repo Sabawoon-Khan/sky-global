@@ -47,6 +47,10 @@ interface TrainingGuard {
     batch_number: string;
     status: string;
     training_path?: string | null;
+    employee_id?: number | null;
+    contractor_id?: number | null;
+    employee?: { id: number; name: string } | null;
+    contractor?: { id: number; name: string } | null;
 }
 
 interface ChartPoint {
@@ -132,8 +136,14 @@ const tableColumns = computed(() => [
     { key: 'period', label: t('Period') },
     { key: 'path', label: t('Training path') },
     { key: 'status', label: t('Status') },
+    { key: 'hr', label: t('HR status') },
     { key: 'actions', label: t('Actions'), locked: true },
 ]);
+
+const isHirable = (guard: TrainingGuard): boolean =>
+    ['completed', 'certified'].includes(guard.status) &&
+    !guard.employee_id &&
+    !guard.contractor_id;
 
 const statusPalette = [
     'var(--school-navy)',
@@ -199,21 +209,57 @@ const pathLabel = (path?: string | null): string => {
     return '—';
 };
 
-const guardActions = (guard: TrainingGuard): RowActionItem[] => [
-    viewAction(`/training/guards/${guard.id}`),
-    editAction(`/training/guards/${guard.id}/edit`, 'training.edit'),
-    deleteAction(
-        {
-            href: `/training/guards/${guard.id}`,
-            title: t('Remove guard'),
-            description: t(
-                'Are you sure you want to delete ":name"? This cannot be undone.',
-                { name: guard.name },
-            ),
-        },
-        'training.delete',
-    ),
-];
+const guardActions = (guard: TrainingGuard): RowActionItem[] => {
+    const actions: RowActionItem[] = [
+        viewAction(`/training/guards/${guard.id}`),
+        editAction(`/training/guards/${guard.id}/edit`, 'training.edit'),
+    ];
+
+    if (isHirable(guard) && can('hr.create')) {
+        actions.push(
+            {
+                label: t('Hire as employee'),
+                href: `/training/guards/${guard.id}/employee`,
+                method: 'post',
+            },
+            {
+                label: t('Hire as contractor'),
+                href: `/training/guards/${guard.id}/contractor`,
+                method: 'post',
+            },
+        );
+    }
+
+    if (guard.employee_id) {
+        actions.push({
+            label: t('View employee'),
+            href: `/hr/employees/${guard.employee_id}`,
+        });
+    }
+
+    if (guard.contractor_id) {
+        actions.push({
+            label: t('View contractor'),
+            href: `/hr/contractors/${guard.contractor_id}`,
+        });
+    }
+
+    actions.push(
+        deleteAction(
+            {
+                href: `/training/guards/${guard.id}`,
+                title: t('Remove guard'),
+                description: t(
+                    'Are you sure you want to delete ":name"? This cannot be undone.',
+                    { name: guard.name },
+                ),
+            },
+            'training.delete',
+        ),
+    );
+
+    return actions;
+};
 </script>
 
 <template>
@@ -416,6 +462,7 @@ const guardActions = (guard: TrainingGuard): RowActionItem[] => [
                                 t('Training path')
                             }}</SortableTh>
                             <SortableTh column="status">{{ t('Status') }}</SortableTh>
+                            <th>{{ t('HR status') }}</th>
                             <th class="end">{{ t('Actions') }}</th>
                         </tr>
                     </thead>
@@ -447,6 +494,23 @@ const guardActions = (guard: TrainingGuard): RowActionItem[] => [
                             <td class="muted">{{ pathLabel(guard.training_path) }}</td>
                             <td>
                                 <StatusBadge :status="guard.status" />
+                            </td>
+                            <td>
+                                <Link
+                                    v-if="guard.employee"
+                                    :href="`/hr/employees/${guard.employee_id}`"
+                                    class="font-medium text-primary"
+                                >
+                                    {{ t('Employee') }}
+                                </Link>
+                                <Link
+                                    v-else-if="guard.contractor"
+                                    :href="`/hr/contractors/${guard.contractor_id}`"
+                                    class="font-medium text-primary"
+                                >
+                                    {{ t('Contractor') }}
+                                </Link>
+                                <span v-else class="muted">—</span>
                             </td>
                             <td class="end">
                                 <RowActionsMenu :actions="guardActions(guard)" />
