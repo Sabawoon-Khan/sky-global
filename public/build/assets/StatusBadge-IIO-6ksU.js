@@ -1,1 +1,0 @@
-import{A as e,Et as t,G as n,w as r}from"./dist-ChOSDFAK.js";import{t as i}from"./MisStatusBadge-BsnNBqD9.js";var a=e({__name:`StatusBadge`,props:{status:{default:``},class:{default:void 0}},setup(e){return(a,o)=>(n(),r(i,{status:e.status,class:t(a.$props.class)},null,8,[`status`,`class`]))}});export{a as t};
