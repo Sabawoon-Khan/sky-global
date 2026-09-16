@@ -237,6 +237,7 @@ onMounted(() => {
                                     <th>{{ t('Tax') }}</th>
                                     <th>{{ t('Advance') }}</th>
                                     <th class="col-net">{{ t('Net Pay') }}</th>
+                                    <th class="col-signature">{{ t('Signature') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -258,6 +259,7 @@ onMounted(() => {
                                     <td class="col-amount">{{ amount(row.tax) }}</td>
                                     <td class="col-amount">{{ amount(row.advance) }}</td>
                                     <td class="col-amount col-net">{{ amount(row.net_amount) }}</td>
+                                    <td class="col-signature"></td>
                                 </tr>
                             </tbody>
                             <tfoot>
@@ -269,6 +271,7 @@ onMounted(() => {
                                     <td class="col-amount font-bold">{{ amount(selectedEmployeeTotals.tax) }}</td>
                                     <td class="col-amount font-bold">{{ amount(selectedEmployeeTotals.advance) }}</td>
                                     <td class="col-amount col-net font-bold">{{ amount(selectedEmployeeTotals.net) }}</td>
+                                    <td class="col-signature"></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -298,6 +301,7 @@ onMounted(() => {
                                     <th>{{ t('Tax') }}</th>
                                     <th>{{ t('Advance') }}</th>
                                     <th class="col-net">{{ t('Net Pay') }}</th>
+                                    <th class="col-signature">{{ t('Signature') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -319,6 +323,7 @@ onMounted(() => {
                                     <td class="col-amount">{{ amount(row.tax) }}</td>
                                     <td class="col-amount">{{ amount(row.advance) }}</td>
                                     <td class="col-amount col-net">{{ amount(row.net_amount) }}</td>
+                                    <td class="col-signature"></td>
                                 </tr>
                             </tbody>
                             <tfoot>
@@ -330,6 +335,7 @@ onMounted(() => {
                                     <td class="col-amount font-bold">{{ amount(selectedContractorTotals.tax) }}</td>
                                     <td class="col-amount font-bold">{{ amount(selectedContractorTotals.advance) }}</td>
                                     <td class="col-amount col-net font-bold">{{ amount(selectedContractorTotals.net) }}</td>
+                                    <td class="col-signature"></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -523,6 +529,10 @@ onMounted(() => {
 .col-net {
     background: #efefef;
     font-weight: 700;
+}
+
+.col-signature {
+    min-width: 5rem;
 }
 
 .totals-row td {
