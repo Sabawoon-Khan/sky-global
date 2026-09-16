@@ -1,4 +1,5 @@
 import {
+    Award,
     Archive,
     ArrowDownRight,
     ArrowUpRight,
@@ -9,11 +10,13 @@ import {
     ClipboardList,
     DollarSign,
     FileText,
+    GraduationCap,
     LayoutGrid,
     Package,
     Percent,
     Receipt,
     Settings,
+    Shield,
     UserRound,
     Users,
     Wallet,
@@ -286,6 +289,42 @@ export function useMisNavigation() {
                 ]),
             },
             {
+                label: t('Training'),
+                items: filterByPermission([
+                    {
+                        title: t('Guards'),
+                        href: '/training/guards',
+                        icon: GraduationCap,
+                        permission: 'training.view',
+                    },
+                    {
+                        title: t('Public Protection Deputy'),
+                        href: '/training/payments',
+                        icon: Shield,
+                        permission: 'training.view',
+                    },
+                    {
+                        title: t('Company training'),
+                        href: '/training/company',
+                        icon: Building2,
+                        permission: 'training.view',
+                    },
+                    {
+                        title: t('Certificates'),
+                        href: '/training/certificates',
+                        icon: Award,
+                        permission: 'training.view',
+                    },
+                    {
+                        title: t('On-site training'),
+                        href: '/training/field/reports',
+                        icon: ClipboardList,
+                        permission: 'training.view',
+                        matchPrefixes: ['/training/field'],
+                    },
+                ]),
+            },
+            {
                 label: t('Analytics'),
                 items: filterByPermission([
                     {
@@ -340,6 +379,9 @@ export function useMisNavigation() {
         const hr = tabGroups.value.find(
             (group) => group.label === t('Human Resources'),
         );
+        const training = tabGroups.value.find(
+            (group) => group.label === t('Training'),
+        );
         const analytics = tabGroups.value.find(
             (group) => group.label === t('Analytics'),
         );
@@ -359,6 +401,10 @@ export function useMisNavigation() {
 
         if (hr?.items.length) {
             groups.push({ label: t('Human Resources'), items: hr.items });
+        }
+
+        if (training?.items.length) {
+            groups.push({ label: t('Training'), items: training.items });
         }
 
         const adminItems: NavItem[] = [];
@@ -437,6 +483,13 @@ export function useMisNavigation() {
                 href: '/hr/payroll',
                 icon: Wallet,
                 permission: 'hr.view',
+            },
+            {
+                title: t('Training'),
+                description: t('Register guards and issue certificates'),
+                href: '/training/guards',
+                icon: GraduationCap,
+                permission: 'training.view',
             },
         ]),
     );

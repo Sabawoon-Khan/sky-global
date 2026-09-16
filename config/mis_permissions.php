@@ -48,6 +48,9 @@ return [
         'hr' => [
             'extra' => [],
         ],
+        'training' => [
+            'extra' => [],
+        ],
         'archive' => [
             'extra' => [],
         ],

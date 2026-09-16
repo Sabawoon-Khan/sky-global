@@ -28,6 +28,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'finance.view', 'finance.create', 'finance.edit',
             'inventory.view', 'inventory.create', 'inventory.edit',
             'hr.view', 'hr.create', 'hr.edit',
+            'training.view', 'training.create', 'training.edit',
             'archive.view', 'archive.create', 'archive.edit',
             'assignments.view', 'assignments.view_all', 'assignments.create', 'assignments.edit', 'assignments.delete',
         ]);
@@ -39,6 +40,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'finance.view', 'finance.create',
             'inventory.view', 'inventory.create',
             'hr.view', 'hr.create', 'hr.edit',
+            'training.view', 'training.create', 'training.edit',
             'archive.view', 'archive.create',
             'assignments.view',
         ]);
@@ -50,6 +52,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'finance.view',
             'inventory.view',
             'hr.view',
+            'training.view',
             'archive.view',
             'assignments.view',
         ]);

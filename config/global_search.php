@@ -7,6 +7,7 @@ use App\Models\Hr\Contractor;
 use App\Models\Hr\Employee;
 use App\Models\Organization;
 use App\Models\Project\Project;
+use App\Models\Training\TrainingGuard;
 
 /**
  * Resources included in the header global search.
@@ -67,6 +68,19 @@ return [
         'show_route' => 'hr.contractors.show',
         'index_route' => 'hr.contractors.index',
         'route_param' => 'contractor',
+    ],
+    'training' => [
+        'label' => 'Training',
+        'model' => TrainingGuard::class,
+        'permission' => 'training',
+        'search' => ['name', 'father_name', 'grandfather_name', 'tazkira_number', 'id_card_number', 'batch_number', 'certificate_number'],
+        'priority' => ['name', 'tazkira_number', 'id_card_number'],
+        'title' => 'name',
+        'subtitle' => ['batch_number', 'status'],
+        'edit_route' => 'training.guards.edit',
+        'show_route' => 'training.guards.show',
+        'index_route' => 'training.guards.index',
+        'route_param' => 'trainingGuard',
     ],
     'archive' => [
         'label' => 'Archive',

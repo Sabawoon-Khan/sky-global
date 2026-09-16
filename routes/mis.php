@@ -43,6 +43,12 @@ use App\Http\Controllers\Settings\RoleManagementController;
 use App\Http\Controllers\Settings\StorageBackupController;
 use App\Http\Controllers\Settings\TranslationController;
 use App\Http\Controllers\Settings\UserManagementController;
+use App\Http\Controllers\Training\TrainingCertificateController;
+use App\Http\Controllers\Training\TrainingFieldController;
+use App\Http\Controllers\Training\TrainingFieldGuardController;
+use App\Http\Controllers\Training\TrainingFieldReportController;
+use App\Http\Controllers\Training\TrainingGuardController;
+use App\Http\Controllers\Training\TrainingMinistryPaymentController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -202,6 +208,78 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('payroll/{payrollRun}', [PayrollRunController::class, 'destroy'])->name('payroll.destroy');
         Route::post('payroll/{payrollRun}/process', [PayrollRunController::class, 'process'])->name('payroll.process');
         Route::put('payroll/{payrollRun}/items/{payrollItem}', [PayrollRunController::class, 'updateItem'])->name('payroll.items.update');
+    });
+
+    Route::prefix('training')->name('training.')->group(function () {
+        Route::redirect('/', '/training/guards');
+        Route::get('guards', [TrainingGuardController::class, 'index'])->name('guards.index');
+        Route::get('guards/create', [TrainingGuardController::class, 'create'])->name('guards.create');
+        Route::post('guards', [TrainingGuardController::class, 'store'])->name('guards.store');
+
+        Route::get('company', [TrainingGuardController::class, 'company'])->name('company.index');
+        Route::post('company', [TrainingGuardController::class, 'assignCompanyBulk'])->name('company.store');
+
+        Route::get('payments', [TrainingMinistryPaymentController::class, 'index'])->name('payments.index');
+        Route::get('payments/create', [TrainingMinistryPaymentController::class, 'create'])->name('payments.create');
+        Route::post('payments', [TrainingMinistryPaymentController::class, 'store'])->name('payments.store');
+        Route::get('payments/{trainingMinistryPayment}/receipt', [TrainingMinistryPaymentController::class, 'downloadReceipt'])
+            ->whereNumber('trainingMinistryPayment')
+            ->name('payments.receipt');
+        Route::get('payments/{trainingMinistryPayment}', [TrainingMinistryPaymentController::class, 'show'])
+            ->whereNumber('trainingMinistryPayment')
+            ->name('payments.show');
+        Route::delete('payments/{trainingMinistryPayment}', [TrainingMinistryPaymentController::class, 'destroy'])
+            ->whereNumber('trainingMinistryPayment')
+            ->name('payments.destroy');
+
+        Route::get('certificates', [TrainingCertificateController::class, 'index'])->name('certificates.index');
+
+        Route::redirect('field', '/training/field/reports');
+        Route::get('field/reports', [TrainingFieldReportController::class, 'index'])->name('field.reports.index');
+        Route::get('field/reports/create', [TrainingFieldReportController::class, 'create'])->name('field.reports.create');
+        Route::post('field/reports', [TrainingFieldReportController::class, 'store'])->name('field.reports.store');
+        Route::get('field/reports/{trainingFieldReport}', [TrainingFieldReportController::class, 'show'])
+            ->whereNumber('trainingFieldReport')
+            ->name('field.reports.show');
+        Route::delete('field/reports/{trainingFieldReport}', [TrainingFieldReportController::class, 'destroy'])
+            ->whereNumber('trainingFieldReport')
+            ->name('field.reports.destroy');
+        Route::get('field/reports/{trainingFieldReport}/attachment', [TrainingFieldReportController::class, 'downloadAttachment'])
+            ->whereNumber('trainingFieldReport')
+            ->name('field.reports.attachment');
+        Route::get('field/roster', [TrainingFieldController::class, 'roster'])->name('field.roster.index');
+        Route::post('field/roster', [TrainingFieldGuardController::class, 'store'])->name('field.roster.store');
+        Route::delete('field/roster/{trainingFieldGuard}', [TrainingFieldGuardController::class, 'destroy'])
+            ->whereNumber('trainingFieldGuard')
+            ->name('field.roster.destroy');
+
+        Route::get('guards/{trainingGuard}/certificate/print', [TrainingGuardController::class, 'printCertificate'])
+            ->whereNumber('trainingGuard')
+            ->name('guards.certificate.print');
+        Route::get('guards/{trainingGuard}/certificate/download', [TrainingGuardController::class, 'downloadCertificate'])
+            ->whereNumber('trainingGuard')
+            ->name('guards.certificate.download');
+        Route::post('guards/{trainingGuard}/company', [TrainingGuardController::class, 'assignCompany'])
+            ->whereNumber('trainingGuard')
+            ->name('guards.company');
+        Route::post('guards/{trainingGuard}/complete', [TrainingGuardController::class, 'complete'])
+            ->whereNumber('trainingGuard')
+            ->name('guards.complete');
+        Route::post('guards/{trainingGuard}/certificate', [TrainingGuardController::class, 'issueCertificate'])
+            ->whereNumber('trainingGuard')
+            ->name('guards.certificate');
+        Route::get('guards/{trainingGuard}/edit', [TrainingGuardController::class, 'edit'])
+            ->whereNumber('trainingGuard')
+            ->name('guards.edit');
+        Route::get('guards/{trainingGuard}', [TrainingGuardController::class, 'show'])
+            ->whereNumber('trainingGuard')
+            ->name('guards.show');
+        Route::put('guards/{trainingGuard}', [TrainingGuardController::class, 'update'])
+            ->whereNumber('trainingGuard')
+            ->name('guards.update');
+        Route::delete('guards/{trainingGuard}', [TrainingGuardController::class, 'destroy'])
+            ->whereNumber('trainingGuard')
+            ->name('guards.destroy');
     });
 
     Route::prefix('forms')->name('forms.')->group(function () {
