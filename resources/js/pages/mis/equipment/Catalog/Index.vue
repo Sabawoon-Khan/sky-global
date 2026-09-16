@@ -144,6 +144,7 @@ const category = ref(props.filters?.category ?? '');
 const isActive = ref(props.filters?.is_active ?? '');
 const adjustingId = ref<number | null>(null);
 const issuingId = ref<number | null>(null);
+const deletingId = ref<number | null>(null);
 const issueMode = ref<'project' | 'personnel'>('project');
 const personnelType = ref('App\\Models\\Hr\\Employee');
 const issueProjectId = ref('');
@@ -156,6 +157,9 @@ const adjustingItem = computed(
 );
 const issuingItem = computed(
     () => props.equipment.data.find((item) => item.id === issuingId.value) ?? null,
+);
+const deletingItem = computed(
+    () => props.equipment.data.find((item) => item.id === deletingId.value) ?? null,
 );
 
 const applyFilters = (): void => {
@@ -469,6 +473,7 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                                                         @click="
                                                             adjustingId = item.id;
                                                             issuingId = null;
+                                                            deletingId = null;
                                                         "
                                                     >
                                                         {{ t('Adjust') }}
@@ -481,9 +486,24 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                                                         @click="
                                                             issuingId = item.id;
                                                             adjustingId = null;
+                                                            deletingId = null;
                                                         "
                                                     >
                                                         {{ t('Issue') }}
+                                                    </Button>
+                                                </Can>
+                                                <Can permission="inventory.delete">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        class="text-destructive hover:text-destructive"
+                                                        @click="
+                                                            deletingId = item.id;
+                                                            adjustingId = null;
+                                                            issuingId = null;
+                                                        "
+                                                    >
+                                                        {{ t('Delete') }}
                                                     </Button>
                                                 </Can>
                                 </div>
@@ -824,6 +844,50 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                         </Button>
                         <Button type="submit" :disabled="processing">
                             {{ t('Issue') }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog
+            :open="deletingItem !== null"
+            @update:open="(open) => !open && (deletingId = null)"
+        >
+            <DialogContent v-if="deletingItem">
+                <Form
+                    :action="`/equipment/${deletingItem.id}`"
+                    method="delete"
+                    :options="{ preserveScroll: true }"
+                    v-slot="{ processing }"
+                    @success="deletingId = null"
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Delete item') }}</DialogTitle>
+                        <DialogDescription>
+                            {{
+                                t(
+                                    'Are you sure you want to delete ":name"? This cannot be undone.',
+                                    { name: deletingItem.name },
+                                )
+                            }}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <DialogFooter class="gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="deletingId = null"
+                        >
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button
+                            type="submit"
+                            variant="destructive"
+                            :disabled="processing"
+                        >
+                            {{ t('Delete') }}
                         </Button>
                     </DialogFooter>
                 </Form>

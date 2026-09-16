@@ -223,6 +223,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [EquipmentCatalogController::class, 'index'])->name('index');
         Route::post('/', [EquipmentCatalogController::class, 'store'])->name('store');
         Route::put('{equipmentCatalog}', [EquipmentCatalogController::class, 'update'])->name('update');
+        Route::delete('{equipmentCatalog}', [EquipmentCatalogController::class, 'destroy'])->name('destroy');
         Route::post('{equipmentCatalog}/adjust-stock', [EquipmentCatalogController::class, 'adjustStock'])->name('adjust-stock');
 
         Route::post('issues', [PersonnelEquipmentIssueController::class, 'store'])->name('issues.store');

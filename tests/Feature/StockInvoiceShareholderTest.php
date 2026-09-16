@@ -226,4 +226,82 @@ class StockInvoiceShareholderTest extends TestCase
         $this->assertSame(40000.0, (float) $shareholder->returned_amount);
         $this->assertSame(85000.0, $shareholder->outstandingAmount());
     }
+
+    public function test_stock_item_can_be_deleted(): void
+    {
+        $this->actingAs($this->owner)
+            ->post(route('equipment.store'), [
+                'name' => 'Radio Set',
+                'sku' => 'RADIO-DEL-TEST',
+                'category' => 'Radios',
+                'unit' => 'pcs',
+                'initial_quantity' => 4,
+                'is_active' => true,
+            ])
+            ->assertRedirect();
+
+        $catalog = EquipmentCatalog::query()->where('sku', 'RADIO-DEL-TEST')->firstOrFail();
+
+        $this->actingAs($this->owner)
+            ->from(route('equipment.index'))
+            ->delete(route('equipment.destroy', $catalog))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('equipment_catalog', ['id' => $catalog->id]);
+        $this->assertDatabaseMissing('equipment_stock', ['equipment_catalog_id' => $catalog->id]);
+    }
+
+    public function test_issued_stock_item_cannot_be_deleted(): void
+    {
+        $this->actingAs($this->owner)
+            ->post(route('equipment.store'), [
+                'name' => 'AK-47 Rifle',
+                'sku' => 'GUN-AK47-KEEP',
+                'category' => 'Weapons',
+                'unit' => 'pcs',
+                'initial_quantity' => 10,
+                'is_active' => true,
+            ])
+            ->assertRedirect();
+
+        $catalog = EquipmentCatalog::query()->where('sku', 'GUN-AK47-KEEP')->firstOrFail();
+
+        $this->actingAs($this->owner)
+            ->post(route('projects.equipment-issues.store', $this->project), [
+                'equipment_catalog_id' => $catalog->id,
+                'quantity' => 2,
+                'issued_at' => now()->toDateString(),
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($this->owner)
+            ->from(route('equipment.index'))
+            ->delete(route('equipment.destroy', $catalog))
+            ->assertRedirect()
+            ->assertSessionHasErrors('equipment');
+
+        $this->assertDatabaseHas('equipment_catalog', ['id' => $catalog->id]);
+    }
+
+    public function test_staff_cannot_delete_stock_item(): void
+    {
+        $staff = User::factory()->create();
+        $staff->assignRole('Staff');
+
+        $this->actingAs($this->owner)
+            ->post(route('equipment.store'), [
+                'name' => 'Helmet',
+                'sku' => 'HELM-DEL-TEST',
+                'initial_quantity' => 1,
+            ])
+            ->assertRedirect();
+
+        $catalog = EquipmentCatalog::query()->where('sku', 'HELM-DEL-TEST')->firstOrFail();
+
+        $this->actingAs($staff)
+            ->delete(route('equipment.destroy', $catalog))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('equipment_catalog', ['id' => $catalog->id]);
+    }
 }

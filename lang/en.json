@@ -408,6 +408,7 @@
     "Delete quotation": "Delete quotation",
     "Delete quotation :label? This cannot be undone.": "Delete quotation :label? This cannot be undone.",
     "Delete issue": "Delete issue",
+    "Delete item": "Delete item",
     "Delete organization": "Delete organization",
     "Delete organization type": "Delete organization type",
     "Delete payroll run?": "Delete payroll run?",

@@ -377,6 +377,7 @@
     "Delete quotation": "نرخ پاڼه ړنګه کړئ",
     "Delete quotation :label? This cannot be undone.": "د :label نرخ پاڼه ړنګه شي؟ دا کار نه شي بیرته کېدای.",
     "Delete issue": "ستونزه حذف کړئ",
+    "Delete item": "قلم حذف کړئ",
     "Delete organization": "سازمان حذف کړئ",
     "Delete organization type": "د سازمان ډول حذف کړئ",
     "Delete payroll run?": "د معاش پروسه حذف شي؟",

@@ -260,4 +260,36 @@ class EquipmentCatalogController extends Controller
 
         return back();
     }
+
+    public function destroy(Request $request, EquipmentCatalog $equipmentCatalog): RedirectResponse
+    {
+        $this->authorizePermission($request, 'inventory.delete');
+
+        if ($equipmentCatalog->issues()->exists() || $equipmentCatalog->projectIssues()->exists()) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Cannot delete a stock item that has been issued.',
+            ]);
+
+            return back()->withErrors([
+                'equipment' => 'Cannot delete a stock item that has been issued.',
+            ]);
+        }
+
+        $name = $equipmentCatalog->name;
+        $equipmentCatalog->delete();
+
+        $this->notifyMisDeleted(
+            'inventory',
+            $name,
+            route('equipment.index', [], false),
+        );
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Stock item deleted.',
+        ]);
+
+        return back();
+    }
 }

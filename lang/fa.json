@@ -377,6 +377,7 @@
     "Delete quotation": "حذف پیش‌فاکتور",
     "Delete quotation :label? This cannot be undone.": "پیش‌فاکتور :label حذف شود؟ این کار برگشت ندارد.",
     "Delete issue": "حذف مشکل",
+    "Delete item": "حذف قلم",
     "Delete organization": "حذف سازمان",
     "Delete organization type": "حذف نوع سازمان",
     "Delete payroll run?": "اجرای معاش حذف شود؟",
