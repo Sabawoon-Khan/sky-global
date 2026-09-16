@@ -5,13 +5,17 @@ import {
     Package,
     PackageCheck,
     PackageMinus,
+    Pencil,
     Plus,
     Search,
+    Send,
+    SlidersHorizontal,
 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import Can from '@/components/Can.vue';
 import InputError from '@/components/InputError.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import TableIndexTd from '@/components/TableIndexTd.vue';
 import TableIndexTh from '@/components/TableIndexTh.vue';
 import SortableTh from '@/components/SortableTh.vue';
@@ -42,6 +46,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useMisPage } from '@/composables/useMisPage';
 import { provideTableSort } from '@/composables/useTableSort';
 import { formatNumber, type Paginated } from '@/lib/format';
+import type { RowActionItem } from '@/lib/row-actions';
 
 interface StockItem {
     id: number;
@@ -98,7 +103,7 @@ const props = defineProps<{
     };
 }>();
 
-const { t, can } = useMisPage();
+const { t, can, deleteAction } = useMisPage();
 
 const { sortedRows } = provideTableSort(() => props.equipment.data, {
     accessors: {
@@ -144,7 +149,7 @@ const category = ref(props.filters?.category ?? '');
 const isActive = ref(props.filters?.is_active ?? '');
 const adjustingId = ref<number | null>(null);
 const issuingId = ref<number | null>(null);
-const deletingId = ref<number | null>(null);
+const editingId = ref<number | null>(null);
 const issueMode = ref<'project' | 'personnel'>('project');
 const personnelType = ref('App\\Models\\Hr\\Employee');
 const issueProjectId = ref('');
@@ -158,9 +163,56 @@ const adjustingItem = computed(
 const issuingItem = computed(
     () => props.equipment.data.find((item) => item.id === issuingId.value) ?? null,
 );
-const deletingItem = computed(
-    () => props.equipment.data.find((item) => item.id === deletingId.value) ?? null,
+const editingItem = computed(
+    () => props.equipment.data.find((item) => item.id === editingId.value) ?? null,
 );
+
+const closeItemDialogs = (): void => {
+    adjustingId.value = null;
+    issuingId.value = null;
+    editingId.value = null;
+};
+
+const itemActions = (item: StockItem): RowActionItem[] => [
+    {
+        label: t('Edit'),
+        icon: Pencil,
+        hidden: !can('inventory.edit'),
+        onClick: () => {
+            closeItemDialogs();
+            editingId.value = item.id;
+        },
+    },
+    {
+        label: t('Adjust'),
+        icon: SlidersHorizontal,
+        hidden: !can('inventory.edit'),
+        onClick: () => {
+            closeItemDialogs();
+            adjustingId.value = item.id;
+        },
+    },
+    {
+        label: t('Issue'),
+        icon: Send,
+        hidden: !can('inventory.create'),
+        onClick: () => {
+            closeItemDialogs();
+            issuingId.value = item.id;
+        },
+    },
+    deleteAction(
+        {
+            href: `/equipment/${item.id}`,
+            title: t('Delete item'),
+            description: t(
+                'Are you sure you want to delete ":name"? This cannot be undone.',
+                { name: item.name },
+            ),
+        },
+        'inventory.delete',
+    ),
+];
 
 const applyFilters = (): void => {
     router.get(
@@ -465,48 +517,7 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                                 </span>
                             </td>
                             <td class="end">
-                                <div class="flex justify-end gap-1">
-                                                <Can permission="inventory.edit">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        @click="
-                                                            adjustingId = item.id;
-                                                            issuingId = null;
-                                                            deletingId = null;
-                                                        "
-                                                    >
-                                                        {{ t('Adjust') }}
-                                                    </Button>
-                                                </Can>
-                                                <Can permission="inventory.create">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        @click="
-                                                            issuingId = item.id;
-                                                            adjustingId = null;
-                                                            deletingId = null;
-                                                        "
-                                                    >
-                                                        {{ t('Issue') }}
-                                                    </Button>
-                                                </Can>
-                                                <Can permission="inventory.delete">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        class="text-destructive hover:text-destructive"
-                                                        @click="
-                                                            deletingId = item.id;
-                                                            adjustingId = null;
-                                                            issuingId = null;
-                                                        "
-                                                    >
-                                                        {{ t('Delete') }}
-                                                    </Button>
-                                                </Can>
-                                </div>
+                                <RowActionsMenu :actions="itemActions(item)" />
                             </td>
                         </tr>
                         <EmptyState
@@ -600,6 +611,112 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                         </Button>
                         <Button type="submit" :disabled="processing">
                             {{ t('Save to stock') }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog
+            :open="editingItem !== null"
+            @update:open="(open) => !open && (editingId = null)"
+        >
+            <DialogContent
+                v-if="editingItem"
+                class="max-h-[90vh] overflow-y-auto sm:max-w-lg"
+            >
+                <Form
+                    :action="`/equipment/${editingItem.id}`"
+                    method="put"
+                    :options="{ preserveScroll: true }"
+                    v-slot="{ errors, processing }"
+                    @success="editingId = null"
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Edit') }}</DialogTitle>
+                        <DialogDescription>
+                            {{ editingItem.name }}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div class="grid gap-3 py-4 sm:grid-cols-2">
+                        <div class="grid gap-2">
+                            <Label for="eq-edit-name">{{ t('Name') }} *</Label>
+                            <Input
+                                id="eq-edit-name"
+                                name="name"
+                                required
+                                :default-value="editingItem.name"
+                            />
+                            <InputError :message="errors.name" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="eq-edit-sku">{{ t('SKU') }}</Label>
+                            <Input
+                                id="eq-edit-sku"
+                                name="sku"
+                                :default-value="editingItem.sku ?? ''"
+                            />
+                            <InputError :message="errors.sku" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="eq-edit-category">{{ t('Category') }}</Label>
+                            <Input
+                                id="eq-edit-category"
+                                name="category"
+                                :default-value="editingItem.category ?? ''"
+                            />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="eq-edit-unit">{{ t('Unit') }}</Label>
+                            <Input
+                                id="eq-edit-unit"
+                                name="unit"
+                                :default-value="editingItem.unit ?? 'pcs'"
+                            />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="eq-edit-status">{{ t('Status') }}</Label>
+                            <select
+                                id="eq-edit-status"
+                                name="is_active"
+                                class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option
+                                    value="1"
+                                    :selected="editingItem.is_active"
+                                >
+                                    {{ t('Active') }}
+                                </option>
+                                <option
+                                    value="0"
+                                    :selected="!editingItem.is_active"
+                                >
+                                    {{ t('Inactive') }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="grid gap-2 sm:col-span-2">
+                            <Label for="eq-edit-desc">{{ t('Description') }}</Label>
+                            <Textarea
+                                id="eq-edit-desc"
+                                name="description"
+                                rows="2"
+                                :default-value="editingItem.description ?? ''"
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter class="gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="editingId = null"
+                        >
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">
+                            {{ t('Save changes') }}
                         </Button>
                     </DialogFooter>
                 </Form>
@@ -844,50 +961,6 @@ const issueToProject = (itemId: number, form: HTMLFormElement): void => {
                         </Button>
                         <Button type="submit" :disabled="processing">
                             {{ t('Issue') }}
-                        </Button>
-                    </DialogFooter>
-                </Form>
-            </DialogContent>
-        </Dialog>
-
-        <Dialog
-            :open="deletingItem !== null"
-            @update:open="(open) => !open && (deletingId = null)"
-        >
-            <DialogContent v-if="deletingItem">
-                <Form
-                    :action="`/equipment/${deletingItem.id}`"
-                    method="delete"
-                    :options="{ preserveScroll: true }"
-                    v-slot="{ processing }"
-                    @success="deletingId = null"
-                >
-                    <DialogHeader>
-                        <DialogTitle>{{ t('Delete item') }}</DialogTitle>
-                        <DialogDescription>
-                            {{
-                                t(
-                                    'Are you sure you want to delete ":name"? This cannot be undone.',
-                                    { name: deletingItem.name },
-                                )
-                            }}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <DialogFooter class="gap-2">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            @click="deletingId = null"
-                        >
-                            {{ t('Cancel') }}
-                        </Button>
-                        <Button
-                            type="submit"
-                            variant="destructive"
-                            :disabled="processing"
-                        >
-                            {{ t('Delete') }}
                         </Button>
                     </DialogFooter>
                 </Form>

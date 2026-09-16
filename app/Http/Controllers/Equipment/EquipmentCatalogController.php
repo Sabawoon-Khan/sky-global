@@ -215,7 +215,17 @@ class EquipmentCatalogController extends Controller
             'is_active' => ['boolean'],
         ]);
 
+        if (array_key_exists('is_active', $validated)) {
+            $validated['is_active'] = $request->boolean('is_active');
+        }
+
         $equipmentCatalog->update($validated);
+
+        $this->notifyMisUpdated(
+            'inventory',
+            $equipmentCatalog->name,
+            route('equipment.index', [], false),
+        );
 
         Inertia::flash('toast', [
             'type' => 'success',

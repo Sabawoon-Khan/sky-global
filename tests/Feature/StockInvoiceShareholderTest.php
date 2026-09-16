@@ -251,6 +251,42 @@ class StockInvoiceShareholderTest extends TestCase
         $this->assertDatabaseMissing('equipment_stock', ['equipment_catalog_id' => $catalog->id]);
     }
 
+    public function test_stock_item_can_be_updated(): void
+    {
+        $this->actingAs($this->owner)
+            ->post(route('equipment.store'), [
+                'name' => 'Old Radio',
+                'sku' => 'RADIO-EDIT-TEST',
+                'category' => 'Radios',
+                'unit' => 'pcs',
+                'initial_quantity' => 2,
+                'is_active' => true,
+            ])
+            ->assertRedirect();
+
+        $catalog = EquipmentCatalog::query()->where('sku', 'RADIO-EDIT-TEST')->firstOrFail();
+
+        $this->actingAs($this->owner)
+            ->from(route('equipment.index'))
+            ->put(route('equipment.update', $catalog), [
+                'name' => 'Updated Radio',
+                'sku' => 'RADIO-EDIT-TEST',
+                'category' => 'Communications',
+                'unit' => 'set',
+                'description' => 'Field radio set',
+                'is_active' => '0',
+            ])
+            ->assertRedirect();
+
+        $catalog->refresh();
+
+        $this->assertSame('Updated Radio', $catalog->name);
+        $this->assertSame('Communications', $catalog->category);
+        $this->assertSame('set', $catalog->unit);
+        $this->assertSame('Field radio set', $catalog->description);
+        $this->assertFalse($catalog->is_active);
+    }
+
     public function test_issued_stock_item_cannot_be_deleted(): void
     {
         $this->actingAs($this->owner)
