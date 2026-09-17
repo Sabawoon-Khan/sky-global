@@ -11,6 +11,7 @@ use App\Http\Controllers\Equipment\PersonnelTrainingController;
 use App\Http\Controllers\Equipment\ProjectEquipmentIssueController;
 use App\Http\Controllers\Equipment\TrainingSessionController;
 use App\Http\Controllers\Finance\FinanceCategoryController;
+use App\Http\Controllers\Finance\ExpenseFundController;
 use App\Http\Controllers\Finance\GeneralExpenseController;
 use App\Http\Controllers\Finance\GeneralIncomeController;
 use App\Http\Controllers\Finance\InvoiceController;
@@ -151,6 +152,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('expenses', [ProjectExpenseController::class, 'store'])->name('expenses.store');
         Route::put('expenses/{expense}', [ProjectExpenseController::class, 'update'])->name('expenses.update');
         Route::delete('expenses/{expense}', [ProjectExpenseController::class, 'destroy'])->name('expenses.destroy');
+
+        Route::post('expense-funds', [ExpenseFundController::class, 'store'])->name('expense-funds.store');
+        Route::put('expense-funds/{expenseFund}', [ExpenseFundController::class, 'update'])->name('expense-funds.update');
+        Route::delete('expense-funds/{expenseFund}', [ExpenseFundController::class, 'destroy'])->name('expense-funds.destroy');
 
         Route::post('general-expenses', [GeneralExpenseController::class, 'store'])->name('general-expenses.store');
         Route::put('general-expenses/{generalExpense}', [GeneralExpenseController::class, 'update'])->name('general-expenses.update');

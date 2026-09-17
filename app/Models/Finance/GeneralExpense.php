@@ -17,6 +17,7 @@ class GeneralExpense extends Model
 
     protected $fillable = [
         'account_id',
+        'expense_fund_id',
         'amount',
         'currency',
         'exchange_rate',
@@ -44,6 +45,11 @@ class GeneralExpense extends Model
     public function account(): BelongsTo
     {
         return $this->belongsTo(ChartOfAccount::class, 'account_id');
+    }
+
+    public function expenseFund(): BelongsTo
+    {
+        return $this->belongsTo(ExpenseFund::class);
     }
 
     public function createdBy(): BelongsTo
