@@ -85,7 +85,7 @@ class InvoiceController extends Controller
         $filters = $this->listFilters($request, ['draft', 'sent', 'paid', 'overdue', 'cancelled']);
 
         $query = Invoice::query()
-            ->with(['project:id,code,name', 'organization:id,name', 'attachments']);
+            ->with(['project:id,code,name', 'organization:id,name', 'attachments', 'lineItems']);
         $this->applyListFilters($query, $filters, [
             'date_column' => 'issue_date',
             'search_columns' => ['invoice_number', 'notes', 'services'],
@@ -109,9 +109,20 @@ class InvoiceController extends Controller
                 'currency' => $invoice->currency ?: 'AFN',
                 'issue_date' => $invoice->issue_date?->toDateString(),
                 'due_date' => $invoice->due_date?->toDateString(),
+                'period_start' => $invoice->period_start?->toDateString(),
+                'period_end' => $invoice->period_end?->toDateString(),
+                'services' => $invoice->services,
+                'notes' => $invoice->notes,
                 'project' => $invoice->project?->only(['id', 'code', 'name']),
                 'organization' => $invoice->organization?->only(['id', 'name']),
                 'attachments' => $invoice->attachments,
+                'line_items' => $invoice->lineItems->map(fn ($item) => [
+                    'description' => $item->description,
+                    'quantity' => (float) $item->quantity,
+                    'unit_price' => (float) $item->unit_price,
+                    'days' => (int) ($item->days ?: 1),
+                    'total' => (float) $item->total,
+                ])->values()->all(),
             ]);
 
         return Inertia::render('mis/finance/Invoices/Index', [
@@ -145,6 +156,8 @@ class InvoiceController extends Controller
             $request->merge(['tax' => 0]);
         }
 
+        $this->mergeLineItemsFromRequest($request);
+
         $validated = $request->validate([
             'invoice_number' => ['nullable', 'string', 'max:50', Rule::unique('invoices', 'invoice_number')],
             'project_id' => ['nullable', 'exists:projects,id'],
@@ -167,7 +180,10 @@ class InvoiceController extends Controller
             'line_items.*.days' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $lineItems = $this->normalizedInvoiceLines($validated['line_items'] ?? []);
+        $lineItems = $this->normalizedInvoiceLines(
+            $validated['line_items'] ?? [],
+            Invoice::daysInPeriod($validated['period_start'] ?? null, $validated['period_end'] ?? null),
+        );
         unset($validated['line_items']);
 
         $totals = $this->totalsFromLines(
@@ -219,6 +235,16 @@ class InvoiceController extends Controller
     {
         $this->authorizePermission($request, 'finance.edit');
 
+        if (blank($request->input('project_id'))) {
+            $request->merge(['project_id' => null]);
+        }
+
+        if (blank($request->input('organization_id'))) {
+            $request->merge(['organization_id' => null]);
+        }
+
+        $this->mergeLineItemsFromRequest($request);
+
         $validated = $request->validate([
             'invoice_number' => [
                 'sometimes',
@@ -248,7 +274,13 @@ class InvoiceController extends Controller
         ]);
 
         $lineItems = array_key_exists('line_items', $validated)
-            ? $this->normalizedInvoiceLines($validated['line_items'] ?? [])
+            ? $this->normalizedInvoiceLines(
+                $validated['line_items'] ?? [],
+                Invoice::daysInPeriod(
+                    $validated['period_start'] ?? $invoice->period_start,
+                    $validated['period_end'] ?? $invoice->period_end,
+                ),
+            )
             : null;
         unset($validated['line_items']);
 
@@ -352,11 +384,26 @@ class InvoiceController extends Controller
         ]);
     }
 
+    private function mergeLineItemsFromRequest(Request $request): void
+    {
+        $lines = $request->input('line_items');
+
+        if (is_array($lines) && $lines !== []) {
+            return;
+        }
+
+        $decoded = json_decode((string) $request->input('line_items_json', ''), true);
+
+        if (is_array($decoded)) {
+            $request->merge(['line_items' => $decoded]);
+        }
+    }
+
     /**
      * @param  list<array<string, mixed>>  $lines
      * @return list<array{description: string, quantity: float, unit_price: float, days: int, total: float}>
      */
-    private function normalizedInvoiceLines(array $lines): array
+    private function normalizedInvoiceLines(array $lines, ?int $periodDays = null): array
     {
         $items = [];
 
@@ -369,14 +416,16 @@ class InvoiceController extends Controller
 
             $quantity = (float) ($line['quantity'] ?? 1);
             $unitPrice = (float) ($line['unit_price'] ?? 0);
-            $days = max(1, (int) ($line['days'] ?? 1));
+            $days = filled($line['days'] ?? null)
+                ? max(1, (int) $line['days'])
+                : max(1, $periodDays ?? 1);
 
             $items[] = [
                 'description' => $description,
                 'quantity' => $quantity,
                 'unit_price' => $unitPrice,
                 'days' => $days,
-                'total' => round($quantity * $unitPrice * $days, 2),
+                'total' => Invoice::proratedLineTotal($unitPrice, $quantity, $days),
             ];
         }
 

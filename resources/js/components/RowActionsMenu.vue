@@ -49,9 +49,17 @@ const isLinkAction = (action: RowActionItem): boolean =>
 const isDownloadAction = (action: RowActionItem): boolean =>
     Boolean(action.href && action.download);
 
+function afterMenuClose(callback: () => void): void {
+    // Reka UI dropdowns lock pointer-events and dismiss layers. Opening a
+    // dialog in the same click leaves a blank dark overlay and hides the modal.
+    window.setTimeout(callback, 50);
+}
+
 function handleClick(action: RowActionItem): void {
     if (action.form === 'block' || action.confirm) {
-        pendingAction.value = action;
+        afterMenuClose(() => {
+            pendingAction.value = action;
+        });
 
         return;
     }
@@ -61,8 +69,10 @@ function handleClick(action: RowActionItem): void {
 
 function runAction(action: RowActionItem): void {
     if (action.onClick) {
-        action.onClick();
         pendingAction.value = null;
+        afterMenuClose(() => {
+            action.onClick?.();
+        });
 
         return;
     }
@@ -107,7 +117,7 @@ function confirmPendingAction(): void {
 </script>
 
 <template>
-    <DropdownMenu v-if="visibleActions.length > 0">
+    <DropdownMenu v-if="visibleActions.length > 0" :modal="false">
         <DropdownMenuTrigger as-child>
             <Button variant="ghost" size="icon" class="size-8">
                 <MoreHorizontal class="size-4" />

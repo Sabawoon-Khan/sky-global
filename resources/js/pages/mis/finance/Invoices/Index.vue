@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import Can from '@/components/Can.vue';
 import FileLink from '@/components/FileLink.vue';
 import InputError from '@/components/InputError.vue';
@@ -28,15 +28,23 @@ import SortableTh from '@/components/SortableTh.vue';
 import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
 import { provideTableSort } from '@/composables/useTableSort';
-import { formatCurrency, formatDate, type Paginated } from '@/lib/format';
+import { formatCurrency, formatDate, formatNumber, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { invoiceStatusActions } from '@/lib/status-actions';
-import { FileText, Plus, Printer, Trash2 } from '@lucide/vue';
+import { FileText, Pencil, Plus, Printer, Trash2 } from '@lucide/vue';
 
 interface FinanceAttachment {
     id: number;
     original_filename: string;
     download_url: string;
+}
+
+interface InvoiceLine {
+    description?: string | null;
+    quantity?: number | string | null;
+    unit_price?: number | string | null;
+    days?: number | string | null;
+    total?: number | null;
 }
 
 interface Invoice {
@@ -49,9 +57,14 @@ interface Invoice {
     currency?: string | null;
     issue_date?: string | null;
     due_date?: string | null;
+    period_start?: string | null;
+    period_end?: string | null;
+    services?: string | null;
+    notes?: string | null;
     project?: { id: number; code: string; name: string } | null;
     organization?: { id: number; name: string } | null;
     attachments?: FinanceAttachment[];
+    line_items?: InvoiceLine[];
 }
 
 interface SelectOption {
@@ -75,7 +88,7 @@ const props = defineProps<{
     };
 }>();
 
-const { t, deleteAction, gateActions } = useMisPage();
+const { t, can, deleteAction, gateActions } = useMisPage();
 
 const { filters, apply, clear } = useMisFilters(
     '/finance/invoices',
@@ -134,32 +147,66 @@ defineOptions({
     },
 });
 
+const MONTHLY_DAY_BASE = 31;
+
 const showInvoiceForm = ref(false);
+const editingInvoice = ref<Invoice | null>(null);
 const invoiceTax = ref('');
+const periodStart = ref('');
+const periodEnd = ref('');
 const invoiceLines = ref([
     { description: '', quantity: '1', unit_price: '', days: '1' },
 ]);
 
-const invoiceSubtotal = computed(() =>
-    invoiceLines.value.reduce((sum, line) => {
-        const quantity = Number(line.quantity) || 0;
-        const unitPrice = Number(line.unit_price) || 0;
-        const days = Number(line.days) || 1;
+const periodDays = computed(() => {
+    if (!periodStart.value || !periodEnd.value) {
+        return null;
+    }
 
-        return sum + quantity * unitPrice * days;
-    }, 0),
+    const start = new Date(`${periodStart.value}T00:00:00`);
+    const end = new Date(`${periodEnd.value}T00:00:00`);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+        return null;
+    }
+
+    return Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+});
+
+const defaultLineDays = (): string => String(periodDays.value ?? 1);
+
+const lineTotal = (line: { quantity: string; unit_price: string; days: string }): number => {
+    const quantity = Number(line.quantity) || 0;
+    const unitPrice = Number(line.unit_price) || 0;
+    const days = Number(line.days) || 1;
+
+    return (unitPrice / MONTHLY_DAY_BASE) * quantity * days;
+};
+
+const invoiceSubtotal = computed(() =>
+    invoiceLines.value.reduce((sum, line) => sum + lineTotal(line), 0),
 );
 
 const invoiceTotal = computed(
     () => invoiceSubtotal.value + (Number(invoiceTax.value) || 0),
 );
 
+const money = (value: number): string =>
+    `$${formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const applyPeriodDays = (days: number): void => {
+    invoiceLines.value = invoiceLines.value.map((line) => ({
+        ...line,
+        days: String(days),
+    }));
+};
+
 const addInvoiceLine = (): void => {
     invoiceLines.value.push({
         description: '',
         quantity: '1',
         unit_price: '',
-        days: '1',
+        days: defaultLineDays(),
     });
 };
 
@@ -169,7 +216,7 @@ const removeInvoiceLine = (index: number): void => {
             description: '',
             quantity: '1',
             unit_price: '',
-            days: '1',
+            days: defaultLineDays(),
         };
         return;
     }
@@ -177,12 +224,76 @@ const removeInvoiceLine = (index: number): void => {
     invoiceLines.value.splice(index, 1);
 };
 
+watch(periodDays, (days) => {
+    if (days) {
+        applyPeriodDays(days);
+    }
+});
+
+const resetInvoiceForm = (): void => {
+    editingInvoice.value = null;
+    invoiceTax.value = '';
+    periodStart.value = '';
+    periodEnd.value = '';
+    invoiceLines.value = [
+        { description: '', quantity: '1', unit_price: '', days: '1' },
+    ];
+};
+
+const invoiceDialogOpenedAt = ref(0);
+
+const openInvoiceDialog = (): void => {
+    invoiceDialogOpenedAt.value = Date.now();
+    showInvoiceForm.value = true;
+};
+
+const onInvoiceDialogOpenChange = (open: boolean): void => {
+    if (!open && Date.now() - invoiceDialogOpenedAt.value < 300) {
+        return;
+    }
+
+    showInvoiceForm.value = open;
+};
+
+const guardInvoiceDialogDismiss = (event: Event): void => {
+    if (Date.now() - invoiceDialogOpenedAt.value < 300) {
+        event.preventDefault();
+    }
+};
+
+const openCreateInvoice = (): void => {
+    resetInvoiceForm();
+    openInvoiceDialog();
+};
+
+const openEditInvoice = (invoice: Invoice): void => {
+    editingInvoice.value = invoice;
+    invoiceTax.value = invoice.tax ? String(invoice.tax) : '';
+    periodStart.value = invoice.period_start ?? '';
+    periodEnd.value = invoice.period_end ?? '';
+    invoiceLines.value = (invoice.line_items ?? []).length
+        ? invoice.line_items!.map((line) => ({
+              description: line.description ?? '',
+              quantity: String(line.quantity ?? 1),
+              unit_price: String(line.unit_price ?? ''),
+              days: String(line.days ?? 1),
+          }))
+        : [
+              {
+                  description: invoice.services ?? '',
+                  quantity: '1',
+                  unit_price: '',
+                  days: '1',
+              },
+          ];
+    void nextTick(() => {
+        openInvoiceDialog();
+    });
+};
+
 watch(showInvoiceForm, (open) => {
     if (!open) {
-        invoiceTax.value = '';
-        invoiceLines.value = [
-            { description: '', quantity: '1', unit_price: '', days: '1' },
-        ];
+        resetInvoiceForm();
     }
 });
 
@@ -218,6 +329,12 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
         icon: Printer,
         href: `/finance/invoices/${invoice.id}/print?autoprint=1`,
         download: true,
+    },
+    {
+        label: t('Edit'),
+        icon: Pencil,
+        hidden: !can('finance.edit'),
+        onClick: () => openEditInvoice(invoice),
     },
     ...gateActions(
         invoiceStatusActions({
@@ -272,7 +389,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                     <Button
                         variant="outline"
                         size="sm"
-                        @click="showInvoiceForm = true"
+                        @click="openCreateInvoice"
                     >
                         <Plus class="me-1 size-4" />
                         {{ t('Add invoice') }}
@@ -333,12 +450,21 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
 
             <Dialog
                 :open="showInvoiceForm"
-                @update:open="showInvoiceForm = $event"
+                @update:open="onInvoiceDialogOpenChange"
             >
-                <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+                <DialogContent
+                    class="max-h-[90vh] overflow-y-auto sm:max-w-3xl"
+                    @pointer-down-outside="guardInvoiceDialogDismiss"
+                    @interact-outside="guardInvoiceDialogDismiss"
+                >
                     <Form
-                        action="/finance/invoices"
-                        method="post"
+                        :key="editingInvoice?.id ?? 'create'"
+                        :action="
+                            editingInvoice
+                                ? `/finance/invoices/${editingInvoice.id}`
+                                : '/finance/invoices'
+                        "
+                        :method="editingInvoice ? 'put' : 'post'"
                         :options="{
                             preserveScroll: true,
                             resetOnSuccess: true,
@@ -349,7 +475,13 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                         @success="showInvoiceForm = false"
                     >
                         <DialogHeader>
-                            <DialogTitle>{{ t('New invoice') }}</DialogTitle>
+                            <DialogTitle>
+                                {{
+                                    editingInvoice
+                                        ? t('Edit invoice')
+                                        : t('New invoice')
+                                }}
+                            </DialogTitle>
                         </DialogHeader>
 
                         <div class="grid gap-4 py-4">
@@ -364,6 +496,11 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 name="total"
                                 :value="invoiceTotal.toFixed(2)"
                             />
+                            <input
+                                type="hidden"
+                                name="line_items_json"
+                                :value="JSON.stringify(invoiceLines)"
+                            />
 
                             <div class="grid gap-4 sm:grid-cols-2">
                             <div class="grid gap-2 sm:col-span-2">
@@ -373,7 +510,10 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 <Input
                                     id="inv-number"
                                     name="invoice_number"
-                                    :default-value="next_invoice_number"
+                                    :default-value="
+                                        editingInvoice?.invoice_number ??
+                                        next_invoice_number
+                                    "
                                 />
                                 <p class="text-xs text-muted-foreground">
                                     {{
@@ -393,16 +533,38 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                     name="status"
                                     class="h-9 rounded-md border border-input bg-background px-3 text-sm"
                                 >
-                                    <option value="draft">
+                                    <option
+                                        value="draft"
+                                        :selected="
+                                            (editingInvoice?.status ??
+                                                'draft') === 'draft'
+                                        "
+                                    >
                                         {{ t('Draft') }}
                                     </option>
-                                    <option value="sent">
+                                    <option
+                                        value="sent"
+                                        :selected="
+                                            editingInvoice?.status === 'sent'
+                                        "
+                                    >
                                         {{ t('Sent') }}
                                     </option>
-                                    <option value="paid">
+                                    <option
+                                        value="paid"
+                                        :selected="
+                                            editingInvoice?.status === 'paid'
+                                        "
+                                    >
                                         {{ t('Paid') }}
                                     </option>
-                                    <option value="overdue">
+                                    <option
+                                        value="overdue"
+                                        :selected="
+                                            editingInvoice?.status ===
+                                            'overdue'
+                                        "
+                                    >
                                         {{ t('Overdue') }}
                                     </option>
                                 </select>
@@ -421,6 +583,10 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                         v-for="org in props.organizations ?? []"
                                         :key="org.id"
                                         :value="org.id"
+                                        :selected="
+                                            editingInvoice?.organization
+                                                ?.id === org.id
+                                        "
                                     >
                                         {{ org.name }}
                                     </option>
@@ -442,6 +608,10 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                         v-for="project in props.projects ?? []"
                                         :key="project.id"
                                         :value="project.id"
+                                        :selected="
+                                            editingInvoice?.project?.id ===
+                                            project.id
+                                        "
                                     >
                                         {{ project.code }} — {{ project.name }}
                                     </option>
@@ -456,6 +626,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                     name="issue_date"
                                     type="date"
                                     required
+                                    :default-value="editingInvoice?.issue_date"
                                 />
                                 <InputError :message="errors.issue_date" />
                             </div>
@@ -467,6 +638,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                     id="inv-due"
                                     name="due_date"
                                     type="date"
+                                    :default-value="editingInvoice?.due_date"
                                 />
                             </div>
                             <div class="grid gap-2">
@@ -477,6 +649,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                     id="inv-period-start"
                                     name="period_start"
                                     type="date"
+                                    v-model="periodStart"
                                 />
                             </div>
                             <div class="grid gap-2">
@@ -487,13 +660,18 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                     id="inv-period-end"
                                     name="period_end"
                                     type="date"
+                                    v-model="periodEnd"
                                 />
                             </div>
                             <div class="grid gap-2 sm:col-span-2">
                                 <Label for="inv-services">{{
                                     t('Services')
                                 }}</Label>
-                                <Input id="inv-services" name="services" />
+                                <Input
+                                    id="inv-services"
+                                    name="services"
+                                    :default-value="editingInvoice?.services"
+                                />
                             </div>
                             </div>
 
@@ -509,6 +687,13 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                         <Plus class="size-4" />
                                     </Button>
                                 </div>
+                                <p class="text-xs text-muted-foreground">
+                                    {{
+                                        t(
+                                            'Days are counted from the invoice period. Unit cost is a 31-day monthly rate: (unit cost ÷ 31) × quantity × days.',
+                                        )
+                                    }}
+                                </p>
                                 <div class="overflow-x-auto rounded-md border">
                                     <table class="w-full text-sm">
                                         <thead class="bg-muted/40 text-muted-foreground">
@@ -524,6 +709,9 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                                 </th>
                                                 <th class="w-20 px-2 py-1.5 text-start font-medium">
                                                     {{ t('Days') }}
+                                                </th>
+                                                <th class="w-24 px-2 py-1.5 text-end font-medium">
+                                                    {{ t('Total') }}
                                                 </th>
                                                 <th class="w-10" />
                                             </tr>
@@ -570,6 +758,13 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                                         class="h-8"
                                                     />
                                                 </td>
+                                                <td class="px-2 py-1.5 text-end tabular-nums">
+                                                    {{
+                                                        line.description
+                                                            ? money(lineTotal(line))
+                                                            : ''
+                                                    }}
+                                                </td>
                                                 <td class="px-2 py-1.5">
                                                     <button
                                                         type="button"
@@ -602,12 +797,16 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 <div
                                     class="flex h-9 items-center rounded-md border border-input bg-muted/40 px-3 text-sm font-semibold tabular-nums"
                                 >
-                                    {{ formatCurrency(invoiceTotal, 'USD') }}
+                                    {{ money(invoiceTotal) }}
                                 </div>
                             </div>
                             <div class="grid gap-2 sm:col-span-2">
                                 <Label for="inv-notes">{{ t('Notes') }}</Label>
-                                <Input id="inv-notes" name="notes" />
+                                <Input
+                                    id="inv-notes"
+                                    name="notes"
+                                    :default-value="editingInvoice?.notes"
+                                />
                             </div>
                             <div class="grid gap-2 sm:col-span-2">
                                 <OptionalAttachmentField

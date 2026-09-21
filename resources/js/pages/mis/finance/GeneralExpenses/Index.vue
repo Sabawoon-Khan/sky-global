@@ -7,6 +7,7 @@ import InputError from '@/components/InputError.vue';
 import MisListFilterBar from '@/components/mis/MisListFilterBar.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import FinanceCategoryField, {
     type FinanceCategoryOption,
 } from '@/components/FinanceCategoryField.vue';
@@ -33,7 +34,8 @@ import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
 import { provideTableSort } from '@/composables/useTableSort';
 import { formatAfn, formatDate, type Paginated } from '@/lib/format';
-import { Plus, Receipt, Wallet } from '@lucide/vue';
+import type { RowActionItem } from '@/lib/row-actions';
+import { Pencil, Plus, Receipt, Wallet } from '@lucide/vue';
 
 interface FinanceAttachment {
     id: number;
@@ -90,10 +92,11 @@ const props = defineProps<{
     };
 }>();
 
-const { t } = useMisPage();
+const { t, can, deleteAction } = useMisPage();
 const showGeneralExpenseForm = ref(false);
 const showExpenseFundForm = ref(false);
 const viewingRecord = ref<GeneralRecord | null>(null);
+const editingRecord = ref<GeneralRecord | null>(null);
 const viewingFund = ref<ExpenseFundSummary | null>(null);
 const editingFund = ref(false);
 
@@ -159,6 +162,37 @@ function openFundDetail(fund: ExpenseFundSummary): void {
     viewingFund.value = fund;
     editingFund.value = false;
 }
+
+const openCreateExpense = (): void => {
+    editingRecord.value = null;
+    showGeneralExpenseForm.value = true;
+};
+
+const openEditExpense = (item: GeneralRecord): void => {
+    viewingRecord.value = null;
+    editingRecord.value = item;
+    showGeneralExpenseForm.value = true;
+};
+
+const expenseActions = (item: GeneralRecord): RowActionItem[] => [
+    {
+        label: t('Edit'),
+        icon: Pencil,
+        hidden: !can('finance.edit'),
+        onClick: () => openEditExpense(item),
+    },
+    deleteAction(
+        {
+            href: `/finance/general-expenses/${item.id}`,
+            title: t('Delete expense'),
+            description: t(
+                'Are you sure you want to delete ":name"? This cannot be undone.',
+                { name: item.description || t('this expense') },
+            ),
+        },
+        'finance.delete',
+    ),
+];
 
 function deleteFund(fund: ExpenseFundSummary): void {
     if (!fund.can_delete) {
@@ -343,7 +377,7 @@ const money = (value?: number | null): string => formatAfn(value);
                         <Button
                             variant="outline"
                             size="sm"
-                            @click="showGeneralExpenseForm = true"
+                            @click="openCreateExpense"
                         >
                             <Plus class="me-1 size-4" />
                             {{ t('Add') }}
@@ -450,6 +484,7 @@ const money = (value?: number | null): string => formatAfn(value);
                                     >
                                         {{ t('Amount') }}
                                     </SortableTh>
+                                    <th class="w-12 px-3 py-2" />
                                 </tr>
                             </thead>
                             <tbody class="divide-y">
@@ -503,6 +538,14 @@ const money = (value?: number | null): string => formatAfn(value);
                                         class="px-3 py-2 text-end font-medium text-destructive"
                                     >
                                         {{ money(item.amount) }}
+                                    </td>
+                                    <td
+                                        class="px-3 py-2 text-end"
+                                        @click.stop
+                                    >
+                                        <RowActionsMenu
+                                            :actions="expenseActions(item)"
+                                        />
                                     </td>
                                 </tr>
                             </tbody>
@@ -759,12 +802,22 @@ const money = (value?: number | null): string => formatAfn(value);
 
         <Dialog
             :open="showGeneralExpenseForm"
-            @update:open="showGeneralExpenseForm = $event"
+            @update:open="
+                (open) => {
+                    showGeneralExpenseForm = open;
+                    if (!open) editingRecord = null;
+                }
+            "
         >
             <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-lg">
                 <Form
-                    action="/finance/general-expenses"
-                    method="post"
+                    :key="editingRecord?.id ?? 'create'"
+                    :action="
+                        editingRecord
+                            ? `/finance/general-expenses/${editingRecord.id}`
+                            : '/finance/general-expenses'
+                    "
+                    :method="editingRecord ? 'put' : 'post'"
                     :options="{
                         preserveScroll: true,
                         resetOnSuccess: true,
@@ -775,7 +828,13 @@ const money = (value?: number | null): string => formatAfn(value);
                     @success="showGeneralExpenseForm = false"
                 >
                     <DialogHeader>
-                        <DialogTitle>{{ t('Overhead & Salaries') }}</DialogTitle>
+                        <DialogTitle>
+                            {{
+                                editingRecord
+                                    ? t('Edit expense')
+                                    : t('Overhead & Salaries')
+                            }}
+                        </DialogTitle>
                     </DialogHeader>
 
                     <div class="grid gap-3 py-4 sm:grid-cols-2">
@@ -788,6 +847,7 @@ const money = (value?: number | null): string => formatAfn(value);
                                 name="description"
                                 rows="2"
                                 required
+                                :default-value="editingRecord?.description ?? ''"
                             />
                             <InputError :message="errors.description" />
                         </div>
@@ -796,6 +856,7 @@ const money = (value?: number | null): string => formatAfn(value);
                                 applies-to="expense"
                                 :categories="categories ?? []"
                                 :error="errors.category"
+                                :default-value="editingRecord?.category"
                             />
                         </div>
                         <div class="grid gap-2 sm:col-span-2">
@@ -812,6 +873,10 @@ const money = (value?: number | null): string => formatAfn(value);
                                     v-for="fund in fundOptions"
                                     :key="fund.id"
                                     :value="fund.id"
+                                    :selected="
+                                        editingRecord?.expense_fund_id ===
+                                        fund.id
+                                    "
                                 >
                                     {{ fundLabelWithRemaining(fund) }}
                                 </option>
@@ -827,6 +892,7 @@ const money = (value?: number | null): string => formatAfn(value);
                                 min="0"
                                 step="0.01"
                                 required
+                                :default-value="editingRecord?.amount"
                             />
                         </div>
                         <div class="grid gap-2">
@@ -836,6 +902,7 @@ const money = (value?: number | null): string => formatAfn(value);
                                 name="transaction_date"
                                 type="date"
                                 required
+                                :default-value="editingRecord?.transaction_date"
                             />
                         </div>
                         <div class="grid gap-2 sm:col-span-2">
@@ -916,7 +983,7 @@ const money = (value?: number | null): string => formatAfn(value);
                         </div>
                     </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter class="gap-2">
                     <Button
                         type="button"
                         variant="secondary"
@@ -924,6 +991,15 @@ const money = (value?: number | null): string => formatAfn(value);
                     >
                         {{ t('Close') }}
                     </Button>
+                    <Can permission="finance.edit">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            @click="openEditExpense(viewingRecord)"
+                        >
+                            {{ t('Edit') }}
+                        </Button>
+                    </Can>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

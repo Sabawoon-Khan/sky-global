@@ -7,6 +7,7 @@ use App\Concerns\LogsCrudActivity;
 use App\Models\Organization;
 use App\Models\Project\Project;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,6 +17,29 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Invoice extends Model
 {
     use HasAttachments, LogsCrudActivity, SoftDeletes;
+
+    public const MONTHLY_DAY_BASE = 31;
+
+    public static function daysInPeriod(mixed $start, mixed $end): ?int
+    {
+        if (blank($start) || blank($end)) {
+            return null;
+        }
+
+        $from = Carbon::parse($start)->startOfDay();
+        $to = Carbon::parse($end)->startOfDay();
+
+        if ($to->lt($from)) {
+            return null;
+        }
+
+        return (int) $from->diffInDays($to) + 1;
+    }
+
+    public static function proratedLineTotal(float $unitPrice, float $quantity, int $days): float
+    {
+        return round(($unitPrice / self::MONTHLY_DAY_BASE) * $quantity * $days, 2);
+    }
 
     protected $fillable = [
         'project_id',

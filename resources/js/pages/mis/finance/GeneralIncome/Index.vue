@@ -7,6 +7,7 @@ import InputError from '@/components/InputError.vue';
 import MisListFilterBar from '@/components/mis/MisListFilterBar.vue';
 import MisPagination from '@/components/MisPagination.vue';
 import OptionalAttachmentField from '@/components/OptionalAttachmentField.vue';
+import RowActionsMenu from '@/components/RowActionsMenu.vue';
 import FinanceCategoryField, {
     type FinanceCategoryOption,
 } from '@/components/FinanceCategoryField.vue';
@@ -33,7 +34,8 @@ import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
 import { provideTableSort } from '@/composables/useTableSort';
 import { formatAfn, formatDate, type Paginated } from '@/lib/format';
-import { Plus, Wallet } from '@lucide/vue';
+import type { RowActionItem } from '@/lib/row-actions';
+import { Pencil, Plus, Wallet } from '@lucide/vue';
 
 interface FinanceAttachment {
     id: number;
@@ -66,9 +68,41 @@ const props = defineProps<{
     stats?: { total?: number; count?: number };
 }>();
 
-const { t } = useMisPage();
+const { t, can, deleteAction } = useMisPage();
 const showGeneralIncomeForm = ref(false);
 const viewingRecord = ref<GeneralRecord | null>(null);
+const editingRecord = ref<GeneralRecord | null>(null);
+
+const openCreateIncome = (): void => {
+    editingRecord.value = null;
+    showGeneralIncomeForm.value = true;
+};
+
+const openEditIncome = (item: GeneralRecord): void => {
+    viewingRecord.value = null;
+    editingRecord.value = item;
+    showGeneralIncomeForm.value = true;
+};
+
+const incomeActions = (item: GeneralRecord): RowActionItem[] => [
+    {
+        label: t('Edit'),
+        icon: Pencil,
+        hidden: !can('finance.edit'),
+        onClick: () => openEditIncome(item),
+    },
+    deleteAction(
+        {
+            href: `/finance/general-incomes/${item.id}`,
+            title: t('Delete income'),
+            description: t(
+                'Are you sure you want to delete ":name"? This cannot be undone.',
+                { name: item.description || t('this income') },
+            ),
+        },
+        'finance.delete',
+    ),
+];
 
 const { filters, apply, clear } = useMisFilters(
     '/finance/general-income',
@@ -159,7 +193,7 @@ const money = (value?: number | null): string => formatAfn(value);
                         <Button
                             variant="outline"
                             size="sm"
-                            @click="showGeneralIncomeForm = true"
+                            @click="openCreateIncome"
                         >
                             <Plus class="me-1 size-4" />
                             {{ t('Add') }}
@@ -247,6 +281,7 @@ const money = (value?: number | null): string => formatAfn(value);
                                     >
                                         {{ t('Amount') }}
                                     </SortableTh>
+                                    <th class="w-12 px-3 py-2" />
                                 </tr>
                             </thead>
                             <tbody class="divide-y">
@@ -296,6 +331,14 @@ const money = (value?: number | null): string => formatAfn(value);
                                     >
                                         {{ money(item.amount) }}
                                     </td>
+                                    <td
+                                        class="px-3 py-2 text-end"
+                                        @click.stop
+                                    >
+                                        <RowActionsMenu
+                                            :actions="incomeActions(item)"
+                                        />
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -309,12 +352,22 @@ const money = (value?: number | null): string => formatAfn(value);
 
         <Dialog
             :open="showGeneralIncomeForm"
-            @update:open="showGeneralIncomeForm = $event"
+            @update:open="
+                (open) => {
+                    showGeneralIncomeForm = open;
+                    if (!open) editingRecord = null;
+                }
+            "
         >
             <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-lg">
                 <Form
-                    action="/finance/general-incomes"
-                    method="post"
+                    :key="editingRecord?.id ?? 'create'"
+                    :action="
+                        editingRecord
+                            ? `/finance/general-incomes/${editingRecord.id}`
+                            : '/finance/general-incomes'
+                    "
+                    :method="editingRecord ? 'put' : 'post'"
                     :options="{
                         preserveScroll: true,
                         resetOnSuccess: true,
@@ -325,7 +378,13 @@ const money = (value?: number | null): string => formatAfn(value);
                     @success="showGeneralIncomeForm = false"
                 >
                     <DialogHeader>
-                        <DialogTitle>{{ t('Other Income') }}</DialogTitle>
+                        <DialogTitle>
+                            {{
+                                editingRecord
+                                    ? t('Edit income')
+                                    : t('Other Income')
+                            }}
+                        </DialogTitle>
                     </DialogHeader>
 
                     <div class="grid gap-3 py-4 sm:grid-cols-2">
@@ -338,6 +397,7 @@ const money = (value?: number | null): string => formatAfn(value);
                                 name="description"
                                 rows="2"
                                 required
+                                :default-value="editingRecord?.description ?? ''"
                             />
                             <InputError :message="errors.description" />
                         </div>
@@ -346,6 +406,7 @@ const money = (value?: number | null): string => formatAfn(value);
                                 applies-to="income"
                                 :categories="categories ?? []"
                                 :error="errors.category"
+                                :default-value="editingRecord?.category"
                             />
                         </div>
                         <div class="grid gap-2">
@@ -357,6 +418,7 @@ const money = (value?: number | null): string => formatAfn(value);
                                 min="0"
                                 step="0.01"
                                 required
+                                :default-value="editingRecord?.amount"
                             />
                         </div>
                         <div class="grid gap-2">
@@ -366,6 +428,7 @@ const money = (value?: number | null): string => formatAfn(value);
                                 name="transaction_date"
                                 type="date"
                                 required
+                                :default-value="editingRecord?.transaction_date"
                             />
                         </div>
                         <div class="grid gap-2 sm:col-span-2">
@@ -440,7 +503,7 @@ const money = (value?: number | null): string => formatAfn(value);
                         </div>
                     </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter class="gap-2">
                     <Button
                         type="button"
                         variant="secondary"
@@ -448,6 +511,15 @@ const money = (value?: number | null): string => formatAfn(value);
                     >
                         {{ t('Close') }}
                     </Button>
+                    <Can permission="finance.edit">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            @click="openEditIncome(viewingRecord)"
+                        >
+                            {{ t('Edit') }}
+                        </Button>
+                    </Can>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

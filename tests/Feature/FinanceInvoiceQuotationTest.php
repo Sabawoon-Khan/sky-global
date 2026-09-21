@@ -94,10 +94,67 @@ class FinanceInvoiceQuotationTest extends TestCase
         $this->assertCount(2, $invoices);
         $this->assertSame('INV-MANUAL', $invoices[0]->invoice_number);
         $this->assertSame("SSGSC-{$year}-01012", $invoices[1]->invoice_number);
-        $this->assertSame(37975.0, (float) $invoices[0]->subtotal);
-        $this->assertSame(37975.0, (float) $invoices[0]->total);
+        $this->assertSame(1225.0, (float) $invoices[0]->subtotal);
+        $this->assertSame(1225.0, (float) $invoices[0]->total);
         $this->assertCount(2, $invoices[0]->lineItems);
         $this->assertSame(31, (int) $invoices[0]->lineItems->first()->days);
+        $this->assertSame(400.0, (float) $invoices[0]->lineItems->first()->total);
+    }
+
+    public function test_invoice_days_come_from_the_period_and_unit_cost_is_prorated(): void
+    {
+        $this->actingAs($this->owner)
+            ->post(route('finance.invoices.store'), [
+                'issue_date' => '2026-08-15',
+                'period_start' => '2026-08-01',
+                'period_end' => '2026-08-15',
+                'currency' => 'USD',
+                'organization_id' => $this->organization->id,
+                'line_items' => [
+                    [
+                        'description' => 'Site Security Manager',
+                        'quantity' => 1,
+                        'unit_price' => 400,
+                    ],
+                ],
+            ])
+            ->assertRedirect();
+
+        $invoice = Invoice::query()->first();
+
+        $this->assertNotNull($invoice);
+        $this->assertSame(15, (int) $invoice->lineItems->first()->days);
+        $this->assertSame(193.55, (float) $invoice->lineItems->first()->total);
+        $this->assertSame(193.55, (float) $invoice->total);
+    }
+
+    public function test_invoice_line_items_can_be_submitted_as_json(): void
+    {
+        $this->actingAs($this->owner)
+            ->post(route('finance.invoices.store'), [
+                'issue_date' => '2026-09-21',
+                'period_start' => '2026-09-21',
+                'period_end' => '2026-09-30',
+                'currency' => 'USD',
+                'organization_id' => $this->organization->id,
+                'line_items_json' => json_encode([
+                    [
+                        'description' => 'Static Guard',
+                        'quantity' => 1,
+                        'unit_price' => 400,
+                        'days' => 10,
+                    ],
+                ]),
+            ])
+            ->assertRedirect();
+
+        $invoice = Invoice::query()->first();
+
+        $this->assertNotNull($invoice);
+        $this->assertCount(1, $invoice->lineItems);
+        $this->assertSame('Static Guard', $invoice->lineItems->first()->description);
+        $this->assertSame(10, (int) $invoice->lineItems->first()->days);
+        $this->assertSame(129.03, (float) $invoice->lineItems->first()->total);
     }
 
     public function test_invoice_create_form_includes_next_invoice_number(): void
@@ -142,7 +199,7 @@ class FinanceInvoiceQuotationTest extends TestCase
                 ->where('invoice.organization.name', 'Darya Village Hotel Services')
                 ->has('company.name')
                 ->has('company.bank.usd.account')
-                ->where('amount_in_words', NumberToWords::money(400, 'USD'))
+                ->where('amount_in_words', NumberToWords::money(12.90, 'USD'))
             );
     }
 
