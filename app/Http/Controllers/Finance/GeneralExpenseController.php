@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Concerns\AppliesListFilters;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\HandlesExpenseFundSpending;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Models\Finance\ExpenseFund;
@@ -16,7 +17,7 @@ use Inertia\Response;
 
 class GeneralExpenseController extends Controller
 {
-    use AppliesListFilters, AuthorizesMisPermissions, StoresOptionalAttachments;
+    use AppliesListFilters, AuthorizesMisPermissions, HandlesExpenseFundSpending, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
@@ -53,30 +54,7 @@ class GeneralExpenseController extends Controller
                 'attachments' => $expense->attachments,
             ]);
 
-        $expenseFunds = ExpenseFund::query()
-            ->withSum('generalExpenses as spent_amount', 'amount')
-            ->withCount('generalExpenses')
-            ->latest('received_date')
-            ->get()
-            ->map(function (ExpenseFund $fund) {
-                $spent = (float) ($fund->spent_amount ?? 0);
-                $received = (float) $fund->amount_received;
-
-                return [
-                    'id' => $fund->id,
-                    'label' => $fund->displayLabel(),
-                    'received_from' => $fund->received_from,
-                    'description' => $fund->description,
-                    'amount_received' => $received,
-                    'spent_amount' => $spent,
-                    'remaining_amount' => $received - $spent,
-                    'currency' => $fund->currency,
-                    'received_date' => $fund->received_date?->toDateString(),
-                    'reference_number' => $fund->reference_number,
-                    'is_overdrawn' => $spent > $received,
-                    'can_delete' => ($fund->general_expenses_count ?? 0) === 0,
-                ];
-            });
+        $expenseFunds = ExpenseFund::inertiaSummaries();
 
         $openFundsCount = $expenseFunds->filter(fn (array $fund) => $fund['remaining_amount'] > 0)->count();
 
@@ -98,9 +76,7 @@ class GeneralExpenseController extends Controller
     {
         $this->authorizePermission($request, 'finance.create');
 
-        if ($request->input('expense_fund_id') === '') {
-            $request->merge(['expense_fund_id' => null]);
-        }
+        $this->mergeEmptyExpenseFundId($request);
 
         $validated = $request->validate([
             'account_id' => ['nullable', 'exists:chart_of_accounts,id'],
@@ -117,7 +93,7 @@ class GeneralExpenseController extends Controller
             'status' => ['nullable', 'string', 'in:pending,approved,rejected'],
         ]);
 
-        $validated = $this->applyFundCurrency($validated);
+        $validated = $this->applyExpenseFundCurrency($validated);
 
         $expense = GeneralExpense::query()->create([
             ...$validated,
@@ -143,9 +119,7 @@ class GeneralExpenseController extends Controller
 
         $previousFundId = $generalExpense->expense_fund_id;
 
-        if ($request->input('expense_fund_id') === '') {
-            $request->merge(['expense_fund_id' => null]);
-        }
+        $this->mergeEmptyExpenseFundId($request);
 
         $validated = $request->validate([
             'account_id' => ['nullable', 'exists:chart_of_accounts,id'],
@@ -162,7 +136,7 @@ class GeneralExpenseController extends Controller
             'status' => ['nullable', 'string', 'in:pending,approved,rejected'],
         ]);
 
-        $validated = $this->applyFundCurrency($validated, $generalExpense);
+        $validated = $this->applyExpenseFundCurrency($validated, $generalExpense->expense_fund_id);
 
         $generalExpense->update($validated);
 
@@ -194,56 +168,5 @@ class GeneralExpenseController extends Controller
             back()->with('success', 'General expense deleted.'),
             $this->fundIdsToCheck($fundId, null),
         );
-    }
-
-    /**
-     * @param  array<string, mixed>  $validated
-     * @return array<string, mixed>
-     */
-    private function applyFundCurrency(array $validated, ?GeneralExpense $existing = null): array
-    {
-        $fundId = $validated['expense_fund_id'] ?? $existing?->expense_fund_id;
-        if ($fundId === null) {
-            return $validated;
-        }
-
-        $fund = ExpenseFund::query()->find($fundId);
-        if ($fund === null) {
-            return $validated;
-        }
-
-        if (! array_key_exists('currency', $validated) || $validated['currency'] === null) {
-            $validated['currency'] = $fund->currency;
-        }
-
-        return $validated;
-    }
-
-    /**
-     * @return list<int>
-     */
-    private function fundIdsToCheck(?int $previousFundId, ?int $currentFundId): array
-    {
-        return array_values(array_unique(array_filter([$previousFundId, $currentFundId])));
-    }
-
-    /**
-     * @param  list<int>  $fundIds
-     */
-    private function redirectWithFundWarnings(RedirectResponse $response, array $fundIds): RedirectResponse
-    {
-        foreach ($fundIds as $fundId) {
-            $fund = ExpenseFund::query()->find($fundId);
-            if ($fund === null) {
-                continue;
-            }
-
-            $warning = $fund->overdrawWarningMessage();
-            if ($warning !== null) {
-                return $response->with('warning', $warning);
-            }
-        }
-
-        return $response;
     }
 }

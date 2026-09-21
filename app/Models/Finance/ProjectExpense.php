@@ -17,6 +17,7 @@ class ProjectExpense extends Model
 
     protected $fillable = [
         'project_id',
+        'expense_fund_id',
         'account_id',
         'amount',
         'currency',
@@ -45,6 +46,11 @@ class ProjectExpense extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function expenseFund(): BelongsTo
+    {
+        return $this->belongsTo(ExpenseFund::class);
     }
 
     public function account(): BelongsTo

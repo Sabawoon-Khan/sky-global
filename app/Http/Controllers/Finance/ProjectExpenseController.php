@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Finance;
 use App\Enums\ProjectActivityType;
 use App\Http\Controllers\Concerns\AppliesListFilters;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
+use App\Http\Controllers\Concerns\HandlesExpenseFundSpending;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
+use App\Models\Finance\ExpenseFund;
 use App\Models\Finance\FinanceCategory;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Project\Project;
@@ -18,7 +20,7 @@ use Inertia\Response;
 
 class ProjectExpenseController extends Controller
 {
-    use AppliesListFilters, AuthorizesMisPermissions, StoresOptionalAttachments;
+    use AppliesListFilters, AuthorizesMisPermissions, HandlesExpenseFundSpending, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
@@ -27,7 +29,7 @@ class ProjectExpenseController extends Controller
         $filters = $this->listFilters($request, ['pending', 'approved', 'rejected']);
 
         $query = ProjectExpense::query()
-            ->with(['project', 'account', 'attachments']);
+            ->with(['project', 'account', 'attachments', 'expenseFund']);
         $this->applyListFilters($query, $filters, [
             'search_columns' => ['description', 'reference_number'],
             'search_relations' => ['project' => ['code', 'name']],
@@ -47,12 +49,15 @@ class ProjectExpenseController extends Controller
                 'currency' => $expense->currency,
                 'transaction_date' => $expense->transaction_date?->toDateString(),
                 'status' => $expense->status,
+                'expense_fund_id' => $expense->expense_fund_id,
+                'expense_fund_label' => $expense->expenseFund?->displayLabel(),
                 'project' => $expense->project?->only(['id', 'code', 'name']),
                 'attachments' => $expense->attachments,
             ]);
 
         return Inertia::render('mis/finance/Expenses/Index', [
             'expenses' => $expenses,
+            'expenseFunds' => ExpenseFund::inertiaSummaries(),
             'projects' => Project::query()
                 ->where('is_archived', false)
                 ->orderBy('code')
@@ -83,8 +88,11 @@ class ProjectExpenseController extends Controller
     {
         $this->authorizePermission($request, 'finance.create');
 
+        $this->mergeEmptyExpenseFundId($request);
+
         $validated = $request->validate([
             'project_id' => ['required', 'exists:projects,id'],
+            'expense_fund_id' => ['nullable', 'exists:expense_funds,id'],
             'account_id' => ['nullable', 'exists:chart_of_accounts,id'],
             'amount' => ['required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
@@ -97,6 +105,8 @@ class ProjectExpenseController extends Controller
             'payment_method' => ['nullable', 'string', 'max:50'],
             'status' => ['nullable', 'string', 'in:pending,approved,rejected'],
         ]);
+
+        $validated = $this->applyExpenseFundCurrency($validated);
 
         $expense = ProjectExpense::query()->create([
             ...$validated,
@@ -121,14 +131,22 @@ class ProjectExpenseController extends Controller
             route('finance.expenses', [], false),
         );
 
-        return back()->with('success', 'Expense recorded.');
+        return $this->redirectWithFundWarnings(
+            back()->with('success', 'Expense recorded.'),
+            $this->fundIdsToCheck(null, $validated['expense_fund_id'] ?? null),
+        );
     }
 
     public function update(Request $request, ProjectExpense $expense): RedirectResponse
     {
         $this->authorizePermission($request, 'finance.edit');
 
+        $previousFundId = $expense->expense_fund_id;
+
+        $this->mergeEmptyExpenseFundId($request);
+
         $validated = $request->validate([
+            'expense_fund_id' => ['nullable', 'exists:expense_funds,id'],
             'account_id' => ['nullable', 'exists:chart_of_accounts,id'],
             'amount' => ['sometimes', 'required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
@@ -142,6 +160,8 @@ class ProjectExpenseController extends Controller
             'status' => ['nullable', 'string', 'in:pending,approved,rejected'],
         ]);
 
+        $validated = $this->applyExpenseFundCurrency($validated, $expense->expense_fund_id);
+
         $expense->update($validated);
 
         $this->notifyMisUpdated(
@@ -150,18 +170,25 @@ class ProjectExpenseController extends Controller
             route('finance.expenses', [], false),
         );
 
-        return back()->with('success', 'Expense updated.');
+        return $this->redirectWithFundWarnings(
+            back()->with('success', 'Expense updated.'),
+            $this->fundIdsToCheck($previousFundId, $expense->expense_fund_id),
+        );
     }
 
     public function destroy(Request $request, ProjectExpense $expense): RedirectResponse
     {
         $this->authorizePermission($request, 'finance.delete');
 
+        $fundId = $expense->expense_fund_id;
         $label = $expense->description ?: __('Project expense');
         $expense->delete();
 
         $this->notifyMisDeleted('finance', $label, route('finance.expenses', [], false));
 
-        return back()->with('success', 'Expense deleted.');
+        return $this->redirectWithFundWarnings(
+            back()->with('success', 'Expense deleted.'),
+            $this->fundIdsToCheck($fundId, null),
+        );
     }
 }

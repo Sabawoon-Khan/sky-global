@@ -1,1 +1,0 @@
-import{A as e,J as t,S as n,T as r}from"./dist-ChOSDFAK.js";import{D as i}from"./app-sVQYorFb.js";var a=e({__name:`Can`,props:{permission:{}},setup(e){let a=e,{can:o,canAny:s}=i(),c=n(()=>Array.isArray(a.permission)?s(a.permission):o(a.permission));return(e,n)=>c.value?t(e.$slots,`default`,{key:0}):r(``,!0)}});export{a as t};

@@ -4,6 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Finance\ExpenseFund;
 use App\Models\Finance\GeneralExpense;
+use App\Models\Finance\ProjectExpense;
+use App\Models\Organization;
+use App\Models\OrganizationType;
+use App\Models\Project\Project;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -135,6 +139,63 @@ class ExpenseFundTest extends TestCase
         $this->assertSame(1000.0, $fund->fresh()->remainingAmount());
     }
 
+    public function test_project_expense_linked_to_fund_updates_remaining(): void
+    {
+        $fund = ExpenseFund::query()->create([
+            'amount_received' => 20000,
+            'currency' => 'AFN',
+            'received_date' => now()->toDateString(),
+            'created_by' => $this->owner->id,
+        ]);
+
+        $project = $this->makeProject();
+
+        $this->actingAs($this->owner)
+            ->from(route('projects.show', $project))
+            ->post(route('projects.expenses.store', $project), [
+                'amount' => 7000,
+                'transaction_date' => now()->toDateString(),
+                'description' => 'Site materials',
+                'expense_fund_id' => $fund->id,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $fund->refresh();
+
+        $this->assertSame(7000.0, $fund->spentAmount());
+        $this->assertSame(13000.0, $fund->remainingAmount());
+    }
+
+    public function test_cannot_delete_fund_with_linked_project_expense(): void
+    {
+        $fund = ExpenseFund::query()->create([
+            'amount_received' => 5000,
+            'currency' => 'AFN',
+            'received_date' => now()->toDateString(),
+            'created_by' => $this->owner->id,
+        ]);
+
+        $project = $this->makeProject();
+
+        ProjectExpense::query()->create([
+            'project_id' => $project->id,
+            'expense_fund_id' => $fund->id,
+            'amount' => 100,
+            'currency' => 'AFN',
+            'transaction_date' => now()->toDateString(),
+            'created_by' => $this->owner->id,
+        ]);
+
+        $this->actingAs($this->owner)
+            ->from(route('finance.general-expenses'))
+            ->delete(route('finance.expense-funds.destroy', $fund))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('expense_funds', ['id' => $fund->id]);
+    }
+
     public function test_cannot_delete_fund_with_linked_expenses(): void
     {
         $fund = ExpenseFund::query()->create([
@@ -186,5 +247,25 @@ class ExpenseFundTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('success')
             ->assertSessionHas('warning');
+    }
+
+    private function makeProject(): Project
+    {
+        $organization = Organization::query()->create([
+            'organization_type_id' => OrganizationType::query()->create([
+                'name' => 'Gov',
+                'slug' => 'gov-fund-test',
+            ])->id,
+            'name' => 'Ministry of Interior',
+        ]);
+
+        return Project::query()->create([
+            'organization_id' => $organization->id,
+            'code' => 'GS-2026-FUND',
+            'name' => 'Static Guard Services',
+            'currency' => 'AFN',
+            'status' => 'won',
+            'created_by' => $this->owner->id,
+        ]);
     }
 }

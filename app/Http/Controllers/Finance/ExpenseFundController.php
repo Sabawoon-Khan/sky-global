@@ -75,7 +75,7 @@ class ExpenseFundController extends Controller
     {
         $this->authorizePermission($request, 'finance.delete');
 
-        if ($expenseFund->generalExpenses()->exists()) {
+        if ($expenseFund->generalExpenses()->exists() || $expenseFund->projectExpenses()->exists()) {
             return back()->with('error', __('Cannot delete a fund that has linked expenses.'));
         }
 

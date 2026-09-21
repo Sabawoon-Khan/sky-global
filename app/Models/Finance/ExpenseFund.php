@@ -4,10 +4,12 @@ namespace App\Models\Finance;
 
 use App\Concerns\LogsCrudActivity;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 class ExpenseFund extends Model
 {
@@ -41,24 +43,48 @@ class ExpenseFund extends Model
         return $this->hasMany(GeneralExpense::class);
     }
 
+    public function projectExpenses(): HasMany
+    {
+        return $this->hasMany(ProjectExpense::class);
+    }
+
+    public static function queryWithSpentAggregates(): Builder
+    {
+        return static::query()
+            ->withSum('generalExpenses as general_spent_amount', 'amount')
+            ->withSum('projectExpenses as project_spent_amount', 'amount')
+            ->withCount(['generalExpenses', 'projectExpenses']);
+    }
+
+    public function aggregatedSpentAmount(): float
+    {
+        if (isset($this->general_spent_amount) || isset($this->project_spent_amount)) {
+            return (float) ($this->general_spent_amount ?? 0)
+                + (float) ($this->project_spent_amount ?? 0);
+        }
+
+        return $this->spentAmount();
+    }
+
     public function spentAmount(): float
     {
-        return (float) $this->generalExpenses()->sum('amount');
+        return (float) $this->generalExpenses()->sum('amount')
+            + (float) $this->projectExpenses()->sum('amount');
     }
 
     public function remainingAmount(): float
     {
-        return (float) $this->amount_received - $this->spentAmount();
+        return (float) $this->amount_received - $this->aggregatedSpentAmount();
     }
 
     public function isOverdrawn(): bool
     {
-        return $this->spentAmount() > (float) $this->amount_received;
+        return $this->aggregatedSpentAmount() > (float) $this->amount_received;
     }
 
     public function overdrawAmount(): float
     {
-        return max(0, $this->spentAmount() - (float) $this->amount_received);
+        return max(0, $this->aggregatedSpentAmount() - (float) $this->amount_received);
     }
 
     public function overdrawWarningMessage(): ?string
@@ -87,5 +113,35 @@ class ExpenseFund extends Model
         return __('Fund :date', [
             'date' => $this->received_date?->toDateString() ?? (string) $this->id,
         ]);
+    }
+
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    public static function inertiaSummaries(): Collection
+    {
+        return static::queryWithSpentAggregates()
+            ->latest('received_date')
+            ->get()
+            ->map(function (ExpenseFund $fund) {
+                $spent = $fund->aggregatedSpentAmount();
+                $received = (float) $fund->amount_received;
+
+                return [
+                    'id' => $fund->id,
+                    'label' => $fund->displayLabel(),
+                    'received_from' => $fund->received_from,
+                    'description' => $fund->description,
+                    'amount_received' => $received,
+                    'spent_amount' => $spent,
+                    'remaining_amount' => $received - $spent,
+                    'currency' => $fund->currency,
+                    'received_date' => $fund->received_date?->toDateString(),
+                    'reference_number' => $fund->reference_number,
+                    'is_overdrawn' => $spent > $received,
+                    'can_delete' => ($fund->general_expenses_count ?? 0) === 0
+                        && ($fund->project_expenses_count ?? 0) === 0,
+                ];
+            });
     }
 }

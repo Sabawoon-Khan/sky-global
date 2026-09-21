@@ -236,7 +236,7 @@ const money = (value?: number | null): string => formatAfn(value);
                         <p class="mt-1 text-sm text-muted-foreground">
                             {{
                                 t(
-                                    'Record money received, then link each expense to that fund.',
+                                    'Record money received, then link overhead or project expenses to that fund.',
                                 )
                             }}
                         </p>

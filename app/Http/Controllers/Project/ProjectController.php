@@ -6,11 +6,13 @@ use App\Enums\ProjectActivityType;
 use App\Enums\ProjectStatus;
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\GeneratesMisReferenceNumbers;
+use App\Http\Controllers\Concerns\HandlesExpenseFundSpending;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Project\StoreProjectRequest;
 use App\Http\Requests\Project\UpdateProjectRequest;
 use App\Models\Equipment\EquipmentCatalog;
+use App\Models\Finance\ExpenseFund;
 use App\Models\Finance\FinanceCategory;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Finance\ProjectIncome;
@@ -31,7 +33,7 @@ use Inertia\Response;
 
 class ProjectController extends Controller
 {
-    use AuthorizesMisPermissions, GeneratesMisReferenceNumbers, StoresOptionalAttachments;
+    use AuthorizesMisPermissions, GeneratesMisReferenceNumbers, HandlesExpenseFundSpending, StoresOptionalAttachments;
 
     public function index(Request $request): Response
     {
@@ -200,7 +202,7 @@ class ProjectController extends Controller
             'sites',
             'deployments' => fn ($q) => $q->with(['projectSite', 'personnel'])->latest(),
             'incomes' => fn ($q) => $q->with('attachments')->latest('transaction_date')->limit(20),
-            'expenses' => fn ($q) => $q->with('attachments')->latest('transaction_date')->limit(20),
+            'expenses' => fn ($q) => $q->with(['attachments', 'expenseFund'])->latest('transaction_date')->limit(20),
             'shareholders' => fn ($q) => $q->with(['transactions' => fn ($tq) => $tq->latest('transaction_date')->limit(10)]),
             'equipmentIssues' => fn ($q) => $q
                 ->with([
@@ -257,6 +259,7 @@ class ProjectController extends Controller
                     'quantity_on_hand' => (int) ($item->stock?->quantity_on_hand ?? 0),
                 ]),
             'financeCategories' => FinanceCategory::options(),
+            'expenseFunds' => ExpenseFund::inertiaSummaries(),
         ]);
     }
 
@@ -435,19 +438,26 @@ class ProjectController extends Controller
     {
         $this->authorizePermission($request, 'finance.create');
 
+        $this->mergeEmptyExpenseFundId($request);
+
         $validated = $request->validate([
             'amount' => ['required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
+            'expense_fund_id' => ['nullable', 'exists:expense_funds,id'],
             'description' => ['nullable', 'string', 'max:255'],
             'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
         ]);
 
+        $validated = $this->applyExpenseFundCurrency([
+            ...$validated,
+            'currency' => $validated['currency'] ?? 'AFN',
+        ]);
+
         $expense = ProjectExpense::query()->create([
             ...$validated,
             'project_id' => $project->id,
-            'currency' => 'AFN',
             'created_by' => $request->user()->id,
         ]);
         $this->storeOptionalAttachment($request, $expense);
@@ -466,7 +476,10 @@ class ProjectController extends Controller
             route('projects.show', $project, false),
         );
 
-        return back()->with('success', 'Expense recorded.');
+        return $this->redirectWithFundWarnings(
+            back()->with('success', 'Expense recorded.'),
+            $this->fundIdsToCheck(null, $validated['expense_fund_id'] ?? null),
+        );
     }
 
     public function updateDetails(Request $request, Project $project): RedirectResponse
