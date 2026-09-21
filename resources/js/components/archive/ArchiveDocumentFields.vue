@@ -26,6 +26,7 @@ interface DocumentDefaults {
     document_date?: string | null;
     received_at?: string | null;
     sent_at?: string | null;
+    reference_number?: string | null;
 }
 
 const props = withDefaults(
@@ -38,6 +39,7 @@ const props = withDefaults(
         fileRequired?: boolean;
         showFileField?: boolean;
         fileLabel?: string;
+        nextReferenceNumber?: string;
         fieldsSection?: 'all' | 'basic' | 'dates' | 'links' | 'file' | 'description';
     }>(),
     {
@@ -70,6 +72,20 @@ const show = (name: NonNullable<typeof props.fieldsSection>): boolean =>
                     :default-value="document?.title"
                 />
                 <InputError :message="errors.title" />
+            </div>
+
+            <div class="grid gap-2 md:col-span-3">
+                <Label for="doc-reference">{{ t('Reference #') }}</Label>
+                <Input
+                    id="doc-reference"
+                    name="reference_number"
+                    class="h-10 rounded-xl"
+                    :default-value="document?.reference_number || nextReferenceNumber"
+                />
+                <p v-if="nextReferenceNumber && !document?.reference_number" class="text-xs text-muted-foreground">
+                    {{ t('Auto-generated. You can change this before saving.') }}
+                </p>
+                <InputError :message="errors.reference_number" />
             </div>
 
             <div class="grid gap-2">

@@ -21,6 +21,7 @@ defineProps<{
     categories?: DocumentCategory[];
     organizations?: Option[];
     projects?: Option[];
+    next_reference_number?: string;
 }>();
 
 const { t } = useMisPage();
@@ -60,6 +61,7 @@ defineOptions({
                     :categories="categories"
                     :organizations="organizations"
                     :projects="projects"
+                    :next-reference-number="next_reference_number"
                 />
             </V2FormSection>
 

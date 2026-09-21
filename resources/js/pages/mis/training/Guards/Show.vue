@@ -73,6 +73,7 @@ interface TrainingGuard {
 
 const props = defineProps<{
     guard: TrainingGuard;
+    next_certificate_number?: string;
 }>();
 
 const { t, can } = useMisPage();
@@ -549,6 +550,24 @@ defineOptions({
                     :options="{ forceFormData: true }"
                     v-slot="{ errors, processing }"
                 >
+                    <div class="v2-field">
+                        <Label for="certificate_number">{{
+                            t('Certificate number')
+                        }}</Label>
+                        <Input
+                            id="certificate_number"
+                            name="certificate_number"
+                            :default-value="next_certificate_number"
+                        />
+                        <p class="text-xs text-muted-foreground">
+                            {{
+                                t(
+                                    'Auto-generated. You can change this before saving.',
+                                )
+                            }}
+                        </p>
+                        <InputError :message="errors.certificate_number" />
+                    </div>
                     <div class="v2-field">
                         <Label for="certificate_issued_at">{{
                             t('Issue date')

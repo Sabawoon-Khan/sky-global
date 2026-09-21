@@ -129,7 +129,9 @@ class BidController extends Controller
 
         $bid = Bid::query()->create([
             ...$validated,
-            'bid_number' => $this->generateBidNumber(),
+            'bid_number' => filled($validated['bid_number'] ?? null)
+                ? $validated['bid_number']
+                : $this->generateBidNumber(),
             'status' => $validated['status'] ?? BidStatus::Draft->value,
             'created_by' => $request->user()->id,
         ]);

@@ -733,7 +733,7 @@ class DemoDataSeeder extends Seeder
             $invoice = Invoice::query()->create([
                 'project_id' => $project->id,
                 'organization_id' => $project->organization_id,
-                'invoice_number' => 'GS-INV-'.str_pad((string) $project->id, 5, '0', STR_PAD_LEFT),
+                'invoice_number' => 'SSGSC-INV-'.str_pad((string) $project->id, 5, '0', STR_PAD_LEFT),
                 'issue_date' => now()->subDays(rand(10, 45)),
                 'due_date' => now()->addDays(30),
                 'subtotal' => $invoiceTotal,
@@ -898,6 +898,6 @@ class DemoDataSeeder extends Seeder
 
     private function projectCode(int $sequence): string
     {
-        return 'GS-'.now()->format('Y').'-'.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
+        return 'SSGSC-'.now()->format('Y').'-'.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
     }
 }

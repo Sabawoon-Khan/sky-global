@@ -9,7 +9,6 @@ use App\Models\Procurement\Bid;
 use App\Models\Project\Project;
 use App\Models\Project\ProjectDetail;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class BidToProjectService
 {
@@ -23,7 +22,7 @@ class BidToProjectService
             $project = Project::query()->create([
                 'bid_id' => $bid->id,
                 'organization_id' => $opportunity->organization_id,
-                'code' => $this->generateProjectCode(),
+                'code' => DocumentNumberService::nextProjectCode(),
                 'name' => $opportunity->title,
                 'scope_summary' => $opportunity->description,
                 'total_contract_value' => $bid->our_total_amount,
@@ -51,14 +50,5 @@ class BidToProjectService
 
             return $project->fresh(['organization', 'detail', 'bid']);
         });
-    }
-
-    private function generateProjectCode(): string
-    {
-        do {
-            $code = 'GS-'.now()->format('Y').'-'.Str::upper(Str::random(4));
-        } while (Project::query()->where('code', $code)->exists());
-
-        return $code;
     }
 }

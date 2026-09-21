@@ -27,7 +27,7 @@ class CompanyDocument
             'name' => $company['name'],
             'name_fa' => 'کمپنی خدمات امنیتی سن سکای گلوبل',
             'short_name' => 'Sun Sky Global Security Service Co.',
-            'address' => $contact['address'],
+            'address' => 'Home 9# Loy Saranwali Street, Shahri Naw, PD10, Kabul/Afghanistan',
             'phone' => $contact['phone'],
             'phone_alt' => '+(93) 799 508 888',
             'email' => $contact['email'],

@@ -12,6 +12,7 @@ use App\Support\CompanyDocument;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -55,6 +56,7 @@ class QuotationController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'filters' => $filters,
+            'next_quote_number' => DocumentNumberService::nextQuoteNumber(),
         ]);
     }
 
@@ -71,6 +73,7 @@ class QuotationController extends Controller
         }
 
         $validated = $request->validate([
+            'quote_number' => ['nullable', 'string', 'max:50', Rule::unique('quotations', 'quote_number')],
             'organization_id' => ['nullable', 'exists:organizations,id'],
             'quote_date' => ['required', 'date'],
             'valid_until' => ['nullable', 'date', 'after_or_equal:quote_date'],
@@ -94,7 +97,10 @@ class QuotationController extends Controller
         $quotation = DB::transaction(function () use ($request, $validated, $lineItems, $subtotal, $tax) {
             $quotation = Quotation::query()->create([
                 ...$validated,
-                'quote_number' => DocumentNumberService::nextQuoteNumber(),
+                'quote_number' => DocumentNumberService::resolve(
+                    $validated['quote_number'] ?? null,
+                    fn () => DocumentNumberService::nextQuoteNumber(),
+                ),
                 'subtotal' => $subtotal,
                 'tax' => $tax,
                 'total' => round($subtotal + $tax, 2),

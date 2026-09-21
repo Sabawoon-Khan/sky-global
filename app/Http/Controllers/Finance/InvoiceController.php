@@ -22,6 +22,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -124,6 +125,7 @@ class InvoiceController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'filters' => $filters,
+            'next_invoice_number' => DocumentNumberService::nextInvoiceNumber(),
         ]);
     }
 
@@ -144,6 +146,7 @@ class InvoiceController extends Controller
         }
 
         $validated = $request->validate([
+            'invoice_number' => ['nullable', 'string', 'max:50', Rule::unique('invoices', 'invoice_number')],
             'project_id' => ['nullable', 'exists:projects,id'],
             'organization_id' => ['nullable', 'exists:organizations,id'],
             'issue_date' => ['required', 'date'],
@@ -177,7 +180,10 @@ class InvoiceController extends Controller
         $invoice = DB::transaction(function () use ($request, $validated, $lineItems, $totals) {
             $invoice = Invoice::query()->create([
                 ...$validated,
-                'invoice_number' => DocumentNumberService::nextInvoiceNumber(),
+                'invoice_number' => DocumentNumberService::resolve(
+                    $validated['invoice_number'] ?? null,
+                    fn () => DocumentNumberService::nextInvoiceNumber(),
+                ),
                 'subtotal' => $totals['subtotal'],
                 'tax' => $totals['tax'],
                 'total' => $totals['total'],
@@ -214,6 +220,13 @@ class InvoiceController extends Controller
         $this->authorizePermission($request, 'finance.edit');
 
         $validated = $request->validate([
+            'invoice_number' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('invoices', 'invoice_number')->ignore($invoice),
+            ],
             'project_id' => ['nullable', 'exists:projects,id'],
             'organization_id' => ['nullable', 'exists:organizations,id'],
             'issue_date' => ['sometimes', 'date'],

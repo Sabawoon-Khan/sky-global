@@ -25,6 +25,7 @@ interface OrganizationType {
 defineProps<{
     organizations: Organization[];
     organizationTypes: OrganizationType[];
+    next_code?: string;
 }>();
 
 const { t } = useMisPage();
@@ -79,6 +80,15 @@ defineOptions({
                         <Label for="name">{{ t('Project / opportunity title') }} *</Label>
                         <Input id="name" name="name" required />
                         <InputError :message="errors.name" />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="code">{{ t('Project code') }}</Label>
+                        <Input id="code" name="code" :default-value="next_code" />
+                        <p class="text-xs text-muted-foreground">
+                            {{ t('Auto-generated. You can change this before saving.') }}
+                        </p>
+                        <InputError :message="errors.code" />
                     </div>
 
                     <div class="grid gap-2">

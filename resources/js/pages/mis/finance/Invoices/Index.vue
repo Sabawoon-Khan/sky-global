@@ -64,6 +64,7 @@ const props = defineProps<{
     invoices: Paginated<Invoice>;
     projects?: SelectOption[];
     organizations?: SelectOption[];
+    next_invoice_number?: string;
     filters?: {
         search?: string | null;
         project_id?: number | null;
@@ -365,6 +366,24 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                             />
 
                             <div class="grid gap-4 sm:grid-cols-2">
+                            <div class="grid gap-2 sm:col-span-2">
+                                <Label for="inv-number">{{
+                                    t('Invoice number')
+                                }}</Label>
+                                <Input
+                                    id="inv-number"
+                                    name="invoice_number"
+                                    :default-value="next_invoice_number"
+                                />
+                                <p class="text-xs text-muted-foreground">
+                                    {{
+                                        t(
+                                            'Auto-generated. You can change this before saving.',
+                                        )
+                                    }}
+                                </p>
+                                <InputError :message="errors.invoice_number" />
+                            </div>
                             <div class="grid gap-2">
                                 <Label for="inv-status">{{
                                     t('Status')

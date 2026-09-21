@@ -73,6 +73,7 @@ class TrainingFieldReportController extends Controller
         return Inertia::render('mis/training/Field/Reports/Create', [
             'roster' => $roster,
             'selectedIds' => $preselected,
+            'next_reference_number' => DocumentNumberService::nextFieldTrainingReportNumber(),
         ]);
     }
 
@@ -81,6 +82,7 @@ class TrainingFieldReportController extends Controller
         $this->authorizePermission($request, 'training.create');
 
         $validated = $request->validate([
+            'reference_number' => ['nullable', 'string', 'max:50', Rule::unique('training_field_reports', 'reference_number')],
             'report_date' => ['required', 'date'],
             'description' => ['required', 'string'],
             'trainer_name' => ['nullable', 'string', 'max:255'],
@@ -103,7 +105,10 @@ class TrainingFieldReportController extends Controller
             }
 
             $report = TrainingFieldReport::query()->create([
-                'reference_number' => DocumentNumberService::nextFieldTrainingReportNumber(),
+                'reference_number' => DocumentNumberService::resolve(
+                    $validated['reference_number'] ?? null,
+                    fn () => DocumentNumberService::nextFieldTrainingReportNumber(),
+                ),
                 'report_date' => $validated['report_date'],
                 'description' => $validated['description'],
                 'trainer_name' => $validated['trainer_name'] ?? null,

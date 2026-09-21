@@ -19,6 +19,7 @@ class StoreProjectRequest extends FormRequest
         return [
             'organization_id' => ['required', 'exists:organizations,id'],
             'name' => ['required', 'string', 'max:255'],
+            'code' => ['nullable', 'string', 'max:50', Rule::unique('projects', 'code')],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'scope_summary' => ['nullable', 'string'],
             'source' => ['nullable', 'string', 'max:255'],

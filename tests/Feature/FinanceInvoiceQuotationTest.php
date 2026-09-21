@@ -92,12 +92,25 @@ class FinanceInvoiceQuotationTest extends TestCase
         $year = now()->year;
 
         $this->assertCount(2, $invoices);
-        $this->assertSame("SSGSC-{$year}-00001", $invoices[0]->invoice_number);
-        $this->assertSame("SSGSC-{$year}-00002", $invoices[1]->invoice_number);
+        $this->assertSame('INV-MANUAL', $invoices[0]->invoice_number);
+        $this->assertSame("SSGSC-{$year}-01012", $invoices[1]->invoice_number);
         $this->assertSame(37975.0, (float) $invoices[0]->subtotal);
         $this->assertSame(37975.0, (float) $invoices[0]->total);
         $this->assertCount(2, $invoices[0]->lineItems);
         $this->assertSame(31, (int) $invoices[0]->lineItems->first()->days);
+    }
+
+    public function test_invoice_create_form_includes_next_invoice_number(): void
+    {
+        $year = now()->year;
+
+        $this->actingAs($this->owner)
+            ->get(route('finance.invoices'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('mis/finance/Invoices/Index')
+                ->where('next_invoice_number', "SSGSC-{$year}-01012")
+            );
     }
 
     public function test_invoice_print_page_uses_company_template(): void
@@ -140,6 +153,7 @@ class FinanceInvoiceQuotationTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('mis/finance/Quotations/Index')
+                ->where('next_quote_number', 'SSGSC-001')
             );
 
         $this->actingAs($this->owner)
@@ -187,8 +201,8 @@ class FinanceInvoiceQuotationTest extends TestCase
         $quotations = Quotation::query()->orderBy('id')->get();
 
         $this->assertCount(2, $quotations);
-        $this->assertSame('SG001', $quotations[0]->quote_number);
-        $this->assertSame('SG002', $quotations[1]->quote_number);
+        $this->assertSame('SSGSC-001', $quotations[0]->quote_number);
+        $this->assertSame('SSGSC-002', $quotations[1]->quote_number);
         $this->assertSame(3900.0, (float) $quotations[0]->subtotal);
         $this->assertSame(156.0, (float) $quotations[0]->tax);
         $this->assertSame(4056.0, (float) $quotations[0]->total);
@@ -198,7 +212,7 @@ class FinanceInvoiceQuotationTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('mis/finance/QuotationPrint')
-                ->where('quotation.quote_number', 'SG001')
+                ->where('quotation.quote_number', 'SSGSC-001')
                 ->where('quotation.organization.name', 'Darya Village Hotel Services')
                 ->has('company.phone_alt')
             );

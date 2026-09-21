@@ -16,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -123,6 +124,7 @@ class ArchivedDocumentController extends Controller
             'categories' => DocumentCategory::query()->orderBy('name')->get(['id', 'name']),
             'organizations' => Organization::query()->orderBy('name')->get(['id', 'name']),
             'projects' => Project::query()->orderBy('name')->get(['id', 'code', 'name']),
+            'next_reference_number' => $this->generateArchiveReferenceNumber(),
         ]);
     }
 
@@ -132,6 +134,7 @@ class ArchivedDocumentController extends Controller
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
+            'reference_number' => ['nullable', 'string', 'max:50', 'unique:archived_documents,reference_number'],
             'description' => ['nullable', 'string'],
             'direction' => ['required', 'string', 'in:incoming,outgoing,internal'],
             'document_category_id' => ['nullable', 'exists:document_categories,id'],
@@ -150,7 +153,9 @@ class ArchivedDocumentController extends Controller
 
         $document = ArchivedDocument::query()->create([
             ...collect($validated)->except('file')->all(),
-            'reference_number' => $this->generateArchiveReferenceNumber(),
+            'reference_number' => filled($validated['reference_number'] ?? null)
+                ? $validated['reference_number']
+                : $this->generateArchiveReferenceNumber(),
             'file_path' => $path,
             'original_filename' => $file->getClientOriginalName(),
             'file_size' => $file->getSize(),
@@ -208,6 +213,13 @@ class ArchivedDocumentController extends Controller
 
         $validated = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'reference_number' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('archived_documents', 'reference_number')->ignore($archivedDocument),
+            ],
             'description' => ['nullable', 'string'],
             'direction' => ['sometimes', 'string', 'in:incoming,outgoing,internal'],
             'document_category_id' => ['nullable', 'exists:document_categories,id'],

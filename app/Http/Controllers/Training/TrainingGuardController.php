@@ -136,6 +136,8 @@ class TrainingGuardController extends Controller
 
         return Inertia::render('mis/training/Guards/Show', [
             'guard' => $trainingGuard,
+            'next_certificate_number' => $trainingGuard->certificate_number
+                ?: DocumentNumberService::nextTrainingCertificateNumber(),
         ]);
     }
 
@@ -328,6 +330,12 @@ class TrainingGuardController extends Controller
         }
 
         $validated = $request->validate([
+            'certificate_number' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('training_guards', 'certificate_number')->ignore($trainingGuard),
+            ],
             'certificate_issued_at' => ['nullable', 'date'],
             'certificate' => ['nullable', 'file', 'max:10240'],
         ]);
@@ -345,8 +353,10 @@ class TrainingGuardController extends Controller
             $original = $file->getClientOriginalName();
         }
 
-        $number = $trainingGuard->certificate_number
-            ?: DB::transaction(fn () => DocumentNumberService::nextTrainingCertificateNumber());
+        $number = DocumentNumberService::resolve(
+            $validated['certificate_number'] ?? $trainingGuard->certificate_number,
+            fn () => DB::transaction(fn () => DocumentNumberService::nextTrainingCertificateNumber()),
+        );
 
         $trainingGuard->update([
             'status' => TrainingStatus::Certified->value,

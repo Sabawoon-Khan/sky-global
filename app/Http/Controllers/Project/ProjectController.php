@@ -149,6 +149,7 @@ class ProjectController extends Controller
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'next_code' => $this->generateProjectCode(),
         ]);
     }
 
@@ -158,7 +159,9 @@ class ProjectController extends Controller
 
         $project = Project::query()->create([
             ...$validated,
-            'code' => $this->generateProjectCode(),
+            'code' => filled($validated['code'] ?? null)
+                ? $validated['code']
+                : $this->generateProjectCode(),
             'currency' => $validated['currency'] ?? 'AFN',
             'status' => $validated['status'] ?? ProjectStatus::Draft->value,
             'project_manager_id' => $request->user()->id,

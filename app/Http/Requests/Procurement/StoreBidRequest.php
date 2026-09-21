@@ -15,6 +15,7 @@ class StoreBidRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'bid_number' => ['nullable', 'string', 'max:50', 'unique:bids,bid_number'],
             'procurement_opportunity_id' => ['required', 'exists:procurement_opportunities,id'],
             'status' => ['nullable', 'string', 'in:draft,submitted,under_review,won,lost,cancelled'],
             'submitted_at' => ['nullable', 'date'],

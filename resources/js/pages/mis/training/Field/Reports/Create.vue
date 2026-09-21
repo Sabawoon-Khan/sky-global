@@ -22,6 +22,7 @@ interface RosterGuard {
 const props = defineProps<{
     roster: RosterGuard[];
     selectedIds?: number[];
+    next_reference_number?: string;
 }>();
 
 const { t } = useMisPage();
@@ -89,6 +90,18 @@ defineOptions({
         >
             <V2FormSection :title="t('Report details')">
                 <div class="mis-form-grid">
+                    <div class="v2-field">
+                        <Label for="reference_number">{{ t('Reference #') }}</Label>
+                        <Input
+                            id="reference_number"
+                            name="reference_number"
+                            :default-value="next_reference_number"
+                        />
+                        <p class="text-xs text-muted-foreground">
+                            {{ t('Auto-generated. You can change this before saving.') }}
+                        </p>
+                        <InputError :message="errors.reference_number" />
+                    </div>
                     <div class="v2-field">
                         <Label for="report_date">{{ t('Report date') }} *</Label>
                         <Input

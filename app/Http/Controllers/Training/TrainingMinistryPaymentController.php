@@ -114,6 +114,7 @@ class TrainingMinistryPaymentController extends Controller
             'selectedIds' => $selected,
             'batches' => $batches,
             'preselectedBatch' => $preselectedBatch ?: null,
+            'next_reference_number' => DocumentNumberService::nextMinistryPaymentNumber(),
         ]);
     }
 
@@ -122,6 +123,7 @@ class TrainingMinistryPaymentController extends Controller
         $this->authorizePermission($request, 'training.create');
 
         $validated = $request->validate([
+            'reference_number' => ['nullable', 'string', 'max:50', Rule::unique('training_ministry_payments', 'reference_number')],
             'batch_number' => ['required', 'string', 'max:50'],
             'payment_date' => ['required', 'date'],
             'period_start' => ['required', 'date'],
@@ -170,7 +172,10 @@ class TrainingMinistryPaymentController extends Controller
             }
 
             $payment = TrainingMinistryPayment::query()->create([
-                'reference_number' => DocumentNumberService::nextMinistryPaymentNumber(),
+                'reference_number' => DocumentNumberService::resolve(
+                    $validated['reference_number'] ?? null,
+                    fn () => DocumentNumberService::nextMinistryPaymentNumber(),
+                ),
                 'batch_number' => $batchNumber,
                 'payment_date' => $validated['payment_date'],
                 'period_start' => $validated['period_start'],

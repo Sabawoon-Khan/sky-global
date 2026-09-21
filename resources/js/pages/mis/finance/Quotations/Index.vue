@@ -47,6 +47,7 @@ interface SelectOption {
 const props = defineProps<{
     quotations: Paginated<Quotation>;
     organizations?: SelectOption[];
+    next_quote_number?: string;
     filters?: {
         search?: string | null;
         organization_id?: number | null;
@@ -256,6 +257,24 @@ const quotationActions = (quotation: Quotation): RowActionItem[] => [
                             <input type="hidden" name="currency" value="USD" />
 
                             <div class="grid gap-4 sm:grid-cols-2">
+                                <div class="grid gap-2 sm:col-span-2">
+                                    <Label for="q-number">{{
+                                        t('Quote number')
+                                    }}</Label>
+                                    <Input
+                                        id="q-number"
+                                        name="quote_number"
+                                        :default-value="next_quote_number"
+                                    />
+                                    <p class="text-xs text-muted-foreground">
+                                        {{
+                                            t(
+                                                'Auto-generated. You can change this before saving.',
+                                            )
+                                        }}
+                                    </p>
+                                    <InputError :message="errors.quote_number" />
+                                </div>
                                 <div class="grid gap-2">
                                     <Label for="q-org">{{ t('Client') }}</Label>
                                     <select

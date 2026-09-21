@@ -34,6 +34,7 @@ const props = defineProps<{
     selectedIds?: number[];
     batches?: BatchOption[];
     preselectedBatch?: string | null;
+    next_reference_number?: string;
 }>();
 
 const { t } = useMisPage();
@@ -197,6 +198,18 @@ defineOptions({
 
             <V2FormSection :title="t('Payment details')">
                 <div class="mis-form-grid">
+                    <div class="v2-field">
+                        <Label for="reference_number">{{ t('Reference #') }}</Label>
+                        <Input
+                            id="reference_number"
+                            name="reference_number"
+                            :default-value="next_reference_number"
+                        />
+                        <p class="text-xs text-muted-foreground">
+                            {{ t('Auto-generated. You can change this before saving.') }}
+                        </p>
+                        <InputError :message="errors.reference_number" />
+                    </div>
                     <div class="v2-field">
                         <Label for="payment_date">{{ t('Payment date') }} *</Label>
                         <Input id="payment_date" name="payment_date" type="date" required />
