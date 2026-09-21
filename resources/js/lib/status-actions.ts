@@ -301,7 +301,15 @@ const PROJECT_TRANSITIONS: Record<
         { value: 'active', label: 'Resume' },
         { value: 'closed', label: 'Close project' },
     ],
-    completed: [{ value: 'closed', label: 'Close project' }],
+    completed: [
+        { value: 'active', label: 'Mark active' },
+        { value: 'suspended', label: 'Suspend' },
+        { value: 'closed', label: 'Close project' },
+    ],
+    closed: [
+        { value: 'active', label: 'Mark active' },
+        { value: 'completed', label: 'Mark completed' },
+    ],
 };
 
 export function projectStatusActions(

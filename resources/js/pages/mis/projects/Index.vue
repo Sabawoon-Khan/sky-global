@@ -176,7 +176,7 @@ const monthlyBars = computed(() => {
 
 const projectActions = (project: Project): RowActionItem[] => [
     viewAction(`/mis/projects/${project.id}`),
-    editAction(`/mis/projects/${project.id}`, 'projects.edit'),
+    editAction(`/mis/projects/${project.id}?edit=1`, 'projects.edit'),
     ...gateActions(
         projectStatusActions(project.id, project.status, t),
         'projects.edit',

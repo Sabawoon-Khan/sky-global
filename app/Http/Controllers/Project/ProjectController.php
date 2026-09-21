@@ -313,7 +313,7 @@ class ProjectController extends Controller
         $this->authorizePermission($request, 'projects.edit');
 
         $validated = $request->validate([
-            'status' => ['required', 'string', 'in:draft,submitted,won,lost,active,completed,closed'],
+            'status' => ['required', 'string', 'in:draft,submitted,won,lost,active,suspended,completed,closed'],
             'loss_reason' => ['nullable', 'string'],
             'winning_competitor_name' => ['nullable', 'string', 'max:255'],
             'winning_amount' => ['nullable', 'numeric', 'min:0'],
@@ -571,7 +571,15 @@ class ProjectController extends Controller
             ProjectStatus::Lost->value => [ProjectStatus::Draft],
             ProjectStatus::Active->value => [ProjectStatus::Suspended, ProjectStatus::Completed],
             ProjectStatus::Suspended->value => [ProjectStatus::Active, ProjectStatus::Closed],
-            ProjectStatus::Completed->value => [ProjectStatus::Closed],
+            ProjectStatus::Completed->value => [
+                ProjectStatus::Active,
+                ProjectStatus::Suspended,
+                ProjectStatus::Closed,
+            ],
+            ProjectStatus::Closed->value => [
+                ProjectStatus::Active,
+                ProjectStatus::Completed,
+            ],
         ];
 
         $allowed = $map[$current] ?? [];

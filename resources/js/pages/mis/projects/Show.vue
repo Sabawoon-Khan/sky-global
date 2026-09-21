@@ -210,6 +210,11 @@ interface PersonOption {
     last_name: string;
 }
 
+interface OrganizationOption {
+    id: number;
+    name: string;
+}
+
 interface Project {
     id: number;
     code: string;
@@ -218,6 +223,7 @@ interface Project {
     status: string;
     scope_summary: string | null;
     location: string | null;
+    source: string | null;
     security_scope: string[] | null;
     submission_deadline: string | null;
     our_bid_amount: number | null;
@@ -258,6 +264,7 @@ const props = defineProps<{
         shareholder_outstanding?: number;
     };
     statusOptions: StatusOption[];
+    organizations?: OrganizationOption[];
     employees?: PersonOption[];
     contractors?: PersonOption[];
     currencies?: string[];
@@ -327,12 +334,20 @@ const tabIds: TabId[] = [
 
 const page = usePage();
 
-const tabFromUrl = (url: string): TabId => {
+const queryFromUrl = (url: string): URLSearchParams => {
     const query = url.includes('?') ? (url.split('?')[1] ?? '') : '';
-    const fromUrl = new URLSearchParams(query).get('tab');
+
+    return new URLSearchParams(query);
+};
+
+const tabFromUrl = (url: string): TabId => {
+    const fromUrl = queryFromUrl(url).get('tab');
 
     return tabIds.includes(fromUrl as TabId) ? (fromUrl as TabId) : 'overview';
 };
+
+const editFromUrl = (url: string = page.url): boolean =>
+    queryFromUrl(url).get('edit') === '1';
 
 const initialTab = (): TabId => tabFromUrl(page.url);
 
@@ -349,9 +364,66 @@ function syncTabFromUrl(): void {
     }
 }
 
+const showProjectEditForm = ref(false);
+
+const setEditQueryParam = (enabled: boolean): void => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const url = new URL(window.location.href);
+
+    if (enabled) {
+        url.searchParams.set('edit', '1');
+    } else {
+        url.searchParams.delete('edit');
+    }
+
+    window.history.replaceState({}, '', url.toString());
+};
+
+const openProjectEdit = (): void => {
+    showProjectEditForm.value = true;
+    setEditQueryParam(true);
+};
+
+const closeProjectEdit = (): void => {
+    showProjectEditForm.value = false;
+    setEditQueryParam(false);
+};
+
+const onProjectEditOpenChange = (open: boolean): void => {
+    if (open) {
+        openProjectEdit();
+        return;
+    }
+
+    closeProjectEdit();
+};
+
+function syncEditFromUrl(): void {
+    if (editFromUrl() && can('projects.edit')) {
+        showProjectEditForm.value = true;
+        return;
+    }
+
+    if (!editFromUrl()) {
+        showProjectEditForm.value = false;
+    }
+}
+
 onMounted(() => {
     syncTabFromUrl();
+    syncEditFromUrl();
 });
+
+watch(
+    () => page.url,
+    () => {
+        syncTabFromUrl();
+        syncEditFromUrl();
+    },
+);
 
 watch(activeTab, (tab) => {
     if (typeof window === 'undefined') {
@@ -789,6 +861,15 @@ const closeIssueEdit = (): void => {
                 <div class="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" as-child>
                         <Link href="/mis/projects">{{ t('Back to list') }}</Link>
+                    </Button>
+                    <Button
+                        v-if="can('projects.edit')"
+                        size="sm"
+                        variant="outline"
+                        @click="openProjectEdit"
+                    >
+                        <Pencil class="me-1 size-4" />
+                        {{ t('Edit') }}
                     </Button>
                     <template v-if="can('projects.edit') && statusOptions.length">
                         <Button
@@ -2580,7 +2661,12 @@ const closeIssueEdit = (): void => {
                                 id="edit-finance-date"
                                 name="transaction_date"
                                 type="date"
-                                :default-value="editingFinance.row.transaction_date.slice(0, 10)"
+                                :default-value="
+                                    editingFinance.row.transaction_date?.slice(
+                                        0,
+                                        10,
+                                    ) ?? ''
+                                "
                                 required
                             />
                             <InputError :message="errors.transaction_date" />
@@ -2780,6 +2866,140 @@ const closeIssueEdit = (): void => {
                             type="button"
                             variant="secondary"
                             @click="closeIssueEdit"
+                        >
+                            {{ t('Cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="processing">
+                            {{ t('Save changes') }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog
+            :open="showProjectEditForm"
+            @update:open="onProjectEditOpenChange"
+        >
+            <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                <Form
+                    v-bind="ProjectController.update.form(project.id)"
+                    class="grid gap-4 py-2"
+                    :options="{ preserveScroll: true, forceFormData: true }"
+                    validate-files
+                    v-slot="{ errors, processing }"
+                    @success="closeProjectEdit"
+                >
+                    <DialogHeader>
+                        <DialogTitle>{{ t('Edit project') }}</DialogTitle>
+                        <DialogDescription>
+                            {{ project.code }}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div class="grid gap-2">
+                        <Label for="edit-project-org">{{ t('Organization') }} *</Label>
+                        <select
+                            id="edit-project-org"
+                            name="organization_id"
+                            required
+                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                        >
+                            <option
+                                v-for="org in organizations ?? []"
+                                :key="org.id"
+                                :value="org.id"
+                                :selected="project.organization?.id === org.id"
+                            >
+                                {{ org.name }}
+                            </option>
+                        </select>
+                        <InputError :message="errors.organization_id" />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="edit-project-name">{{ t('Project / opportunity title') }} *</Label>
+                        <Input
+                            id="edit-project-name"
+                            name="name"
+                            required
+                            :default-value="project.name"
+                        />
+                        <InputError :message="errors.name" />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="edit-project-reference">{{ t('Reference #') }}</Label>
+                        <Input
+                            id="edit-project-reference"
+                            name="reference_number"
+                            :default-value="project.reference_number ?? ''"
+                        />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="edit-project-deadline">{{ t('Submission deadline') }}</Label>
+                        <Input
+                            id="edit-project-deadline"
+                            name="submission_deadline"
+                            type="date"
+                            :default-value="project.submission_deadline?.slice(0, 10) ?? ''"
+                        />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="edit-project-location">{{ t('Location') }}</Label>
+                        <Input
+                            id="edit-project-location"
+                            name="location"
+                            :default-value="project.location ?? ''"
+                        />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="edit-project-source">{{ t('Source') }}</Label>
+                        <Input
+                            id="edit-project-source"
+                            name="source"
+                            :default-value="project.source ?? ''"
+                        />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="edit-project-bid">{{ t('Our bid amount (AFN)') }}</Label>
+                        <Input
+                            id="edit-project-bid"
+                            name="our_bid_amount"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            :default-value="project.our_bid_amount ?? ''"
+                        />
+                        <input type="hidden" name="currency" value="AFN" />
+                    </div>
+
+                    <SecurityScopeField
+                        :selected="project.security_scope"
+                        :error="errors.security_scope"
+                        include-marker
+                    />
+
+                    <div class="grid gap-2">
+                        <Label for="edit-project-scope">{{ t('Scope summary') }}</Label>
+                        <textarea
+                            id="edit-project-scope"
+                            name="scope_summary"
+                            rows="3"
+                            class="w-full rounded-md border border-input px-3 py-2 text-sm"
+                            :default-value="project.scope_summary ?? ''"
+                        />
+                    </div>
+
+                    <DialogFooter class="gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="closeProjectEdit"
                         >
                             {{ t('Cancel') }}
                         </Button>
