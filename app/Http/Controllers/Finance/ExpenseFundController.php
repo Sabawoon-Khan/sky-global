@@ -55,20 +55,13 @@ class ExpenseFundController extends Controller
 
         $expenseFund->update($validated);
 
-        $response = back()->with('success', __('Expense fund updated.'));
-
-        $warning = $expenseFund->fresh()->overdrawWarningMessage();
-        if ($warning !== null) {
-            $response = $response->with('warning', $warning);
-        }
-
         $this->notifyMisUpdated(
             'finance',
             $expenseFund->displayLabel(),
             route('finance.general-expenses', [], false),
         );
 
-        return $response;
+        return back()->with('success', __('Expense fund updated.'));
     }
 
     public function destroy(Request $request, ExpenseFund $expenseFund): RedirectResponse

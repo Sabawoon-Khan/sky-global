@@ -58,6 +58,7 @@ class ProjectExpenseController extends Controller
         return Inertia::render('mis/finance/Expenses/Index', [
             'expenses' => $expenses,
             'expenseFunds' => ExpenseFund::inertiaSummaries(),
+            'expenseFundPickerOptions' => ExpenseFund::inertiaPickerOptions(),
             'projects' => Project::query()
                 ->where('is_archived', false)
                 ->orderBy('code')
@@ -107,6 +108,7 @@ class ProjectExpenseController extends Controller
         ]);
 
         $validated = $this->applyExpenseFundCurrency($validated);
+        $validated = $this->assertExpenseWithinFundBalance($validated);
 
         $expense = ProjectExpense::query()->create([
             ...$validated,
@@ -131,10 +133,7 @@ class ProjectExpenseController extends Controller
             route('finance.expenses', [], false),
         );
 
-        return $this->redirectWithFundWarnings(
-            back()->with('success', 'Expense recorded.'),
-            $this->fundIdsToCheck(null, $validated['expense_fund_id'] ?? null),
-        );
+        return back()->with('success', 'Expense recorded.');
     }
 
     public function update(Request $request, ProjectExpense $expense): RedirectResponse
@@ -142,6 +141,7 @@ class ProjectExpenseController extends Controller
         $this->authorizePermission($request, 'finance.edit');
 
         $previousFundId = $expense->expense_fund_id;
+        $previousAmount = (float) $expense->amount;
 
         $this->mergeEmptyExpenseFundId($request);
 
@@ -162,6 +162,19 @@ class ProjectExpenseController extends Controller
 
         $validated = $this->applyExpenseFundCurrency($validated, $expense->expense_fund_id);
 
+        if (! array_key_exists('expense_fund_id', $validated)) {
+            $validated['expense_fund_id'] = $expense->expense_fund_id;
+        }
+        if (! array_key_exists('amount', $validated)) {
+            $validated['amount'] = $expense->amount;
+        }
+
+        $validated = $this->assertExpenseWithinFundBalance(
+            $validated,
+            $previousFundId,
+            $previousAmount,
+        );
+
         $expense->update($validated);
 
         $this->notifyMisUpdated(
@@ -170,25 +183,18 @@ class ProjectExpenseController extends Controller
             route('finance.expenses', [], false),
         );
 
-        return $this->redirectWithFundWarnings(
-            back()->with('success', 'Expense updated.'),
-            $this->fundIdsToCheck($previousFundId, $expense->expense_fund_id),
-        );
+        return back()->with('success', 'Expense updated.');
     }
 
     public function destroy(Request $request, ProjectExpense $expense): RedirectResponse
     {
         $this->authorizePermission($request, 'finance.delete');
 
-        $fundId = $expense->expense_fund_id;
         $label = $expense->description ?: __('Project expense');
         $expense->delete();
 
         $this->notifyMisDeleted('finance', $label, route('finance.expenses', [], false));
 
-        return $this->redirectWithFundWarnings(
-            back()->with('success', 'Expense deleted.'),
-            $this->fundIdsToCheck($fundId, null),
-        );
+        return back()->with('success', 'Expense deleted.');
     }
 }

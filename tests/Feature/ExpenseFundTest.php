@@ -30,6 +30,33 @@ class ExpenseFundTest extends TestCase
         $this->owner->assignRole('Owner');
     }
 
+    public function test_depleted_fund_is_excluded_from_picker_options(): void
+    {
+        $fund = ExpenseFund::query()->create([
+            'amount_received' => 1000,
+            'currency' => 'AFN',
+            'received_date' => now()->toDateString(),
+            'created_by' => $this->owner->id,
+        ]);
+
+        GeneralExpense::query()->create([
+            'expense_fund_id' => $fund->id,
+            'amount' => 1000,
+            'currency' => 'AFN',
+            'transaction_date' => now()->toDateString(),
+            'created_by' => $this->owner->id,
+        ]);
+
+        $this->actingAs($this->owner)
+            ->get(route('finance.general-expenses'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('expenseFunds', 1)
+                ->where('expenseFunds.0.remaining_amount', 0)
+                ->has('expenseFundPickerOptions', 0)
+            );
+    }
+
     public function test_general_expenses_page_includes_expense_funds(): void
     {
         ExpenseFund::query()->create([
@@ -85,7 +112,7 @@ class ExpenseFundTest extends TestCase
             );
     }
 
-    public function test_overdrawn_fund_returns_warning_flash(): void
+    public function test_expense_amount_cannot_exceed_fund_remaining_balance(): void
     {
         $fund = ExpenseFund::query()->create([
             'amount_received' => 1000,
@@ -102,11 +129,9 @@ class ExpenseFundTest extends TestCase
                 'transaction_date' => now()->toDateString(),
                 'expense_fund_id' => $fund->id,
             ])
-            ->assertRedirect()
-            ->assertSessionHas('success')
-            ->assertSessionHas('warning');
+            ->assertSessionHasErrors('amount');
 
-        $this->assertTrue($fund->fresh()->isOverdrawn());
+        $this->assertSame(0.0, $fund->fresh()->spentAmount());
     }
 
     public function test_updating_expense_amount_recalculates_fund_balance(): void
@@ -245,8 +270,7 @@ class ExpenseFundTest extends TestCase
                 'amount_received' => 5000,
             ])
             ->assertRedirect()
-            ->assertSessionHas('success')
-            ->assertSessionHas('warning');
+            ->assertSessionHas('success');
     }
 
     private function makeProject(): Project

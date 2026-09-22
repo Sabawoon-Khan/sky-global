@@ -61,6 +61,7 @@ class GeneralExpenseController extends Controller
         return Inertia::render('mis/finance/GeneralExpenses/Index', [
             'generalExpenses' => $generalExpenses,
             'expenseFunds' => $expenseFunds,
+            'expenseFundPickerOptions' => ExpenseFund::inertiaPickerOptions(),
             'categories' => FinanceCategory::options(),
             'filters' => $filters,
             'stats' => [
@@ -94,6 +95,7 @@ class GeneralExpenseController extends Controller
         ]);
 
         $validated = $this->applyExpenseFundCurrency($validated);
+        $validated = $this->assertExpenseWithinFundBalance($validated);
 
         $expense = GeneralExpense::query()->create([
             ...$validated,
@@ -107,10 +109,7 @@ class GeneralExpenseController extends Controller
             route('finance.general-expenses', [], false),
         );
 
-        return $this->redirectWithFundWarnings(
-            back()->with('success', 'General expense recorded.'),
-            $this->fundIdsToCheck(null, $validated['expense_fund_id'] ?? null),
-        );
+        return back()->with('success', 'General expense recorded.');
     }
 
     public function update(Request $request, GeneralExpense $generalExpense): RedirectResponse
@@ -118,6 +117,7 @@ class GeneralExpenseController extends Controller
         $this->authorizePermission($request, 'finance.edit');
 
         $previousFundId = $generalExpense->expense_fund_id;
+        $previousAmount = (float) $generalExpense->amount;
 
         $this->mergeEmptyExpenseFundId($request);
 
@@ -138,6 +138,19 @@ class GeneralExpenseController extends Controller
 
         $validated = $this->applyExpenseFundCurrency($validated, $generalExpense->expense_fund_id);
 
+        if (! array_key_exists('expense_fund_id', $validated)) {
+            $validated['expense_fund_id'] = $generalExpense->expense_fund_id;
+        }
+        if (! array_key_exists('amount', $validated)) {
+            $validated['amount'] = $generalExpense->amount;
+        }
+
+        $validated = $this->assertExpenseWithinFundBalance(
+            $validated,
+            $previousFundId,
+            $previousAmount,
+        );
+
         $generalExpense->update($validated);
 
         $this->notifyMisUpdated(
@@ -146,27 +159,18 @@ class GeneralExpenseController extends Controller
             route('finance.general-expenses', [], false),
         );
 
-        $newFundId = $generalExpense->expense_fund_id;
-
-        return $this->redirectWithFundWarnings(
-            back()->with('success', 'General expense updated.'),
-            $this->fundIdsToCheck($previousFundId, $newFundId),
-        );
+        return back()->with('success', 'General expense updated.');
     }
 
     public function destroy(Request $request, GeneralExpense $generalExpense): RedirectResponse
     {
         $this->authorizePermission($request, 'finance.delete');
 
-        $fundId = $generalExpense->expense_fund_id;
         $label = $generalExpense->description ?: __('General expense');
         $generalExpense->delete();
 
         $this->notifyMisDeleted('finance', $label, route('finance.general-expenses', [], false));
 
-        return $this->redirectWithFundWarnings(
-            back()->with('success', 'General expense deleted.'),
-            $this->fundIdsToCheck($fundId, null),
-        );
+        return back()->with('success', 'General expense deleted.');
     }
 }

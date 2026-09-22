@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Concerns;
 
 use App\Models\Finance\ExpenseFund;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 trait HandlesExpenseFundSpending
 {
@@ -39,30 +39,47 @@ trait HandlesExpenseFundSpending
     }
 
     /**
-     * @return list<int>
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
      */
-    protected function fundIdsToCheck(?int $previousFundId, ?int $currentFundId): array
-    {
-        return array_values(array_unique(array_filter([$previousFundId, $currentFundId])));
-    }
+    protected function assertExpenseWithinFundBalance(
+        array $validated,
+        ?int $previousFundId = null,
+        ?float $previousAmount = null,
+    ): array {
+        $fundId = $validated['expense_fund_id'] ?? null;
+        if ($fundId === null) {
+            return $validated;
+        }
 
-    /**
-     * @param  list<int>  $fundIds
-     */
-    protected function redirectWithFundWarnings(RedirectResponse $response, array $fundIds): RedirectResponse
-    {
-        foreach ($fundIds as $fundId) {
-            $fund = ExpenseFund::query()->find($fundId);
-            if ($fund === null) {
-                continue;
-            }
+        $fund = ExpenseFund::query()->find($fundId);
+        if ($fund === null) {
+            return $validated;
+        }
 
-            $warning = $fund->overdrawWarningMessage();
-            if ($warning !== null) {
-                return $response->with('warning', $warning);
+        $available = $fund->remainingAmount();
+        if ($previousFundId === $fundId && $previousAmount !== null) {
+            $available += $previousAmount;
+        }
+
+        if ($available <= 0) {
+            throw ValidationException::withMessages([
+                'expense_fund_id' => __('This fund has no remaining balance. Record a new fund first.'),
+            ]);
+        }
+
+        if (array_key_exists('amount', $validated)) {
+            $amount = (float) $validated['amount'];
+            if ($amount > $available + 0.009) {
+                throw ValidationException::withMessages([
+                    'amount' => __('Amount exceeds the remaining fund balance of :amount :currency.', [
+                        'amount' => number_format($available, 2),
+                        'currency' => $fund->currency,
+                    ]),
+                ]);
             }
         }
 
-        return $response;
+        return $validated;
     }
 }

@@ -127,6 +127,8 @@ class ExpenseFund extends Model
                 $spent = $fund->aggregatedSpentAmount();
                 $received = (float) $fund->amount_received;
 
+                $remaining = round($received - $spent, 2);
+
                 return [
                     'id' => $fund->id,
                     'label' => $fund->displayLabel(),
@@ -134,7 +136,7 @@ class ExpenseFund extends Model
                     'description' => $fund->description,
                     'amount_received' => $received,
                     'spent_amount' => $spent,
-                    'remaining_amount' => $received - $spent,
+                    'remaining_amount' => $remaining,
                     'currency' => $fund->currency,
                     'received_date' => $fund->received_date?->toDateString(),
                     'reference_number' => $fund->reference_number,
@@ -143,5 +145,17 @@ class ExpenseFund extends Model
                         && ($fund->project_expenses_count ?? 0) === 0,
                 ];
             });
+    }
+
+    /**
+     * Funds available in "Spend from fund" selects (remaining balance only).
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public static function inertiaPickerOptions(): Collection
+    {
+        return static::inertiaSummaries()
+            ->filter(fn (array $fund) => ($fund['remaining_amount'] ?? 0) > 0)
+            ->values();
     }
 }

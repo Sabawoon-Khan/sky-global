@@ -75,6 +75,7 @@ interface GeneralRecord {
 const props = defineProps<{
     generalExpenses: Paginated<GeneralRecord>;
     expenseFunds?: ExpenseFundSummary[];
+    expenseFundPickerOptions?: ExpenseFundSummary[];
     categories?: FinanceCategoryOption[];
     filters?: {
         search?: string | null;
@@ -122,6 +123,7 @@ const { filters, apply, clear } = useMisFilters(
         only: [
             'generalExpenses',
             'expenseFunds',
+            'expenseFundPickerOptions',
             'categories',
             'filters',
             'stats',
@@ -142,9 +144,13 @@ const hasActiveFilters = computed(
 
 const fundOptions = computed(() => props.expenseFunds ?? []);
 
+/** Funds with remaining balance (depleted funds are excluded). */
+const spendFromFundOptions = computed(
+    () => props.expenseFundPickerOptions ?? [],
+);
+
 const fundLabelWithRemaining = (fund: ExpenseFundSummary): string => {
-    const remaining = formatAfn(fund.remaining_amount);
-    return `${fund.label} — ${remaining} ${t('left')}`;
+    return `${fund.label} — ${formatAfn(fund.remaining_amount)} ${t('left')}`;
 };
 
 const { sortedRows } = provideTableSort(() => props.generalExpenses.data, {
@@ -870,9 +876,9 @@ const money = (value?: number | null): string => formatAfn(value);
                                     {{ t('Not linked to a fund') }}
                                 </option>
                                 <option
-                                    v-for="fund in fundOptions"
+                                    v-for="fund in spendFromFundOptions"
                                     :key="fund.id"
-                                    :value="fund.id"
+                                    :value="String(fund.id)"
                                     :selected="
                                         editingRecord?.expense_fund_id ===
                                         fund.id

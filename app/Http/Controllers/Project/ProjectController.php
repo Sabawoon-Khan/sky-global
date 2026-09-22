@@ -263,6 +263,7 @@ class ProjectController extends Controller
                 ]),
             'financeCategories' => FinanceCategory::options(),
             'expenseFunds' => ExpenseFund::inertiaSummaries(),
+            'expenseFundPickerOptions' => ExpenseFund::inertiaPickerOptions(),
         ]);
     }
 
@@ -457,6 +458,7 @@ class ProjectController extends Controller
             ...$validated,
             'currency' => $validated['currency'] ?? 'AFN',
         ]);
+        $validated = $this->assertExpenseWithinFundBalance($validated);
 
         $expense = ProjectExpense::query()->create([
             ...$validated,
@@ -479,10 +481,7 @@ class ProjectController extends Controller
             route('projects.show', $project, false),
         );
 
-        return $this->redirectWithFundWarnings(
-            back()->with('success', 'Expense recorded.'),
-            $this->fundIdsToCheck(null, $validated['expense_fund_id'] ?? null),
-        );
+        return back()->with('success', 'Expense recorded.');
     }
 
     public function updateDetails(Request $request, Project $project): RedirectResponse

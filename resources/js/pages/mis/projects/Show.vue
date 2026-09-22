@@ -275,6 +275,7 @@ const props = defineProps<{
         applies_to: 'income' | 'expense' | 'both';
     }>;
     expenseFunds?: ExpenseFundOption[];
+    expenseFundPickerOptions?: ExpenseFundOption[];
 }>();
 
 const { t, can, gateActions } = useMisPage();
@@ -668,7 +669,9 @@ const financeMixData = computed(() => [
     Math.max(0, Number(props.finance.expense) || 0),
 ]);
 
-const expenseFundOptions = computed(() => props.expenseFunds ?? []);
+const expenseFundOptions = computed(
+    () => props.expenseFundPickerOptions ?? [],
+);
 
 function expenseFundRowLabel(row: FinanceRow): string | null {
     if (row.expense_fund) {
@@ -2575,7 +2578,7 @@ const closeIssueEdit = (): void => {
                                 <option
                                     v-for="fund in expenseFundOptions"
                                     :key="fund.id"
-                                    :value="fund.id"
+                                    :value="String(fund.id)"
                                 >
                                     {{ fundOptionLabel(fund) }}
                                 </option>
@@ -2705,7 +2708,7 @@ const closeIssueEdit = (): void => {
                                 <option
                                     v-for="fund in expenseFundOptions"
                                     :key="fund.id"
-                                    :value="fund.id"
+                                    :value="String(fund.id)"
                                     :selected="
                                         editingFinance.row.expense_fund_id ===
                                         fund.id
