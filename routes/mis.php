@@ -182,6 +182,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('employees/create', [EmployeeController::class, 'create'])->name('employees.create');
         Route::post('employees', [EmployeeController::class, 'store'])->name('employees.store');
         Route::get('employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
+        Route::get('employees/{employee}/history', [EmployeeController::class, 'printHistory'])->name('employees.history');
         Route::get('employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
         Route::put('employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
 

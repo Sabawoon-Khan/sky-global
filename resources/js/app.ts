@@ -16,6 +16,7 @@ createInertiaApp({
             case name === 'Welcome':
             case name === 'mis/hr/Attendance/Print':
             case name === 'mis/hr/Payroll/Print':
+            case name === 'mis/hr/Employees/HistoryPrint':
             case name === 'mis/training/Guards/CertificatePrint':
             case name === 'mis/finance/TaxPrint':
             case name === 'mis/finance/InvoicePrint':

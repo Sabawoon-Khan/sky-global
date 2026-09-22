@@ -13,6 +13,7 @@ use App\Models\Hr\Employee;
 use App\Models\Hr\PersonnelAttendance;
 use App\Models\Hr\PersonnelPayrollAdjustment;
 use App\Models\Project\ProjectDeployment;
+use App\Support\CompanyDocument;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -230,12 +231,29 @@ class EmployeeController extends Controller
                 ->latest()
                 ->limit(24)
                 ->get(),
-            'deployments' => ProjectDeployment::query()
-                ->where('personnel_type', Employee::class)
-                ->where('personnel_id', $employee->id)
-                ->with('project')
-                ->latest()
-                ->get(),
+            'deployments' => $this->employeeWorkHistory($employee),
+        ]);
+    }
+
+    public function printHistory(Request $request, Employee $employee): Response
+    {
+        $this->authorizePermission($request, 'hr.view');
+
+        $employee->load([
+            'jobDetails.department',
+            'statusChangeLogs' => fn ($q) => $q->with(['changedBy:id,name'])->latest(),
+        ]);
+
+        $employee->setAttribute(
+            'job_detail',
+            $employee->jobDetails->sortByDesc('id')->first(),
+        );
+
+        return Inertia::render('mis/hr/Employees/HistoryPrint', [
+            'employee' => $employee,
+            'deployments' => $this->employeeWorkHistory($employee),
+            'company' => CompanyDocument::profile(),
+            'generated_on' => now()->toDateString(),
         ]);
     }
 
@@ -457,6 +475,23 @@ class EmployeeController extends Controller
         } else {
             $employee->salaries()->delete();
         }
+    }
+
+    /**
+     * @return Collection<int, ProjectDeployment>
+     */
+    private function employeeWorkHistory(Employee $employee)
+    {
+        return ProjectDeployment::query()
+            ->where('personnel_type', Employee::class)
+            ->where('personnel_id', $employee->id)
+            ->with([
+                'project:id,code,name,location',
+                'projectSite:id,name',
+            ])
+            ->orderByDesc('start_date')
+            ->orderByDesc('id')
+            ->get();
     }
 
     /**

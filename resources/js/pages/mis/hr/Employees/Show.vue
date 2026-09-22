@@ -8,6 +8,7 @@ import {
     Mail,
     MapPin,
     Phone,
+    Printer,
     User,
     Wallet,
 } from '@lucide/vue';
@@ -17,6 +18,7 @@ import EntityAttachments, {
 } from '@/components/EntityAttachments.vue';
 import PermanentStaffToggle from '@/components/PermanentStaffToggle.vue';
 import PersonnelStatusButtons from '@/components/PersonnelStatusButtons.vue';
+import StatusBadge from '@/components/StatusBadge.vue';
 import StatusChangeHistory, {
     type StatusChangeLogRecord,
 } from '@/components/StatusChangeHistory.vue';
@@ -88,9 +90,13 @@ interface AdjustmentRecord {
 interface DeploymentRecord {
     id: number;
     role: string | null;
+    status?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
     monthly_rate?: number | null;
     currency?: string | null;
-    project?: { id: number; code: string; name: string } | null;
+    project?: { id: number; code: string; name: string; location?: string | null } | null;
+    project_site?: { id: number; name: string } | null;
 }
 
 interface Employee {
@@ -153,12 +159,13 @@ defineOptions({
     },
 });
 
-type TabId = 'personal' | 'employment' | 'salary' | 'projects' | 'attendance' | 'payroll' | 'documents';
+type TabId = 'personal' | 'employment' | 'history' | 'salary' | 'projects' | 'attendance' | 'payroll' | 'documents';
 
 const tabs = computed(() => {
     const items = [
         { id: 'personal' as const, label: t('Personal') },
         { id: 'employment' as const, label: t('Employment') },
+        { id: 'history' as const, label: t('History') },
         { id: 'salary' as const, label: t('Salary & Contracts') },
     ];
 
@@ -346,6 +353,118 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
                 </CardContent>
             </Card>
         </div>
+
+        <V2Panel
+            v-else-if="activeTab === 'history'"
+            :title="t('Employee history')"
+            :description="t('Work history')"
+        >
+            <template #actions>
+                <Link
+                    :href="`/hr/employees/${employee.id}/history`"
+                    class="create-btn"
+                >
+                    <Printer />
+                    {{ t('Print') }}
+                </Link>
+            </template>
+
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div class="rounded-lg border bg-muted/20 px-4 py-3">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {{ t('Hire date') }}
+                    </p>
+                    <p class="mt-1 text-sm font-medium">
+                        {{ formatDate(employee.job_detail?.hire_date) }}
+                    </p>
+                </div>
+                <div class="rounded-lg border bg-muted/20 px-4 py-3">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {{ t('Fire date') }}
+                    </p>
+                    <p class="mt-1 text-sm font-medium">
+                        {{ formatDate(employee.fire_date) }}
+                    </p>
+                </div>
+                <div class="rounded-lg border bg-muted/20 px-4 py-3">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {{ t('Department') }}
+                    </p>
+                    <p class="mt-1 text-sm font-medium">
+                        {{ employee.job_detail?.department?.name ?? '—' }}
+                    </p>
+                </div>
+                <div class="rounded-lg border bg-muted/20 px-4 py-3">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {{ t('Designation') }}
+                    </p>
+                    <p class="mt-1 text-sm font-medium">
+                        {{ employee.job_detail?.designation ?? '—' }}
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-5">
+                <h3 class="mb-3 text-sm font-semibold">{{ t('Work assignments') }}</h3>
+                <div v-if="!deployments?.length" class="text-sm text-muted-foreground">
+                    {{ t('No work history.') }}
+                </div>
+                <table v-else class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b text-muted-foreground">
+                            <th class="pb-2 text-start">{{ t('Project') }}</th>
+                            <th class="pb-2 text-start">{{ t('Site') }}</th>
+                            <th class="pb-2 text-start">{{ t('Role') }}</th>
+                            <th class="pb-2 text-start">{{ t('From') }}</th>
+                            <th class="pb-2 text-start">{{ t('To') }}</th>
+                            <th class="pb-2 text-start">{{ t('Status') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            v-for="row in deployments"
+                            :key="row.id"
+                            class="border-b last:border-0"
+                        >
+                            <td class="py-2">
+                                <Link
+                                    v-if="row.project"
+                                    :href="`/mis/projects/${row.project.id}`"
+                                    class="font-medium hover:underline"
+                                >
+                                    {{ row.project.code }} — {{ row.project.name }}
+                                </Link>
+                                <span v-else>—</span>
+                            </td>
+                            <td class="py-2 text-muted-foreground">
+                                {{ row.project_site?.name ?? row.project?.location ?? '—' }}
+                            </td>
+                            <td class="py-2">{{ row.role ?? '—' }}</td>
+                            <td class="py-2 whitespace-nowrap">
+                                {{ formatDate(row.start_date) }}
+                            </td>
+                            <td class="py-2 whitespace-nowrap">
+                                {{
+                                    row.end_date
+                                        ? formatDate(row.end_date)
+                                        : t('Ongoing')
+                                }}
+                            </td>
+                            <td class="py-2">
+                                <StatusBadge :status="row.status ?? 'active'" />
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-5">
+                <StatusChangeHistory
+                    :logs="employee.status_change_logs ?? []"
+                    :title="t('Employment Status History')"
+                />
+            </div>
+        </V2Panel>
 
         <div v-else-if="activeTab === 'salary'" class="grid gap-4 lg:grid-cols-3">
             <Card v-if="employee.is_permanent" class="lg:col-span-1">
