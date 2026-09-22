@@ -154,7 +154,34 @@ class FinanceInvoiceQuotationTest extends TestCase
         $this->assertCount(1, $invoice->lineItems);
         $this->assertSame('Static Guard', $invoice->lineItems->first()->description);
         $this->assertSame(10, (int) $invoice->lineItems->first()->days);
-        $this->assertSame(129.03, (float) $invoice->lineItems->first()->total);
+        $this->assertSame(133.33, (float) $invoice->lineItems->first()->total);
+    }
+
+    public function test_invoice_proration_splits_periods_across_calendar_months(): void
+    {
+        $this->actingAs($this->owner)
+            ->post(route('finance.invoices.store'), [
+                'issue_date' => '2026-01-31',
+                'period_start' => '2026-01-30',
+                'period_end' => '2026-02-02',
+                'currency' => 'USD',
+                'organization_id' => $this->organization->id,
+                'line_items' => [
+                    [
+                        'description' => 'Static Guard',
+                        'quantity' => 1,
+                        'unit_price' => 310,
+                    ],
+                ],
+            ])
+            ->assertRedirect();
+
+        $invoice = Invoice::query()->first();
+
+        $this->assertNotNull($invoice);
+        $this->assertSame(4, (int) $invoice->lineItems->first()->days);
+        // Jan 30–31 (2 days @ 31-day month) + Feb 1–2 (2 days @ 28-day month)
+        $this->assertSame(42.14, (float) $invoice->lineItems->first()->total);
     }
 
     public function test_invoice_create_form_includes_next_invoice_number(): void

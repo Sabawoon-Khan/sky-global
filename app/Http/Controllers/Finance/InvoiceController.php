@@ -183,6 +183,9 @@ class InvoiceController extends Controller
         $lineItems = $this->normalizedInvoiceLines(
             $validated['line_items'] ?? [],
             Invoice::daysInPeriod($validated['period_start'] ?? null, $validated['period_end'] ?? null),
+            $validated['period_start'] ?? null,
+            $validated['period_end'] ?? null,
+            $validated['issue_date'] ?? null,
         );
         unset($validated['line_items']);
 
@@ -280,6 +283,9 @@ class InvoiceController extends Controller
                     $validated['period_start'] ?? $invoice->period_start,
                     $validated['period_end'] ?? $invoice->period_end,
                 ),
+                $validated['period_start'] ?? $invoice->period_start,
+                $validated['period_end'] ?? $invoice->period_end,
+                $validated['issue_date'] ?? $invoice->issue_date,
             )
             : null;
         unset($validated['line_items']);
@@ -403,8 +409,13 @@ class InvoiceController extends Controller
      * @param  list<array<string, mixed>>  $lines
      * @return list<array{description: string, quantity: float, unit_price: float, days: int, total: float}>
      */
-    private function normalizedInvoiceLines(array $lines, ?int $periodDays = null): array
-    {
+    private function normalizedInvoiceLines(
+        array $lines,
+        ?int $periodDays = null,
+        mixed $periodStart = null,
+        mixed $periodEnd = null,
+        mixed $fallbackDate = null,
+    ): array {
         $items = [];
 
         foreach ($lines as $line) {
@@ -425,7 +436,14 @@ class InvoiceController extends Controller
                 'quantity' => $quantity,
                 'unit_price' => $unitPrice,
                 'days' => $days,
-                'total' => Invoice::proratedLineTotal($unitPrice, $quantity, $days),
+                'total' => Invoice::proratedLineTotal(
+                    $unitPrice,
+                    $quantity,
+                    $days,
+                    $periodStart,
+                    $periodEnd,
+                    $fallbackDate,
+                ),
             ];
         }
 

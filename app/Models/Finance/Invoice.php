@@ -18,8 +18,6 @@ class Invoice extends Model
 {
     use HasAttachments, LogsCrudActivity, SoftDeletes;
 
-    public const MONTHLY_DAY_BASE = 31;
-
     public static function daysInPeriod(mixed $start, mixed $end): ?int
     {
         if (blank($start) || blank($end)) {
@@ -36,9 +34,62 @@ class Invoice extends Model
         return (int) $from->diffInDays($to) + 1;
     }
 
-    public static function proratedLineTotal(float $unitPrice, float $quantity, int $days): float
-    {
-        return round(($unitPrice / self::MONTHLY_DAY_BASE) * $quantity * $days, 2);
+    public static function proratedLineTotal(
+        float $unitPrice,
+        float $quantity,
+        int $days,
+        mixed $periodStart = null,
+        mixed $periodEnd = null,
+        mixed $fallbackDate = null,
+    ): float {
+        $billDays = max(1, $days);
+
+        if (filled($periodStart) && filled($periodEnd)) {
+            $from = Carbon::parse($periodStart)->startOfDay();
+            $to = Carbon::parse($periodEnd)->startOfDay();
+
+            if ($to->gte($from)) {
+                $periodDays = (int) $from->diffInDays($to) + 1;
+                $billDays = min($billDays, $periodDays);
+                $billTo = $from->copy()->addDays($billDays - 1);
+
+                return round(
+                    self::proratedByCalendarMonths($unitPrice, $quantity, $from, $billTo),
+                    2,
+                );
+            }
+        }
+
+        $monthDays = filled($fallbackDate)
+            ? Carbon::parse($fallbackDate)->daysInMonth
+            : Carbon::now()->daysInMonth;
+
+        return round(($unitPrice / $monthDays) * $quantity * $billDays, 2);
+    }
+
+    private static function proratedByCalendarMonths(
+        float $unitPrice,
+        float $quantity,
+        Carbon $from,
+        Carbon $to,
+    ): float {
+        $total = 0.0;
+        $cursor = $from->copy();
+
+        while ($cursor->lte($to)) {
+            $segmentEnd = $cursor->copy()->endOfMonth()->startOfDay();
+
+            if ($segmentEnd->gt($to)) {
+                $segmentEnd = $to->copy();
+            }
+
+            $daysInSegment = (int) $cursor->diffInDays($segmentEnd) + 1;
+            $daysInMonth = $cursor->daysInMonth;
+            $total += ($unitPrice / $daysInMonth) * $quantity * $daysInSegment;
+            $cursor = $segmentEnd->copy()->addDay();
+        }
+
+        return $total;
     }
 
     protected $fillable = [

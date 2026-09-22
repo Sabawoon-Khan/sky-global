@@ -29,6 +29,7 @@ import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
 import { provideTableSort } from '@/composables/useTableSort';
 import { formatCurrency, formatDate, formatNumber, type Paginated } from '@/lib/format';
+import { proratedInvoiceLineTotal } from '@/lib/invoice-proration';
 import type { RowActionItem } from '@/lib/row-actions';
 import { invoiceStatusActions } from '@/lib/status-actions';
 import { FileText, Pencil, Plus, Printer, Trash2 } from '@lucide/vue';
@@ -147,8 +148,6 @@ defineOptions({
     },
 });
 
-const MONTHLY_DAY_BASE = 31;
-
 const showInvoiceForm = ref(false);
 const editingInvoice = ref<Invoice | null>(null);
 const invoiceTax = ref('');
@@ -180,7 +179,17 @@ const lineTotal = (line: { quantity: string; unit_price: string; days: string })
     const unitPrice = Number(line.unit_price) || 0;
     const days = Number(line.days) || 1;
 
-    return (unitPrice / MONTHLY_DAY_BASE) * quantity * days;
+    return proratedInvoiceLineTotal(
+        unitPrice,
+        quantity,
+        days,
+        periodStart.value || null,
+        periodEnd.value || null,
+        periodStart.value ||
+            periodEnd.value ||
+            editingInvoice.value?.issue_date ||
+            null,
+    );
 };
 
 const invoiceSubtotal = computed(() =>
@@ -690,7 +699,7 @@ const invoiceActions = (invoice: Invoice): RowActionItem[] => [
                                 <p class="text-xs text-muted-foreground">
                                     {{
                                         t(
-                                            'Days are counted from the invoice period. Unit cost is a 31-day monthly rate: (unit cost ÷ 31) × quantity × days.',
+                                            'Days come from the invoice period. Unit cost is a monthly rate divided by that month’s length (28–31 days): (unit cost ÷ days in month) × quantity × days. Periods spanning multiple months are split by calendar month.',
                                         )
                                     }}
                                 </p>
