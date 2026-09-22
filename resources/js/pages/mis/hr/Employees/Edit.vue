@@ -45,6 +45,7 @@ interface Employee {
     current_address?: string | null;
     status: string;
     is_permanent?: boolean;
+    fire_date?: string | null;
     job_detail?: JobDetail | null;
     salaries?: SalaryRecord[];
     personnel_attachments?: PersonnelFormRecord[];
@@ -60,6 +61,9 @@ const props = defineProps<{
 const { t } = useMisPage();
 
 const isPermanent = ref(props.employee.is_permanent ?? false);
+
+const dateInputValue = (value?: string | null): string =>
+    value ? String(value).slice(0, 10) : '';
 
 defineOptions({
     layout: {
@@ -277,6 +281,16 @@ defineOptions({
                             type="date"
                             :default-value="employee.job_detail?.hire_date ?? ''"
                         />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="fire_date">{{ t('Fire date') }}</Label>
+                        <Input
+                            id="fire_date"
+                            name="fire_date"
+                            type="date"
+                            :default-value="dateInputValue(employee.fire_date)"
+                        />
+                        <InputError :message="errors.fire_date" />
                     </div>
                     <div class="grid gap-2">
                         <Label for="job_detail_salary_grade">{{ t('Salary grade') }}</Label>

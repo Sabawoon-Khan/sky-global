@@ -31,6 +31,7 @@ class Employee extends Model
         'photo_path',
         'status',
         'is_permanent',
+        'fire_date',
         'user_id',
     ];
 
@@ -39,6 +40,7 @@ class Employee extends Model
         return [
             'date_of_birth' => 'date',
             'is_permanent' => 'boolean',
+            'fire_date' => 'date',
         ];
     }
 

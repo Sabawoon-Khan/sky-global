@@ -157,6 +157,15 @@ defineOptions({
                         />
                     </div>
                     <div class="v2-field">
+                        <Label for="fire_date">{{ t('Fire date') }}</Label>
+                        <Input
+                            id="fire_date"
+                            name="fire_date"
+                            type="date"
+                        />
+                        <InputError :message="errors.fire_date" />
+                    </div>
+                    <div class="v2-field">
                         <Label for="job_detail_salary_grade">{{ t('Salary grade') }}</Label>
                         <Input
                             id="job_detail_salary_grade"

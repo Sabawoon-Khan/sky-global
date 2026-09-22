@@ -106,6 +106,7 @@ interface Employee {
     current_address?: string | null;
     status: string;
     is_permanent: boolean;
+    fire_date?: string | null;
     job_detail?: JobDetail | null;
     salaries?: Salary[];
     contracts?: Contract[];
@@ -322,6 +323,10 @@ const currentSalary = computed(() => props.employee.salaries?.[0] ?? null);
                     <div class="flex items-center justify-between rounded-md border px-3 py-2.5">
                         <span class="text-muted-foreground">{{ t('Hire date') }}</span>
                         <span class="font-medium">{{ formatDate(employee.job_detail?.hire_date) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-md border px-3 py-2.5">
+                        <span class="text-muted-foreground">{{ t('Fire date') }}</span>
+                        <span class="font-medium">{{ formatDate(employee.fire_date) }}</span>
                     </div>
                     <div class="flex items-center justify-between rounded-md border px-3 py-2.5">
                         <span class="text-muted-foreground">{{ t('Salary Grade') }}</span>

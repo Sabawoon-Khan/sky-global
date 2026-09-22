@@ -82,6 +82,23 @@ export function personnelStatusActions(options: {
         confirmVariant: 'destructive',
     });
 
+    const fireAction = (): RowActionItem => ({
+        label: tr(t, 'Fire'),
+        icon: UserX,
+        variant: 'destructive',
+        href: url,
+        method: 'put',
+        data: { status: 'terminated' },
+        confirm: {
+            title: tr(t, 'Fire employee'),
+            description: tr(t, 'Fire ":name"? Their fire date will be recorded as today.', {
+                name,
+            }),
+            confirmLabel: tr(t, 'Fire'),
+        },
+        confirmVariant: 'destructive',
+    });
+
     if (status === 'active') {
         return [
             {
@@ -98,6 +115,7 @@ export function personnelStatusActions(options: {
                 },
                 confirmVariant: 'default',
             },
+            fireAction(),
             ...(blockable ? [blockAction()] : []),
         ];
     }
@@ -112,6 +130,7 @@ export function personnelStatusActions(options: {
                 method: 'put',
                 data: { status: 'active' },
             },
+            fireAction(),
             ...(blockable ? [blockAction()] : []),
         ];
     }

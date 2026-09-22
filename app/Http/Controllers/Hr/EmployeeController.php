@@ -153,6 +153,7 @@ class EmployeeController extends Controller
             'gender' => ['nullable', 'string', 'in:male,female,other'],
             'status' => ['nullable', 'string', 'in:active,inactive,terminated,blocked'],
             'is_permanent' => ['nullable', 'boolean'],
+            'fire_date' => ['nullable', 'date'],
             'job_detail' => ['nullable', 'array'],
             'job_detail.department_id' => ['nullable', 'exists:departments,id'],
             'job_detail.designation' => ['nullable', 'string', 'max:100'],
@@ -167,7 +168,9 @@ class EmployeeController extends Controller
 
         $employee = Employee::query()->create([
             ...$validated,
-            'status' => $validated['status'] ?? 'active',
+            'status' => ($validated['fire_date'] ?? null)
+                ? 'terminated'
+                : ($validated['status'] ?? 'active'),
             'is_permanent' => $validated['is_permanent'] ?? false,
         ]);
         $employee->logStatusChange($employee->status, null, $request->user());
@@ -281,6 +284,7 @@ class EmployeeController extends Controller
             'reason' => [$goingToBlocked ? 'required' : 'nullable', 'string', 'max:2000'],
             'attachment' => [$goingToBlocked ? 'required' : 'nullable', 'file', 'max:10240'],
             'is_permanent' => ['nullable', 'boolean'],
+            'fire_date' => ['nullable', 'date'],
             'job_detail' => ['nullable', 'array'],
             'job_detail.department_id' => ['nullable', 'exists:departments,id'],
             'job_detail.designation' => ['nullable', 'string', 'max:100'],
@@ -295,6 +299,31 @@ class EmployeeController extends Controller
         unset($validated['job_detail'], $validated['salaries'], $validated['personnel_forms'], $validated['reason'], $validated['attachment']);
 
         $oldStatus = $employee->status;
+
+        if (
+            ! empty($validated['fire_date'])
+            && (! array_key_exists('status', $validated) || ! in_array($validated['status'], ['terminated', 'blocked'], true))
+        ) {
+            $validated['status'] = 'terminated';
+        }
+
+        if (
+            array_key_exists('status', $validated)
+            && $validated['status'] === 'terminated'
+            && $oldStatus !== 'terminated'
+            && empty($validated['fire_date'] ?? null)
+        ) {
+            $validated['fire_date'] = now()->toDateString();
+        }
+
+        if (
+            array_key_exists('status', $validated)
+            && $oldStatus === 'terminated'
+            && $validated['status'] !== 'terminated'
+            && ! array_key_exists('fire_date', $validated)
+        ) {
+            $validated['fire_date'] = null;
+        }
 
         $employee->update($validated);
 

@@ -22,7 +22,7 @@ import { indexTableColumn } from '@/composables/useTableColumns';
 import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
 import { provideTableSort } from '@/composables/useTableSort';
-import { formatNumber, type Paginated } from '@/lib/format';
+import { formatDate, formatNumber, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import { personnelStatusActions } from '@/lib/status-actions';
 import {
@@ -44,6 +44,7 @@ interface Employee {
     email?: string | null;
     status: string;
     is_permanent?: boolean;
+    fire_date?: string | null;
     job_detail?: {
         designation?: string | null;
         department?: { name: string } | null;
@@ -92,6 +93,7 @@ const { sortedRows } = provideTableSort(() => props.employees.data, {
         department: (row) => row.job_detail?.department?.name,
         contact: (row) => row.phone || row.email,
         type: (row) => (row.is_permanent ? 1 : 0),
+        fire_date: (row) => row.fire_date,
         status: (row) => row.status,
     },
 });
@@ -113,6 +115,7 @@ const tableColumns = computed(() => [
     { key: 'department', label: t('Department') },
     { key: 'contact', label: t('Contact') },
     { key: 'type', label: t('Type') },
+    { key: 'fire_date', label: t('Fire date') },
     { key: 'status', label: t('Status') },
     { key: 'actions', label: t('Actions'), locked: true },
 ]);
@@ -363,6 +366,7 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
                             <SortableTh column="department">{{ t('Department') }}</SortableTh>
                             <SortableTh column="contact">{{ t('Contact') }}</SortableTh>
                             <SortableTh column="type">{{ t('Type') }}</SortableTh>
+                            <SortableTh column="fire_date">{{ t('Fire date') }}</SortableTh>
                             <SortableTh column="status">{{ t('Status') }}</SortableTh>
                             <th class="end">{{ t('Actions') }}</th>
                         </tr>
@@ -405,6 +409,9 @@ const employeeActions = (employee: Employee): RowActionItem[] => [
                                         ? t('Permanent')
                                         : t('Project-based')
                                 }}
+                            </td>
+                            <td class="muted whitespace-nowrap">
+                                {{ formatDate(employee.fire_date) }}
                             </td>
                             <td>
                                 <StatusBadge :status="employee.status" />
