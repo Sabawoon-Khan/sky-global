@@ -511,9 +511,12 @@ class InvoiceController extends Controller
             ];
         })->values()->all();
 
+        $generalExpenseTable = (new GeneralExpense)->getTable();
         $expenseByCategory = GeneralExpense::query()
-            ->selectRaw("COALESCE(category, 'other') as category, sum(amount) as total")
-            ->groupBy('category')
+            ->selectRaw(
+                "COALESCE(`{$generalExpenseTable}`.`category`, 'other') as category, sum(`{$generalExpenseTable}`.`amount`) as total",
+            )
+            ->groupByRaw('1')
             ->pluck('total', 'category')
             ->map(fn ($total, $category) => [
                 'category' => (string) $category,

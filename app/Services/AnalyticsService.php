@@ -311,9 +311,12 @@ class AnalyticsService
             ->groupBy('status')
             ->pluck('count', 'status');
 
+        $generalExpenseTable = (new GeneralExpense)->getTable();
         $expenseByCategory = GeneralExpense::query()
-            ->selectRaw("COALESCE(category, 'other') as category, sum(amount) as total")
-            ->groupBy('category')
+            ->selectRaw(
+                "COALESCE(`{$generalExpenseTable}`.`category`, 'other') as category, sum(`{$generalExpenseTable}`.`amount`) as total",
+            )
+            ->groupByRaw('1')
             ->pluck('total', 'category');
 
         $topProjectsIncome = Project::query()
@@ -605,9 +608,12 @@ class AnalyticsService
         $totals = collect();
 
         foreach ($modelClasses as $modelClass) {
+            $table = (new $modelClass)->getTable();
+            $categoryExpression = "COALESCE(NULLIF(TRIM(`{$table}`.`category`), ''), 'Uncategorized')";
+
             $query = $modelClass::query()
-                ->selectRaw("COALESCE(NULLIF(TRIM(category), ''), 'Uncategorized') as category, SUM(amount) as total")
-                ->groupByRaw("COALESCE(NULLIF(TRIM(category), ''), 'Uncategorized')");
+                ->selectRaw("{$categoryExpression} as category, SUM(`{$table}`.`amount`) as total")
+                ->groupByRaw('1');
             $this->constrainDate($query, 'transaction_date', $start, $end);
 
             foreach ($query->pluck('total', 'category') as $category => $total) {
