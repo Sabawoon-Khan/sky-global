@@ -331,6 +331,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('bidding', [AnalyticsController::class, 'bidding'])->name('bidding');
         Route::get('finance', [AnalyticsController::class, 'finance'])->name('finance');
         Route::get('finance/print', [AnalyticsController::class, 'financePrint'])->name('finance.print');
+        Route::get('reports', [AnalyticsController::class, 'reports'])->name('reports');
+        Route::get('reports/print', [AnalyticsController::class, 'reportsPrint'])->name('reports.print');
     });
 
     Route::prefix('settings')->name('settings.')->group(function () {

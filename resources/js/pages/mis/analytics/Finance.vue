@@ -8,6 +8,7 @@ import {
     Receipt,
     Wallet,
 } from '@lucide/vue';
+import AnalyticsSubnav from '@/components/mis/AnalyticsSubnav.vue';
 import BarChart from '@/components/charts/BarChart.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
 import LineChart from '@/components/charts/LineChart.vue';
@@ -363,6 +364,8 @@ function onYearChange(event: Event): void {
                 </V2StatGrid>
             </template>
         </V2Hero>
+
+        <AnalyticsSubnav active="finance" />
 
         <div class="grid gap-4 lg:grid-cols-5">
             <V2Panel

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Services\AnalyticsService;
+use App\Services\MisSystemReportService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -45,6 +46,38 @@ class AnalyticsController extends Controller
             'mis/analytics/FinancePrint',
             $analytics->financeReport($this->resolveYear($request)),
         );
+    }
+
+    public function reports(Request $request, MisSystemReportService $systemReport): Response
+    {
+        return Inertia::render(
+            'mis/analytics/Reports',
+            $systemReport->buildForUser(
+                $request->user(),
+                $this->resolveReportYear($request),
+            ),
+        );
+    }
+
+    public function reportsPrint(Request $request, MisSystemReportService $systemReport): Response
+    {
+        $module = $request->string('module')->toString();
+
+        return Inertia::render(
+            'mis/analytics/ReportsPrint',
+            $systemReport->buildForUser(
+                $request->user(),
+                $this->resolveReportYear($request),
+                $module !== '' ? $module : null,
+            ),
+        );
+    }
+
+    private function resolveReportYear(Request $request): int
+    {
+        $year = $this->resolveYear($request);
+
+        return $year ?? now()->year;
     }
 
     private function resolveYear(Request $request): ?int

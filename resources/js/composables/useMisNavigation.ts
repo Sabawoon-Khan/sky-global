@@ -346,6 +346,20 @@ export function useMisNavigation() {
                         icon: DollarSign,
                         permission: 'finance.view',
                     },
+                    {
+                        title: t('Reports'),
+                        href: '/analytics/reports',
+                        icon: FileText,
+                        permission: [
+                            'projects.view',
+                            'bidding.view',
+                            'finance.view',
+                            'hr.view',
+                            'training.view',
+                            'inventory.view',
+                            'archive.view',
+                        ],
+                    },
                 ]),
             },
             {

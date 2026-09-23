@@ -7,6 +7,7 @@ import {
     Target,
     TrendingUp,
 } from '@lucide/vue';
+import AnalyticsSubnav from '@/components/mis/AnalyticsSubnav.vue';
 import BarChart from '@/components/charts/BarChart.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
 import LineChart from '@/components/charts/LineChart.vue';
@@ -162,13 +163,6 @@ const outcomeLabel = (key: string): string => {
                 >
                     {{ t('New Project') }}
                 </Link>
-                <Link
-                    v-if="can('finance.view')"
-                    href="/analytics/finance"
-                    class="detail-btn"
-                >
-                    {{ t('Finance Analytics') }}
-                </Link>
             </template>
             <template v-if="stats" #stats>
                 <V2StatGrid>
@@ -203,6 +197,8 @@ const outcomeLabel = (key: string): string => {
                 </V2StatGrid>
             </template>
         </V2Hero>
+
+        <AnalyticsSubnav active="bidding" />
 
         <div v-if="charts" class="grid gap-4 lg:grid-cols-5">
             <V2Panel
