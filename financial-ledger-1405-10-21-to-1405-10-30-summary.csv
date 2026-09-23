@@ -1,0 +1,9 @@
+metric,value_afn,source_or_rule,verification_status,remarks
+total_income,12500,SUM(credit_afn where entry_type='income'),derived,Calculated from transaction table
+total_expense,269685,SUM(debit_afn where entry_type='expense'),derived,Calculated from transaction table
+total_tax,0,Current value from tax_afn column,pending_value,Set after exact tax amount is confirmed
+net_result_before_tax,-257185,total_income-total_expense,derived,Negative means loss/outflow
+net_result_after_tax,-257185,net_result_before_tax-total_tax,derived,Will update once tax is entered
+sheet_total_expenses_reference,201000,Bottom total visible in source image,needs_review,Does not currently reconcile with line-level extracted data
+sheet_balance_reference_1,134995,Bottom figure visible in source image,needs_review,Needs validation against confirmed entries
+sheet_balance_reference_2,65670,Bottom figure visible in source image,needs_review,Needs validation against confirmed entries

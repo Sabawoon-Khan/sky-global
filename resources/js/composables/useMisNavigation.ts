@@ -1,6 +1,7 @@
 import {
     Award,
     Archive,
+    BookOpen,
     ArrowDownRight,
     ArrowUpRight,
     BarChart3,
@@ -197,6 +198,12 @@ export function useMisNavigation() {
                         icon: DollarSign,
                         permission: 'finance.view',
                         exact: true,
+                    },
+                    {
+                        title: t('Monthly ledger'),
+                        href: '/finance/ledger',
+                        icon: BookOpen,
+                        permission: 'finance.view',
                     },
                     {
                         title: t('Tax'),

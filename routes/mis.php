@@ -11,6 +11,7 @@ use App\Http\Controllers\Equipment\PersonnelTrainingController;
 use App\Http\Controllers\Equipment\ProjectEquipmentIssueController;
 use App\Http\Controllers\Equipment\TrainingSessionController;
 use App\Http\Controllers\Finance\FinanceCategoryController;
+use App\Http\Controllers\Finance\FinanceLedgerController;
 use App\Http\Controllers\Finance\ExpenseFundController;
 use App\Http\Controllers\Finance\GeneralExpenseController;
 use App\Http\Controllers\Finance\GeneralIncomeController;
@@ -135,6 +136,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('finance')->name('finance.')->group(function () {
         Route::get('/', [InvoiceController::class, 'index'])->name('index');
+        Route::get('ledger', [FinanceLedgerController::class, 'index'])->name('ledger');
+        Route::get('ledger/print', [FinanceLedgerController::class, 'print'])->name('ledger.print');
+        Route::post('ledger/lines', [FinanceLedgerController::class, 'storeLine'])->name('ledger.lines.store');
         Route::get('tax', [TaxController::class, 'index'])->name('tax');
         Route::get('tax/print', [TaxController::class, 'print'])->name('tax.print');
         Route::post('tax/payments', [TaxController::class, 'storePayment'])->name('tax.payments.store');

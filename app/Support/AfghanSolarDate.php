@@ -105,6 +105,42 @@ class AfghanSolarDate
         return self::monthStart($year, $month + 1)->subDay()->endOfDay();
     }
 
+    public static function daysInMonth(int $year, int $month): int
+    {
+        $start = self::monthStart($year, $month);
+
+        return (int) $start->diffInDays(self::monthEnd($year, $month)) + 1;
+    }
+
+    /**
+     * Map a Shamsi calendar day onto the current system Shamsi year/month.
+     */
+    public static function toGregorianInSystemMonth(int $shamsiDay): Carbon
+    {
+        [$year, $month] = self::parts();
+        $day = max(1, min(self::daysInMonth($year, $month), $shamsiDay));
+
+        return self::toGregorian($year, $month, $day);
+    }
+
+    /**
+     * @return array{0: int, 1: int, 2: int}|null
+     */
+    public static function parseShamsiDateString(?string $value): ?array
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return null;
+        }
+
+        $normalized = str_replace('/', '-', $raw);
+        if (! preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $normalized, $matches)) {
+            return null;
+        }
+
+        return [(int) $matches[1], (int) $matches[2], (int) $matches[3]];
+    }
+
     public static function yearStart(int $year): Carbon
     {
         return self::monthStart($year, 1);

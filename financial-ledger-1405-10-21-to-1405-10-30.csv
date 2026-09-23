@@ -1,0 +1,17 @@
+transaction_id,statement_date,transaction_date,entry_type,account_head,description,debit_afn,credit_afn,tax_afn,net_afn,currency,source,verification_status,remarks
+TRX-0001,1405/10/30,1405/10/21,income,Cash Receipt,Opening income entry,0,1000,0,1000,AFN,Handwritten statement image,needs_review,Description should be confirmed from original sheet
+TRX-0002,1405/10/30,1405/10/21,income,Cash Receipt,Main income entry,0,11500,0,11500,AFN,Handwritten statement image,needs_review,Description should be confirmed from original sheet
+TRX-0003,1405/10/30,1405/10/21,expense,Operating Expense,Expense item 1,2500,0,0,-2500,AFN,Handwritten statement image,needs_review,Original text not fully legible
+TRX-0004,1405/10/30,1405/10/21,expense,Operating Expense,Expense item 2,1500,0,0,-1500,AFN,Handwritten statement image,needs_review,Original text not fully legible
+TRX-0005,1405/10/30,1405/10/22,expense,Operating Expense,Expense item 3,6000,0,0,-6000,AFN,Handwritten statement image,needs_review,Original text not fully legible
+TRX-0006,1405/10/30,1405/10/22,expense,Operating Expense,Expense item 4,1180,0,0,-1180,AFN,Handwritten statement image,needs_review,Original text not fully legible
+TRX-0007,1405/10/30,1405/10/22,expense,Operating Expense,Expense item 5,130,0,0,-130,AFN,Handwritten statement image,needs_review,Original text not fully legible
+TRX-0008,1405/10/30,1405/10/22,expense,Operating Expense,Expense item 6,600,0,0,-600,AFN,Handwritten statement image,needs_review,Original text not fully legible
+TRX-0009,1405/10/30,1405/10/23,expense,Operating Expense,Expense item 7,1500,0,0,-1500,AFN,Handwritten statement image,needs_review,Original text not fully legible
+TRX-0010,1405/10/30,1405/10/23,expense,Operating Expense,Expense item 8,1500,0,0,-1500,AFN,Handwritten statement image,needs_review,Original text not fully legible
+TRX-0011,1405/10/30,1405/10/23,expense,Operating Expense,Expense item 9,450,0,0,-450,AFN,Handwritten statement image,needs_review,Original text not fully legible
+TRX-0012,1405/10/30,1405/10/23,expense,Operating Expense,Expense item 10,900,0,0,-900,AFN,Handwritten statement image,needs_review,Original text not fully legible
+TRX-0013,1405/10/30,1405/10/24,expense,Operating Expense,Expense item 11,750,0,0,-750,AFN,Handwritten statement image,needs_review,Original text not fully legible
+TRX-0014,1405/10/30,1405/10/24,expense,Operating Expense,Expense item 12,2000,0,0,-2000,AFN,Handwritten statement image,needs_review,Original text not fully legible
+TRX-0015,1405/10/30,1405/10/24,expense,Operating Expense,Expense item 13 (large amount from sheet),250675,0,0,-250675,AFN,Handwritten statement image,needs_review,Check if this value is transaction or subtotal
+TRX-0016,1405/10/30,1405/10/30,tax,Tax Expense,Tax line item,0,0,0,0,AFN,Handwritten statement image,pending_value,Tax amount unreadable in current image
