@@ -116,46 +116,54 @@ class ExpenseFund extends Model
     }
 
     /**
+     * Shared store: all receipts minus expenses marked paid from the cash box.
+     *
+     * @return array{received: float, spent: float, remaining: float, currency: string}
+     */
+    public static function cashBox(): array
+    {
+        $received = (float) static::query()->sum('amount_received');
+        $spent = (float) GeneralExpense::query()->where('paid_from_cash_box', true)->sum('amount')
+            + (float) ProjectExpense::query()->where('paid_from_cash_box', true)->sum('amount');
+
+        return [
+            'received' => round($received, 2),
+            'spent' => round($spent, 2),
+            'remaining' => round($received - $spent, 2),
+            'currency' => 'AFN',
+        ];
+    }
+
+    public function canDeleteFromCashBox(?array $cashBox = null): bool
+    {
+        $cashBox ??= static::cashBox();
+        $receivedAfterDelete = $cashBox['received'] - (float) $this->amount_received;
+
+        return $receivedAfterDelete + 0.009 >= $cashBox['spent'];
+    }
+
+    /**
      * @return Collection<int, array<string, mixed>>
      */
     public static function inertiaSummaries(): Collection
     {
-        return static::queryWithSpentAggregates()
+        $cashBox = static::cashBox();
+
+        return static::query()
             ->latest('received_date')
             ->get()
-            ->map(function (ExpenseFund $fund) {
-                $spent = $fund->aggregatedSpentAmount();
-                $received = (float) $fund->amount_received;
-
-                $remaining = round($received - $spent, 2);
-
+            ->map(function (ExpenseFund $fund) use ($cashBox) {
                 return [
                     'id' => $fund->id,
                     'label' => $fund->displayLabel(),
                     'received_from' => $fund->received_from,
                     'description' => $fund->description,
-                    'amount_received' => $received,
-                    'spent_amount' => $spent,
-                    'remaining_amount' => $remaining,
+                    'amount_received' => (float) $fund->amount_received,
                     'currency' => $fund->currency,
                     'received_date' => $fund->received_date?->toDateString(),
                     'reference_number' => $fund->reference_number,
-                    'is_overdrawn' => $spent > $received,
-                    'can_delete' => ($fund->general_expenses_count ?? 0) === 0
-                        && ($fund->project_expenses_count ?? 0) === 0,
+                    'can_delete' => $fund->canDeleteFromCashBox($cashBox),
                 ];
             });
-    }
-
-    /**
-     * Funds available in "Spend from fund" selects (remaining balance only).
-     *
-     * @return Collection<int, array<string, mixed>>
-     */
-    public static function inertiaPickerOptions(): Collection
-    {
-        return static::inertiaSummaries()
-            ->filter(fn (array $fund) => ($fund['remaining_amount'] ?? 0) > 0)
-            ->values();
     }
 }

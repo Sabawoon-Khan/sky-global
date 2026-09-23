@@ -8,63 +8,39 @@ use Illuminate\Validation\ValidationException;
 
 trait HandlesExpenseFundSpending
 {
-    protected function mergeEmptyExpenseFundId(Request $request): void
+    protected function mergePaidFromCashBox(Request $request): void
     {
-        if ($request->input('expense_fund_id') === '') {
-            $request->merge(['expense_fund_id' => null]);
+        if (! $request->exists('paid_from_cash_box')) {
+            return;
         }
+
+        $request->merge([
+            'paid_from_cash_box' => $request->boolean('paid_from_cash_box'),
+        ]);
     }
 
     /**
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
-    protected function applyExpenseFundCurrency(array $validated, ?int $fallbackFundId = null): array
-    {
-        $fundId = $validated['expense_fund_id'] ?? $fallbackFundId;
-        if ($fundId === null) {
-            return $validated;
-        }
-
-        $fund = ExpenseFund::query()->find($fundId);
-        if ($fund === null) {
-            return $validated;
-        }
-
-        if (! array_key_exists('currency', $validated) || $validated['currency'] === null) {
-            $validated['currency'] = $fund->currency;
-        }
-
-        return $validated;
-    }
-
-    /**
-     * @param  array<string, mixed>  $validated
-     * @return array<string, mixed>
-     */
-    protected function assertExpenseWithinFundBalance(
+    protected function assertExpenseWithinCashBox(
         array $validated,
-        ?int $previousFundId = null,
+        bool $wasPaidFromCashBox = false,
         ?float $previousAmount = null,
     ): array {
-        $fundId = $validated['expense_fund_id'] ?? null;
-        if ($fundId === null) {
+        $paidFromCashBox = (bool) ($validated['paid_from_cash_box'] ?? false);
+        if (! $paidFromCashBox) {
             return $validated;
         }
 
-        $fund = ExpenseFund::query()->find($fundId);
-        if ($fund === null) {
-            return $validated;
-        }
-
-        $available = $fund->remainingAmount();
-        if ($previousFundId === $fundId && $previousAmount !== null) {
+        $available = ExpenseFund::cashBox()['remaining'];
+        if ($wasPaidFromCashBox && $previousAmount !== null) {
             $available += $previousAmount;
         }
 
         if ($available <= 0) {
             throw ValidationException::withMessages([
-                'expense_fund_id' => __('This fund has no remaining balance. Record a new fund first.'),
+                'paid_from_cash_box' => __('The cash box has no remaining balance. Record received money first.'),
             ]);
         }
 
@@ -72,9 +48,8 @@ trait HandlesExpenseFundSpending
             $amount = (float) $validated['amount'];
             if ($amount > $available + 0.009) {
                 throw ValidationException::withMessages([
-                    'amount' => __('Amount exceeds the remaining fund balance of :amount :currency.', [
+                    'amount' => __('Amount exceeds the remaining cash box balance of :amount.', [
                         'amount' => number_format($available, 2),
-                        'currency' => $fund->currency,
                     ]),
                 ]);
             }

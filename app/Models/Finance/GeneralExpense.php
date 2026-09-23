@@ -18,6 +18,7 @@ class GeneralExpense extends Model
     protected $fillable = [
         'account_id',
         'expense_fund_id',
+        'paid_from_cash_box',
         'amount',
         'currency',
         'exchange_rate',
@@ -35,6 +36,7 @@ class GeneralExpense extends Model
     protected function casts(): array
     {
         return [
+            'paid_from_cash_box' => 'boolean',
             'amount' => 'decimal:2',
             'exchange_rate' => 'decimal:6',
             'amount_usd' => 'decimal:2',

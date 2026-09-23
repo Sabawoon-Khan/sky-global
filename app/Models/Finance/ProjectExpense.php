@@ -18,6 +18,7 @@ class ProjectExpense extends Model
     protected $fillable = [
         'project_id',
         'expense_fund_id',
+        'paid_from_cash_box',
         'account_id',
         'amount',
         'currency',
@@ -36,6 +37,7 @@ class ProjectExpense extends Model
     protected function casts(): array
     {
         return [
+            'paid_from_cash_box' => 'boolean',
             'amount' => 'decimal:2',
             'exchange_rate' => 'decimal:6',
             'amount_usd' => 'decimal:2',

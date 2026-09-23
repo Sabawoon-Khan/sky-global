@@ -49,13 +49,17 @@ interface ExpenseFundSummary {
     received_from: string | null;
     description: string | null;
     amount_received: number;
-    spent_amount: number;
-    remaining_amount: number;
     currency: string;
     received_date: string | null;
     reference_number: string | null;
-    is_overdrawn: boolean;
     can_delete: boolean;
+}
+
+interface CashBox {
+    received: number;
+    spent: number;
+    remaining: number;
+    currency: string;
 }
 
 interface GeneralRecord {
@@ -67,15 +71,14 @@ interface GeneralRecord {
     currency?: string | null;
     transaction_date?: string | null;
     status?: string | null;
-    expense_fund_id?: number | null;
-    expense_fund_label?: string | null;
+    paid_from_cash_box?: boolean;
     attachments?: FinanceAttachment[];
 }
 
 const props = defineProps<{
     generalExpenses: Paginated<GeneralRecord>;
     expenseFunds?: ExpenseFundSummary[];
-    expenseFundPickerOptions?: ExpenseFundSummary[];
+    cashBox?: CashBox;
     categories?: FinanceCategoryOption[];
     filters?: {
         search?: string | null;
@@ -83,13 +86,12 @@ const props = defineProps<{
         category?: string | null;
         date_from?: string | null;
         date_to?: string | null;
-        expense_fund_id?: string | null;
+        paid_from_cash_box?: string | null;
     };
     stats?: {
         total?: number;
         count?: number;
-        funds_received_total?: number;
-        open_funds_count?: number;
+        cash_remaining?: number;
     };
 }>();
 
@@ -109,7 +111,7 @@ const { filters, apply, clear } = useMisFilters(
         category: props.filters?.category ?? '',
         date_from: props.filters?.date_from ?? '',
         date_to: props.filters?.date_to ?? '',
-        expense_fund_id: props.filters?.expense_fund_id ?? '',
+        paid_from_cash_box: props.filters?.paid_from_cash_box ?? '',
     },
     {
         search: '',
@@ -117,13 +119,13 @@ const { filters, apply, clear } = useMisFilters(
         category: '',
         date_from: '',
         date_to: '',
-        expense_fund_id: '',
+        paid_from_cash_box: '',
     },
     {
         only: [
             'generalExpenses',
             'expenseFunds',
-            'expenseFundPickerOptions',
+            'cashBox',
             'categories',
             'filters',
             'stats',
@@ -139,25 +141,16 @@ const hasActiveFilters = computed(
         Boolean(filters.category) ||
         Boolean(filters.date_from) ||
         Boolean(filters.date_to) ||
-        Boolean(filters.expense_fund_id),
+        Boolean(filters.paid_from_cash_box),
 );
 
 const fundOptions = computed(() => props.expenseFunds ?? []);
-
-/** Funds with remaining balance (depleted funds are excluded). */
-const spendFromFundOptions = computed(
-    () => props.expenseFundPickerOptions ?? [],
-);
-
-const fundLabelWithRemaining = (fund: ExpenseFundSummary): string => {
-    return `${fund.label} — ${formatAfn(fund.remaining_amount)} ${t('left')}`;
-};
 
 const { sortedRows } = provideTableSort(() => props.generalExpenses.data, {
     accessors: {
         description: (row) => row.description,
         category: (row) => row.category,
-        fund: (row) => row.expense_fund_label,
+        fund: (row) => row.paid_from_cash_box,
         date: (row) => row.transaction_date,
         attachment: (row) => row.attachments?.[0]?.original_filename,
         amount: (row) => row.amount,
@@ -257,8 +250,8 @@ const money = (value?: number | null): string => formatAfn(value);
                     <V2StatCard
                         :delay="2"
                         icon-tone="teal"
-                        :title="t('Open funds')"
-                        :value="String(stats?.open_funds_count ?? 0)"
+                        :title="t('Cash remaining')"
+                        :value="formatAfn(stats?.cash_remaining)"
                     >
                         <template #icon><Wallet /></template>
                     </V2StatCard>
@@ -271,12 +264,12 @@ const money = (value?: number | null): string => formatAfn(value);
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <CardTitle class="text-base">{{
-                            t('Expense funds')
+                            t('Cash box')
                         }}</CardTitle>
                         <p class="mt-1 text-sm text-muted-foreground">
                             {{
                                 t(
-                                    'Record money received, then link overhead or project expenses to that fund.',
+                                    'Record money received into the cash box. Overhead and project expenses can spend from the stored balance.',
                                 )
                             }}
                         </p>
@@ -294,11 +287,44 @@ const money = (value?: number | null): string => formatAfn(value);
                 </div>
             </CardHeader>
             <CardContent class="space-y-4">
+                <div class="grid gap-3 sm:grid-cols-3">
+                    <div class="rounded-md border p-3">
+                        <p class="text-xs text-muted-foreground">
+                            {{ t('Received') }}
+                        </p>
+                        <p class="text-lg font-semibold tabular-nums">
+                            {{ money(cashBox?.received) }}
+                        </p>
+                    </div>
+                    <div class="rounded-md border p-3">
+                        <p class="text-xs text-muted-foreground">
+                            {{ t('Spent') }}
+                        </p>
+                        <p class="text-lg font-semibold tabular-nums">
+                            {{ money(cashBox?.spent) }}
+                        </p>
+                    </div>
+                    <div class="rounded-md border p-3">
+                        <p class="text-xs text-muted-foreground">
+                            {{ t('Remaining') }}
+                        </p>
+                        <p
+                            class="text-lg font-semibold tabular-nums"
+                            :class="
+                                (cashBox?.remaining ?? 0) < 0
+                                    ? 'text-amber-600 dark:text-amber-400'
+                                    : 'text-emerald-600 dark:text-emerald-400'
+                            "
+                        >
+                            {{ money(cashBox?.remaining) }}
+                        </p>
+                    </div>
+                </div>
                 <div
                     v-if="!fundOptions.length"
                     class="ui-empty-state"
                 >
-                    {{ t('No expense funds yet.') }}
+                    {{ t('No receipts yet.') }}
                 </div>
                 <div v-else class="overflow-x-auto rounded-md border">
                     <table class="w-full text-sm">
@@ -312,20 +338,8 @@ const money = (value?: number | null): string => formatAfn(value);
                                 <th class="px-3 py-2 text-start font-medium">
                                     {{ t('Received from') }}
                                 </th>
-                                <th
-                                    class="px-3 py-2 text-end font-medium"
-                                >
-                                    {{ t('Received') }}
-                                </th>
-                                <th
-                                    class="px-3 py-2 text-end font-medium"
-                                >
-                                    {{ t('Spent') }}
-                                </th>
-                                <th
-                                    class="px-3 py-2 text-end font-medium"
-                                >
-                                    {{ t('Remaining') }}
+                                <th class="px-3 py-2 text-end font-medium">
+                                    {{ t('Amount') }}
                                 </th>
                             </tr>
                         </thead>
@@ -346,23 +360,6 @@ const money = (value?: number | null): string => formatAfn(value);
                                     class="px-3 py-2 text-end tabular-nums font-medium"
                                 >
                                     {{ money(fund.amount_received) }}
-                                </td>
-                                <td
-                                    class="px-3 py-2 text-end tabular-nums text-muted-foreground"
-                                >
-                                    {{ money(fund.spent_amount) }}
-                                </td>
-                                <td
-                                    class="px-3 py-2 text-end tabular-nums font-medium"
-                                    :class="
-                                        fund.is_overdrawn
-                                            ? 'text-amber-600 dark:text-amber-400'
-                                            : fund.remaining_amount <= 0
-                                              ? 'text-muted-foreground'
-                                              : 'text-emerald-600 dark:text-emerald-400'
-                                    "
-                                >
-                                    {{ money(fund.remaining_amount) }}
                                 </td>
                             </tr>
                         </tbody>
@@ -425,18 +422,13 @@ const money = (value?: number | null): string => formatAfn(value);
                     </option>
                 </V2SelectFilter>
                 <V2SelectFilter
-                    v-model="filters.expense_fund_id"
-                    :label="t('Fund')"
-                    @change="(value) => apply({ expense_fund_id: value })"
+                    v-model="filters.paid_from_cash_box"
+                    :label="t('Cash box')"
+                    @change="(value) => apply({ paid_from_cash_box: value })"
                 >
-                    <option value="">{{ t('All funds') }}</option>
-                    <option
-                        v-for="fund in fundOptions"
-                        :key="fund.id"
-                        :value="String(fund.id)"
-                    >
-                        {{ fund.label }}
-                    </option>
+                    <option value="">{{ t('All expenses') }}</option>
+                    <option value="1">{{ t('From cash box') }}</option>
+                    <option value="0">{{ t('Not from cash box') }}</option>
                 </V2SelectFilter>
             </MisListFilterBar>
             <CardContent class="space-y-4">
@@ -469,7 +461,7 @@ const money = (value?: number | null): string => formatAfn(value);
                                         column="fund"
                                         class="px-3 py-2 font-medium"
                                     >
-                                        {{ t('Fund') }}
+                                        {{ t('Cash box') }}
                                     </SortableTh>
                                     <SortableTh
                                         column="date"
@@ -511,7 +503,11 @@ const money = (value?: number | null): string => formatAfn(value);
                                     <td
                                         class="px-3 py-2 text-muted-foreground"
                                     >
-                                        {{ item.expense_fund_label ?? '—' }}
+                                        {{
+                                            item.paid_from_cash_box
+                                                ? t('Cash box')
+                                                : '—'
+                                        }}
                                     </td>
                                     <td
                                         class="px-3 py-2 text-muted-foreground"
@@ -680,31 +676,18 @@ const money = (value?: number | null): string => formatAfn(value);
                         </div>
                         <div>
                             <dt class="text-muted-foreground">
-                                {{ t('Received') }}
+                                {{ t('Amount') }}
                             </dt>
                             <dd class="font-medium tabular-nums">
                                 {{ money(viewingFund.amount_received) }}
                             </dd>
                         </div>
-                        <div>
-                            <dt class="text-muted-foreground">{{ t('Spent') }}</dt>
-                            <dd class="font-medium tabular-nums">
-                                {{ money(viewingFund.spent_amount) }}
-                            </dd>
-                        </div>
-                        <div class="sm:col-span-2">
+                        <div v-if="viewingFund.description" class="sm:col-span-2">
                             <dt class="text-muted-foreground">
-                                {{ t('Remaining') }}
+                                {{ t('Description') }}
                             </dt>
-                            <dd
-                                class="font-medium tabular-nums"
-                                :class="
-                                    viewingFund.is_overdrawn
-                                        ? 'text-amber-600'
-                                        : ''
-                                "
-                            >
-                                {{ money(viewingFund.remaining_amount) }}
+                            <dd class="font-medium">
+                                {{ viewingFund.description }}
                             </dd>
                         </div>
                     </dl>
@@ -865,29 +848,34 @@ const money = (value?: number | null): string => formatAfn(value);
                                 :default-value="editingRecord?.category"
                             />
                         </div>
-                        <div class="grid gap-2 sm:col-span-2">
-                            <Label for="ge-fund">{{ t('Spend from fund') }}</Label>
-                            <select
-                                id="ge-fund"
-                                name="expense_fund_id"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                            >
-                                <option value="">
-                                    {{ t('Not linked to a fund') }}
-                                </option>
-                                <option
-                                    v-for="fund in spendFromFundOptions"
-                                    :key="fund.id"
-                                    :value="String(fund.id)"
-                                    :selected="
-                                        editingRecord?.expense_fund_id ===
-                                        fund.id
-                                    "
-                                >
-                                    {{ fundLabelWithRemaining(fund) }}
-                                </option>
-                            </select>
-                            <InputError :message="errors.expense_fund_id" />
+                        <div class="flex items-start gap-2 sm:col-span-2">
+                            <input
+                                type="hidden"
+                                name="paid_from_cash_box"
+                                value="0"
+                            />
+                            <input
+                                id="ge-cash-box"
+                                name="paid_from_cash_box"
+                                type="checkbox"
+                                value="1"
+                                class="mt-1 size-4 rounded border"
+                                :checked="
+                                    editingRecord?.paid_from_cash_box ?? false
+                                "
+                            />
+                            <div>
+                                <Label for="ge-cash-box">{{
+                                    t('Spend from cash box')
+                                }}</Label>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ money(cashBox?.remaining) }}
+                                    {{ t('left') }}
+                                </p>
+                                <InputError
+                                    :message="errors.paid_from_cash_box"
+                                />
+                            </div>
                         </div>
                         <div class="grid gap-2">
                             <Label for="ge-amount">{{ t('Amount') }} *</Label>
@@ -900,6 +888,7 @@ const money = (value?: number | null): string => formatAfn(value);
                                 required
                                 :default-value="editingRecord?.amount"
                             />
+                            <InputError :message="errors.amount" />
                         </div>
                         <div class="grid gap-2">
                             <Label for="ge-date">{{ t('Date') }} *</Label>
@@ -955,9 +944,13 @@ const money = (value?: number | null): string => formatAfn(value);
                             </dd>
                         </div>
                         <div>
-                            <dt class="text-muted-foreground">{{ t('Fund') }}</dt>
+                            <dt class="text-muted-foreground">{{ t('Cash box') }}</dt>
                             <dd class="font-medium">
-                                {{ viewingRecord.expense_fund_label ?? '—' }}
+                                {{
+                                    viewingRecord.paid_from_cash_box
+                                        ? t('Cash box')
+                                        : '—'
+                                }}
                             </dd>
                         </div>
                         <div>

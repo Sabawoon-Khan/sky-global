@@ -83,16 +83,11 @@ interface FinanceAttachment {
     download_url: string;
 }
 
-interface ExpenseFundOption {
-    id: number;
-    label: string;
-    remaining_amount: number;
-}
-
-interface ExpenseFundSummary {
-    id: number;
-    received_from: string | null;
-    description: string | null;
+interface CashBox {
+    received: number;
+    spent: number;
+    remaining: number;
+    currency: string;
 }
 
 interface FinanceRow {
@@ -102,8 +97,7 @@ interface FinanceRow {
     description: string | null;
     category?: string | null;
     transaction_date: string;
-    expense_fund_id?: number | null;
-    expense_fund?: ExpenseFundSummary | null;
+    paid_from_cash_box?: boolean;
     attachments?: FinanceAttachment[];
 }
 
@@ -274,8 +268,7 @@ const props = defineProps<{
         name: string;
         applies_to: 'income' | 'expense' | 'both';
     }>;
-    expenseFunds?: ExpenseFundOption[];
-    expenseFundPickerOptions?: ExpenseFundOption[];
+    cashBox?: CashBox;
 }>();
 
 const { t, can, gateActions } = useMisPage();
@@ -668,32 +661,6 @@ const financeMixData = computed(() => [
     Math.max(0, Number(props.finance.income) || 0),
     Math.max(0, Number(props.finance.expense) || 0),
 ]);
-
-const expenseFundOptions = computed(
-    () => props.expenseFundPickerOptions ?? [],
-);
-
-function expenseFundRowLabel(row: FinanceRow): string | null {
-    if (row.expense_fund) {
-        const parts = [
-            row.expense_fund.received_from,
-            row.expense_fund.description,
-        ].filter(Boolean);
-        if (parts.length) {
-            return parts.join(' — ');
-        }
-    }
-
-    const match = expenseFundOptions.value.find(
-        (fund) => fund.id === row.expense_fund_id,
-    );
-
-    return match?.label ?? null;
-}
-
-function fundOptionLabel(fund: ExpenseFundOption): string {
-    return `${fund.label} — ${formatAfn(fund.remaining_amount)} ${t('left')}`;
-}
 
 const monthlyFinanceChart = computed(() => {
     const buckets = new Map<string, { label: string; income: number; expense: number }>();
@@ -1822,9 +1789,8 @@ const closeIssueEdit = (): void => {
                             <p class="text-xs text-muted-foreground">
                                 {{ formatDate(row.transaction_date) }}
                                 <span v-if="row.category"> · {{ row.category }}</span>
-                                <span v-if="expenseFundRowLabel(row)">
-                                    · {{ t('Fund') }}:
-                                    {{ expenseFundRowLabel(row) }}
+                                <span v-if="row.paid_from_cash_box">
+                                    · {{ t('Cash box') }}
                                 </span>
                                 <FileLink
                                     v-for="file in row.attachments ?? []"
@@ -2563,27 +2529,29 @@ const closeIssueEdit = (): void => {
                             :categories="financeCategories ?? []"
                             :error="errors.category"
                         />
-                        <div class="grid gap-2">
-                            <Label for="project-expense-fund">{{
-                                t('Spend from fund')
-                            }}</Label>
-                            <select
-                                id="project-expense-fund"
-                                name="expense_fund_id"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                            >
-                                <option value="">
-                                    {{ t('Not linked to a fund') }}
-                                </option>
-                                <option
-                                    v-for="fund in expenseFundOptions"
-                                    :key="fund.id"
-                                    :value="String(fund.id)"
-                                >
-                                    {{ fundOptionLabel(fund) }}
-                                </option>
-                            </select>
-                            <InputError :message="errors.expense_fund_id" />
+                        <div class="flex items-start gap-2">
+                            <input
+                                type="hidden"
+                                name="paid_from_cash_box"
+                                value="0"
+                            />
+                            <input
+                                id="project-expense-cash-box"
+                                name="paid_from_cash_box"
+                                type="checkbox"
+                                value="1"
+                                class="mt-1 size-4 rounded border"
+                            />
+                            <div>
+                                <Label for="project-expense-cash-box">{{
+                                    t('Spend from cash box')
+                                }}</Label>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ formatAfn(cashBox?.remaining) }}
+                                    {{ t('left') }}
+                                </p>
+                                <InputError :message="errors.paid_from_cash_box" />
+                            </div>
                         </div>
                         <Textarea
                             name="description"
@@ -2692,32 +2660,31 @@ const closeIssueEdit = (): void => {
                         />
                         <div
                             v-if="editingFinance.type === 'expense'"
-                            class="grid gap-2"
+                            class="flex items-start gap-2"
                         >
-                            <Label for="edit-expense-fund">{{
-                                t('Spend from fund')
-                            }}</Label>
-                            <select
-                                id="edit-expense-fund"
-                                name="expense_fund_id"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                            >
-                                <option value="">
-                                    {{ t('Not linked to a fund') }}
-                                </option>
-                                <option
-                                    v-for="fund in expenseFundOptions"
-                                    :key="fund.id"
-                                    :value="String(fund.id)"
-                                    :selected="
-                                        editingFinance.row.expense_fund_id ===
-                                        fund.id
-                                    "
-                                >
-                                    {{ fundOptionLabel(fund) }}
-                                </option>
-                            </select>
-                            <InputError :message="errors.expense_fund_id" />
+                            <input
+                                type="hidden"
+                                name="paid_from_cash_box"
+                                value="0"
+                            />
+                            <input
+                                id="edit-expense-cash-box"
+                                name="paid_from_cash_box"
+                                type="checkbox"
+                                value="1"
+                                class="mt-1 size-4 rounded border"
+                                :checked="!!editingFinance.row.paid_from_cash_box"
+                            />
+                            <div>
+                                <Label for="edit-expense-cash-box">{{
+                                    t('Spend from cash box')
+                                }}</Label>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ formatAfn(cashBox?.remaining) }}
+                                    {{ t('left') }}
+                                </p>
+                                <InputError :message="errors.paid_from_cash_box" />
+                            </div>
                         </div>
                         <input
                             type="hidden"

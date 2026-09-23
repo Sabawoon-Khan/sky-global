@@ -8,7 +8,6 @@ use App\Http\Controllers\Concerns\AuthorizesMisPermissions;
 use App\Http\Controllers\Concerns\HandlesExpenseFundSpending;
 use App\Http\Controllers\Concerns\StoresOptionalAttachments;
 use App\Http\Controllers\Controller;
-use App\Models\Finance\ExpenseFund;
 use App\Models\Finance\FinanceCategory;
 use App\Models\Finance\ProjectExpense;
 use App\Models\Project\Project;
@@ -29,7 +28,7 @@ class ProjectExpenseController extends Controller
         $filters = $this->listFilters($request, ['pending', 'approved', 'rejected']);
 
         $query = ProjectExpense::query()
-            ->with(['project', 'account', 'attachments', 'expenseFund']);
+            ->with(['project', 'account', 'attachments']);
         $this->applyListFilters($query, $filters, [
             'search_columns' => ['description', 'reference_number'],
             'search_relations' => ['project' => ['code', 'name']],
@@ -49,16 +48,13 @@ class ProjectExpenseController extends Controller
                 'currency' => $expense->currency,
                 'transaction_date' => $expense->transaction_date?->toDateString(),
                 'status' => $expense->status,
-                'expense_fund_id' => $expense->expense_fund_id,
-                'expense_fund_label' => $expense->expenseFund?->displayLabel(),
+                'paid_from_cash_box' => (bool) $expense->paid_from_cash_box,
                 'project' => $expense->project?->only(['id', 'code', 'name']),
                 'attachments' => $expense->attachments,
             ]);
 
         return Inertia::render('mis/finance/Expenses/Index', [
             'expenses' => $expenses,
-            'expenseFunds' => ExpenseFund::inertiaSummaries(),
-            'expenseFundPickerOptions' => ExpenseFund::inertiaPickerOptions(),
             'projects' => Project::query()
                 ->where('is_archived', false)
                 ->orderBy('code')
@@ -89,11 +85,11 @@ class ProjectExpenseController extends Controller
     {
         $this->authorizePermission($request, 'finance.create');
 
-        $this->mergeEmptyExpenseFundId($request);
+        $this->mergePaidFromCashBox($request);
 
         $validated = $request->validate([
             'project_id' => ['required', 'exists:projects,id'],
-            'expense_fund_id' => ['nullable', 'exists:expense_funds,id'],
+            'paid_from_cash_box' => ['sometimes', 'boolean'],
             'account_id' => ['nullable', 'exists:chart_of_accounts,id'],
             'amount' => ['required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
@@ -107,8 +103,8 @@ class ProjectExpenseController extends Controller
             'status' => ['nullable', 'string', 'in:pending,approved,rejected'],
         ]);
 
-        $validated = $this->applyExpenseFundCurrency($validated);
-        $validated = $this->assertExpenseWithinFundBalance($validated);
+        $validated['paid_from_cash_box'] = (bool) ($validated['paid_from_cash_box'] ?? false);
+        $validated = $this->assertExpenseWithinCashBox($validated);
 
         $expense = ProjectExpense::query()->create([
             ...$validated,
@@ -140,13 +136,13 @@ class ProjectExpenseController extends Controller
     {
         $this->authorizePermission($request, 'finance.edit');
 
-        $previousFundId = $expense->expense_fund_id;
+        $wasPaidFromCashBox = (bool) $expense->paid_from_cash_box;
         $previousAmount = (float) $expense->amount;
 
-        $this->mergeEmptyExpenseFundId($request);
+        $this->mergePaidFromCashBox($request);
 
         $validated = $request->validate([
-            'expense_fund_id' => ['nullable', 'exists:expense_funds,id'],
+            'paid_from_cash_box' => ['sometimes', 'boolean'],
             'account_id' => ['nullable', 'exists:chart_of_accounts,id'],
             'amount' => ['sometimes', 'required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
@@ -160,18 +156,16 @@ class ProjectExpenseController extends Controller
             'status' => ['nullable', 'string', 'in:pending,approved,rejected'],
         ]);
 
-        $validated = $this->applyExpenseFundCurrency($validated, $expense->expense_fund_id);
-
-        if (! array_key_exists('expense_fund_id', $validated)) {
-            $validated['expense_fund_id'] = $expense->expense_fund_id;
+        if (! array_key_exists('paid_from_cash_box', $validated)) {
+            $validated['paid_from_cash_box'] = $wasPaidFromCashBox;
         }
         if (! array_key_exists('amount', $validated)) {
             $validated['amount'] = $expense->amount;
         }
 
-        $validated = $this->assertExpenseWithinFundBalance(
+        $validated = $this->assertExpenseWithinCashBox(
             $validated,
-            $previousFundId,
+            $wasPaidFromCashBox,
             $previousAmount,
         );
 

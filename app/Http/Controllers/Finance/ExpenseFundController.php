@@ -68,8 +68,8 @@ class ExpenseFundController extends Controller
     {
         $this->authorizePermission($request, 'finance.delete');
 
-        if ($expenseFund->generalExpenses()->exists() || $expenseFund->projectExpenses()->exists()) {
-            return back()->with('error', __('Cannot delete a fund that has linked expenses.'));
+        if (! $expenseFund->canDeleteFromCashBox()) {
+            return back()->with('error', __('Cannot delete this receipt because the cash box would no longer cover spending.'));
         }
 
         $label = $expenseFund->displayLabel();

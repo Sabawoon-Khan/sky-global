@@ -205,7 +205,7 @@ class ProjectController extends Controller
             'sites',
             'deployments' => fn ($q) => $q->with(['projectSite', 'personnel'])->latest(),
             'incomes' => fn ($q) => $q->with('attachments')->latest('transaction_date')->limit(20),
-            'expenses' => fn ($q) => $q->with(['attachments', 'expenseFund'])->latest('transaction_date')->limit(20),
+            'expenses' => fn ($q) => $q->with('attachments')->latest('transaction_date')->limit(20),
             'shareholders' => fn ($q) => $q->with(['transactions' => fn ($tq) => $tq->latest('transaction_date')->limit(10)]),
             'equipmentIssues' => fn ($q) => $q
                 ->with([
@@ -262,8 +262,7 @@ class ProjectController extends Controller
                     'quantity_on_hand' => (int) ($item->stock?->quantity_on_hand ?? 0),
                 ]),
             'financeCategories' => FinanceCategory::options(),
-            'expenseFunds' => ExpenseFund::inertiaSummaries(),
-            'expenseFundPickerOptions' => ExpenseFund::inertiaPickerOptions(),
+            'cashBox' => ExpenseFund::cashBox(),
         ]);
     }
 
@@ -442,23 +441,21 @@ class ProjectController extends Controller
     {
         $this->authorizePermission($request, 'finance.create');
 
-        $this->mergeEmptyExpenseFundId($request);
+        $this->mergePaidFromCashBox($request);
 
         $validated = $request->validate([
             'amount' => ['required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
-            'expense_fund_id' => ['nullable', 'exists:expense_funds,id'],
+            'paid_from_cash_box' => ['sometimes', 'boolean'],
             'description' => ['nullable', 'string', 'max:255'],
             'category' => ['nullable', 'string', 'max:100'],
             'transaction_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $validated = $this->applyExpenseFundCurrency([
-            ...$validated,
-            'currency' => $validated['currency'] ?? 'AFN',
-        ]);
-        $validated = $this->assertExpenseWithinFundBalance($validated);
+        $validated['currency'] = $validated['currency'] ?? 'AFN';
+        $validated['paid_from_cash_box'] = (bool) ($validated['paid_from_cash_box'] ?? false);
+        $validated = $this->assertExpenseWithinCashBox($validated);
 
         $expense = ProjectExpense::query()->create([
             ...$validated,

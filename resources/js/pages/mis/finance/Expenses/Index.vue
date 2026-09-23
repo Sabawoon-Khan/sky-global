@@ -36,12 +36,6 @@ interface FinanceAttachment {
     download_url: string;
 }
 
-interface ExpenseFundOption {
-    id: number;
-    label: string;
-    remaining_amount: number;
-}
-
 interface Expense {
     id: number;
     description: string;
@@ -50,8 +44,7 @@ interface Expense {
     currency?: string | null;
     transaction_date?: string | null;
     status?: string | null;
-    expense_fund_id?: number | null;
-    expense_fund_label?: string | null;
+    paid_from_cash_box?: boolean;
     project?: { id: number; code: string; name: string } | null;
     attachments?: FinanceAttachment[];
 }
@@ -64,7 +57,6 @@ interface ProjectOption {
 
 const props = defineProps<{
     expenses: Paginated<Expense>;
-    expenseFunds?: ExpenseFundOption[];
     projects?: ProjectOption[];
     categories?: string[];
     filters?: {
@@ -100,7 +92,7 @@ const { filters, apply, clear } = useMisFilters(
         date_to: '',
     },
     {
-        only: ['expenses', 'expenseFunds', 'projects', 'categories', 'filters', 'stats'],
+        only: ['expenses', 'projects', 'categories', 'filters', 'stats'],
         liveKeys: ['search'],
     },
 );
@@ -119,7 +111,7 @@ const { sortedRows } = provideTableSort(() => props.expenses.data, {
     accessors: {
         description: (row) => row.description,
         project: (row) => row.project?.code ?? row.project?.name,
-        fund: (row) => row.expense_fund_label,
+        fund: (row) => row.paid_from_cash_box,
         date: (row) => row.transaction_date,
         status: (row) => row.status,
         attachment: (row) => row.attachments?.[0]?.original_filename,
@@ -269,7 +261,7 @@ const expenseActions = (item: Expense): RowActionItem[] => [
                                         {{ t('Project') }}
                                     </SortableTh>
                                     <SortableTh column="fund" class="px-3 py-2 font-medium">
-                                        {{ t('Fund') }}
+                                        {{ t('Cash box') }}
                                     </SortableTh>
                                     <SortableTh column="date" class="px-3 py-2 font-medium">
                                         {{ t('Date') }}
@@ -302,7 +294,11 @@ const expenseActions = (item: Expense): RowActionItem[] => [
                                         {{ item.project?.code ?? '—' }}
                                     </td>
                                     <td class="px-3 py-2 text-muted-foreground">
-                                        {{ item.expense_fund_label ?? '—' }}
+                                        {{
+                                            item.paid_from_cash_box
+                                                ? t('Cash box')
+                                                : '—'
+                                        }}
                                     </td>
                                     <td class="px-3 py-2 text-muted-foreground">
                                         {{ formatDate(item.transaction_date) }}
@@ -371,9 +367,13 @@ const expenseActions = (item: Expense): RowActionItem[] => [
                             </dd>
                         </div>
                         <div>
-                            <dt class="text-muted-foreground">{{ t('Fund') }}</dt>
+                            <dt class="text-muted-foreground">{{ t('Cash box') }}</dt>
                             <dd class="font-medium">
-                                {{ viewingRecord.expense_fund_label ?? '—' }}
+                                {{
+                                    viewingRecord.paid_from_cash_box
+                                        ? t('Cash box')
+                                        : '—'
+                                }}
                             </dd>
                         </div>
                         <div>
