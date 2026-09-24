@@ -4,6 +4,7 @@ import { Archive, Download, Eye, FileText } from '@lucide/vue';
 import ArchiveDocumentFields from '@/components/archive/ArchiveDocumentFields.vue';
 import Can from '@/components/Can.vue';
 import FileLink from '@/components/FileLink.vue';
+import { MisAlert } from '@/components/mis';
 import { V2DetailHero, V2ListPage } from '@/components/v2';
 import RichTextContent from '@/components/RichTextContent.vue';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +32,9 @@ interface ArchivedDocument {
     document_date?: string | null;
     received_at?: string | null;
     sent_at?: string | null;
+    expires_at?: string | null;
+    is_expired?: boolean;
+    is_expiring_soon?: boolean;
     original_filename?: string | null;
     file_size?: number | null;
     download_url?: string | null;
@@ -160,6 +164,32 @@ const moveToLongTermArchive = (): void => {
             </template>
         </V2DetailHero>
 
+        <MisAlert
+            v-if="document.is_expired"
+            tone="danger"
+            :title="t('Document expired')"
+            class="mb-6"
+        >
+            {{
+                t(
+                    'This document expired on :date. It is no longer considered active.',
+                    { date: formatDate(document.expires_at) },
+                )
+            }}
+        </MisAlert>
+        <MisAlert
+            v-else-if="document.is_expiring_soon"
+            tone="warning"
+            :title="t('Expiring soon')"
+            class="mb-6"
+        >
+            {{
+                t('This document expires on :date.', {
+                    date: formatDate(document.expires_at),
+                })
+            }}
+        </MisAlert>
+
         <div class="grid gap-6 xl:grid-cols-2">
             <Card>
                 <CardHeader>
@@ -194,6 +224,12 @@ const moveToLongTermArchive = (): void => {
                                 {{ t('Sent') }}
                             </p>
                             <p>{{ formatDate(document.sent_at) }}</p>
+                        </div>
+                        <div class="grid gap-1">
+                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                {{ t('Expiry date') }}
+                            </p>
+                            <p>{{ formatDate(document.expires_at) }}</p>
                         </div>
                         <div class="grid gap-1">
                             <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">

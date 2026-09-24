@@ -26,6 +26,7 @@ interface DocumentDefaults {
     document_date?: string | null;
     received_at?: string | null;
     sent_at?: string | null;
+    expires_at?: string | null;
     reference_number?: string | null;
 }
 
@@ -139,7 +140,7 @@ const show = (name: NonNullable<typeof props.fieldsSection>): boolean =>
             </div>
         </div>
 
-        <div v-if="show('dates')" class="grid gap-4 sm:grid-cols-3">
+        <div v-if="show('dates')" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div class="grid gap-2">
                 <Label for="doc-date">{{ t('Document date') }}</Label>
                 <Input
@@ -174,6 +175,18 @@ const show = (name: NonNullable<typeof props.fieldsSection>): boolean =>
                     :default-value="dateValue(document?.sent_at)"
                 />
                 <InputError :message="errors.sent_at" />
+            </div>
+
+            <div class="grid gap-2">
+                <Label for="doc-expires">{{ t('Expiry date') }}</Label>
+                <Input
+                    id="doc-expires"
+                    name="expires_at"
+                    type="date"
+                    class="h-10 rounded-xl"
+                    :default-value="dateValue(document?.expires_at)"
+                />
+                <InputError :message="errors.expires_at" />
             </div>
         </div>
 

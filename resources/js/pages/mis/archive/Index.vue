@@ -22,6 +22,7 @@ import { indexTableColumn } from '@/composables/useTableColumns';
 import { useMisFilters } from '@/composables/useMisFilters';
 import { useMisPage } from '@/composables/useMisPage';
 import { provideTableSort } from '@/composables/useTableSort';
+import { Badge } from '@/components/ui/badge';
 import { formatDate, formatNumber, type Paginated } from '@/lib/format';
 import type { RowActionItem } from '@/lib/row-actions';
 import {
@@ -40,6 +41,9 @@ interface ArchivedDocument {
     title: string;
     direction?: string | null;
     document_date?: string | null;
+    expires_at?: string | null;
+    is_expired?: boolean;
+    is_expiring_soon?: boolean;
     original_filename?: string | null;
     download_url?: string | null;
     document_category?: { id: number; name: string } | null;
@@ -106,6 +110,7 @@ const { sortedRows } = provideTableSort(() => props.documents.data, {
         category: (row) => row.document_category?.name,
         linked: (row) => row.organization?.name || row.project?.code,
         date: (row) => row.document_date,
+        expiry: (row) => row.expires_at,
         attachment: (row) => row.original_filename,
         direction: (row) => row.direction,
     },
@@ -125,6 +130,7 @@ const tableColumns = computed(() => [
     { key: 'category', label: t('Category') },
     { key: 'linked', label: t('Linked To') },
     { key: 'date', label: t('Date') },
+    { key: 'expiry', label: t('Expiry') },
     { key: 'attachment', label: t('Attachment') },
     { key: 'direction', label: t('Direction') },
     { key: 'actions', label: t('Actions'), locked: true },
@@ -399,6 +405,7 @@ const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
                             <SortableTh column="category">{{ t('Category') }}</SortableTh>
                             <SortableTh column="linked">{{ t('Linked To') }}</SortableTh>
                             <SortableTh column="date">{{ t('Date') }}</SortableTh>
+                            <SortableTh column="expiry">{{ t('Expiry') }}</SortableTh>
                             <SortableTh column="attachment">{{ t('Attachment') }}</SortableTh>
                             <SortableTh column="direction">{{ t('Direction') }}</SortableTh>
                             <th class="end">{{ t('Actions') }}</th>
@@ -436,6 +443,25 @@ const documentActions = (doc: ArchivedDocument): RowActionItem[] => [
                             </td>
                             <td class="muted nowrap">
                                 {{ formatDate(doc.document_date) }}
+                            </td>
+                            <td class="muted nowrap">
+                                <div class="flex flex-col gap-1">
+                                    <span>{{ formatDate(doc.expires_at) }}</span>
+                                    <Badge
+                                        v-if="doc.is_expired"
+                                        variant="destructive"
+                                        class="w-fit text-xs"
+                                    >
+                                        {{ t('Expired') }}
+                                    </Badge>
+                                    <Badge
+                                        v-else-if="doc.is_expiring_soon"
+                                        variant="outline"
+                                        class="w-fit border-amber-500/50 text-xs text-amber-800 dark:text-amber-200"
+                                    >
+                                        {{ t('Expiring soon') }}
+                                    </Badge>
+                                </div>
                             </td>
                             <td>
                                 <FileLink

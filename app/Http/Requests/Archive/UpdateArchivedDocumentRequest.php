@@ -23,6 +23,7 @@ class UpdateArchivedDocumentRequest extends FormRequest
             'document_date' => ['nullable', 'date'],
             'received_at' => ['nullable', 'date'],
             'sent_at' => ['nullable', 'date'],
+            'expires_at' => ['nullable', 'date'],
             'tags' => ['nullable', 'array'],
             'tags.*' => ['string', 'max:100'],
         ];

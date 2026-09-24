@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 class ArchivedDocument extends Model
 {
@@ -31,6 +32,7 @@ class ArchivedDocument extends Model
         'document_date',
         'received_at',
         'sent_at',
+        'expires_at',
         'uploaded_by',
         'tags',
         'is_archived',
@@ -38,7 +40,7 @@ class ArchivedDocument extends Model
         'replaces_id',
     ];
 
-    protected $appends = ['download_url'];
+    protected $appends = ['download_url', 'is_expired', 'is_expiring_soon'];
 
     protected function casts(): array
     {
@@ -46,6 +48,7 @@ class ArchivedDocument extends Model
             'document_date' => 'date',
             'received_at' => 'datetime',
             'sent_at' => 'datetime',
+            'expires_at' => 'date',
             'tags' => 'array',
             'is_archived' => 'boolean',
         ];
@@ -93,5 +96,23 @@ class ArchivedDocument extends Model
         }
 
         return route('archive.download', $this);
+    }
+
+    public function getIsExpiredAttribute(): bool
+    {
+        if (! $this->expires_at) {
+            return false;
+        }
+
+        return $this->expires_at->toDateString() < Carbon::today()->toDateString();
+    }
+
+    public function getIsExpiringSoonAttribute(): bool
+    {
+        if (! $this->expires_at || $this->is_expired) {
+            return false;
+        }
+
+        return $this->expires_at->lte(Carbon::today()->addDays(30));
     }
 }

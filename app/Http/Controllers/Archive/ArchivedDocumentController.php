@@ -144,6 +144,7 @@ class ArchivedDocumentController extends Controller
             'document_date' => ['nullable', 'date'],
             'received_at' => ['nullable', 'date'],
             'sent_at' => ['nullable', 'date'],
+            'expires_at' => ['nullable', 'date'],
             'tags' => ['nullable', 'array'],
             'file' => ['required', 'file', 'max:20480'],
         ]);
@@ -229,6 +230,7 @@ class ArchivedDocumentController extends Controller
             'document_date' => ['nullable', 'date'],
             'received_at' => ['nullable', 'date'],
             'sent_at' => ['nullable', 'date'],
+            'expires_at' => ['nullable', 'date'],
             'tags' => ['nullable', 'array'],
             'file' => ['nullable', 'file', 'max:20480'],
         ]);
