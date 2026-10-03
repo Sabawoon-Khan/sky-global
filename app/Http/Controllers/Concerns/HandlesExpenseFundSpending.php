@@ -15,8 +15,25 @@ trait HandlesExpenseFundSpending
         }
 
         $request->merge([
-            'paid_from_cash_box' => $request->boolean('paid_from_cash_box'),
+            'paid_from_cash_box' => $this->requestBoolean($request, 'paid_from_cash_box'),
         ]);
+    }
+
+    protected function requestBoolean(Request $request, string $key): bool
+    {
+        $value = $request->input($key);
+
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                if (filter_var($item, FILTER_VALIDATE_BOOLEAN)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return $request->boolean($key);
     }
 
     /**

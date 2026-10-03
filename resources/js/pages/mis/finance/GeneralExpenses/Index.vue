@@ -102,6 +102,7 @@ const viewingRecord = ref<GeneralRecord | null>(null);
 const editingRecord = ref<GeneralRecord | null>(null);
 const viewingFund = ref<ExpenseFundSummary | null>(null);
 const editingFund = ref(false);
+const paidFromCashBox = ref(false);
 
 const { filters, apply, clear } = useMisFilters(
     '/finance/general-expenses',
@@ -134,6 +135,20 @@ const { filters, apply, clear } = useMisFilters(
     },
 );
 
+/** PUT/POST keep page state by default; cash box totals must refresh after mutations. */
+const expenseFormOptions = {
+    preserveScroll: true,
+    preserveState: false,
+    resetOnSuccess: true,
+    forceFormData: true,
+} as const;
+
+const fundFormOptions = {
+    preserveScroll: true,
+    preserveState: false,
+    resetOnSuccess: true,
+} as const;
+
 const hasActiveFilters = computed(
     () =>
         Boolean(filters.search) ||
@@ -164,12 +179,14 @@ function openFundDetail(fund: ExpenseFundSummary): void {
 
 const openCreateExpense = (): void => {
     editingRecord.value = null;
+    paidFromCashBox.value = false;
     showGeneralExpenseForm.value = true;
 };
 
 const openEditExpense = (item: GeneralRecord): void => {
     viewingRecord.value = null;
     editingRecord.value = item;
+    paidFromCashBox.value = Boolean(item.paid_from_cash_box);
     showGeneralExpenseForm.value = true;
 };
 
@@ -568,7 +585,7 @@ const money = (value?: number | null): string => formatAfn(value);
                 <Form
                     action="/finance/expense-funds"
                     method="post"
-                    :options="{ preserveScroll: true, resetOnSuccess: true }"
+                    :options="fundFormOptions"
                     v-slot="{ errors, processing }"
                     @success="showExpenseFundForm = false"
                 >
@@ -697,7 +714,7 @@ const money = (value?: number | null): string => formatAfn(value);
                     v-else
                     :action="`/finance/expense-funds/${viewingFund.id}`"
                     method="put"
-                    :options="{ preserveScroll: true }"
+                    :options="fundFormOptions"
                     v-slot="{ errors, processing }"
                     @success="
                         viewingFund = null;
@@ -807,11 +824,7 @@ const money = (value?: number | null): string => formatAfn(value);
                             : '/finance/general-expenses'
                     "
                     :method="editingRecord ? 'put' : 'post'"
-                    :options="{
-                        preserveScroll: true,
-                        resetOnSuccess: true,
-                        forceFormData: true,
-                    }"
+                    :options="expenseFormOptions"
                     validate-files
                     v-slot="{ errors, processing }"
                     @success="showGeneralExpenseForm = false"
@@ -852,17 +865,13 @@ const money = (value?: number | null): string => formatAfn(value);
                             <input
                                 type="hidden"
                                 name="paid_from_cash_box"
-                                value="0"
+                                :value="paidFromCashBox ? '1' : '0'"
                             />
                             <input
                                 id="ge-cash-box"
-                                name="paid_from_cash_box"
+                                v-model="paidFromCashBox"
                                 type="checkbox"
-                                value="1"
                                 class="mt-1 size-4 rounded border"
-                                :checked="
-                                    editingRecord?.paid_from_cash_box ?? false
-                                "
                             />
                             <div>
                                 <Label for="ge-cash-box">{{

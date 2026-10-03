@@ -131,6 +131,42 @@ class ExpenseFundTest extends TestCase
         $this->assertSame(0.0, ExpenseFund::cashBox()['spent']);
     }
 
+    public function test_updating_expense_to_spend_from_cash_box_updates_balance(): void
+    {
+        ExpenseFund::query()->create([
+            'amount_received' => 10000,
+            'currency' => 'AFN',
+            'received_date' => now()->toDateString(),
+            'created_by' => $this->owner->id,
+        ]);
+
+        $expense = GeneralExpense::query()->create([
+            'paid_from_cash_box' => false,
+            'amount' => 2500,
+            'currency' => 'AFN',
+            'transaction_date' => now()->toDateString(),
+            'description' => 'Later from cash box',
+            'created_by' => $this->owner->id,
+        ]);
+
+        $this->actingAs($this->owner)
+            ->from(route('finance.general-expenses'))
+            ->put(route('finance.general-expenses.update', $expense), [
+                'description' => 'Later from cash box',
+                'amount' => 2500,
+                'transaction_date' => now()->toDateString(),
+                'paid_from_cash_box' => true,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $expense->refresh();
+
+        $this->assertTrue($expense->paid_from_cash_box);
+        $this->assertSame(2500.0, ExpenseFund::cashBox()['spent']);
+        $this->assertSame(7500.0, ExpenseFund::cashBox()['remaining']);
+    }
+
     public function test_updating_expense_amount_recalculates_cash_box_balance(): void
     {
         ExpenseFund::query()->create([
