@@ -140,7 +140,6 @@ const expenseFormOptions = {
     preserveScroll: true,
     preserveState: false,
     resetOnSuccess: true,
-    forceFormData: true,
 } as const;
 
 const fundFormOptions = {
@@ -713,7 +712,7 @@ const money = (value?: number | null): string => formatAfn(value);
                 <Form
                     v-else
                     :action="`/finance/expense-funds/${viewingFund.id}`"
-                    method="put"
+                    method="post"
                     :options="fundFormOptions"
                     v-slot="{ errors, processing }"
                     @success="
@@ -721,6 +720,7 @@ const money = (value?: number | null): string => formatAfn(value);
                         editingFund = false;
                     "
                 >
+                    <input type="hidden" name="_method" value="put" />
                     <div class="grid gap-3 py-2 sm:grid-cols-2">
                         <div class="grid gap-2">
                             <Label>{{ t('Amount') }} *</Label>
@@ -823,12 +823,18 @@ const money = (value?: number | null): string => formatAfn(value);
                             ? `/finance/general-expenses/${editingRecord.id}`
                             : '/finance/general-expenses'
                     "
-                    :method="editingRecord ? 'put' : 'post'"
+                    method="post"
                     :options="expenseFormOptions"
                     validate-files
                     v-slot="{ errors, processing }"
                     @success="showGeneralExpenseForm = false"
                 >
+                    <input
+                        v-if="editingRecord"
+                        type="hidden"
+                        name="_method"
+                        value="put"
+                    />
                     <DialogHeader>
                         <DialogTitle>
                             {{
